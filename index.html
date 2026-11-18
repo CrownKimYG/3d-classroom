@@ -1,0 +1,2862 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>3D 강의실</title>
+<style>
+  :root {
+    --ink: #33241a;
+    --paper: #fff6e3;
+    --coral: #ff8257;
+    --mint: #8fcdb0;
+    --font: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: #241c15; color: var(--ink); font-family: var(--font);
+    -webkit-user-select: none; user-select: none;
+  }
+  #view {
+    position: fixed; inset: 0; width: 100%; height: 100%; display: block;
+    touch-action: none; outline: none; cursor: grab;
+  }
+  #view.drag { cursor: grabbing; }
+
+  /* ── 입장 화면 ── */
+  #entry {
+    position: fixed; inset: 0; display: grid; align-items: center; justify-items: start;
+    padding: 20px clamp(16px, 7vw, 110px);
+    background: linear-gradient(90deg, rgba(36, 24, 14, .62), rgba(36, 24, 14, .08) 70%);
+  }
+  .card {
+    width: min(372px, 100%); background: var(--paper);
+    border: 3px solid var(--ink); box-shadow: 8px 8px 0 rgba(0, 0, 0, .38);
+    padding: 22px 22px 18px;
+  }
+  .room-no {
+    display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: .14em;
+    background: var(--mint); border: 2px solid var(--ink); padding: 3px 8px;
+  }
+  h1 { margin: 12px 0 4px; font-size: 36px; line-height: 1.1; letter-spacing: -.02em; }
+  .sub { margin: 0 0 14px; font-size: 14px; line-height: 1.55; opacity: .78; }
+  .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+  .fields label { display: block; font-size: 12px; font-weight: 700; }
+  .fields input {
+    display: block; width: 100%; margin-top: 5px; padding: 8px 10px;
+    font: inherit; font-size: 16px; font-weight: 700; color: var(--ink);
+    background: #fff; border: 3px solid var(--ink); border-radius: 0;
+    outline: none; -webkit-user-select: text; user-select: text;
+  }
+  .fields input:focus { background: #f2fbf6; }
+  .fields input::placeholder { font-size: 13px; font-weight: 500; color: rgba(51, 36, 26, .45); }
+  .note { margin: 8px 0 0; font-size: 12px; line-height: 1.5; opacity: .75; }
+  .pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .pick button {
+    display: flex; align-items: center; gap: 10px; padding: 10px;
+    font: inherit; font-size: 16px; font-weight: 800; text-align: left; color: var(--ink);
+    background: #fff; border: 3px solid var(--ink); border-radius: 0; cursor: pointer;
+  }
+  .pick i { flex: none; width: 24px; height: 24px; background: var(--c); border: 2px solid var(--ink); }
+  .pick small { display: block; font-size: 11px; font-weight: 600; opacity: .7; }
+  .pick button[aria-pressed="true"] {
+    background: color-mix(in srgb, var(--c) 30%, #fff);
+    box-shadow: 0 4px 0 var(--ink); transform: translateY(-2px);
+  }
+  .go {
+    width: 100%; margin-top: 14px; font: inherit; font-size: 18px; font-weight: 800;
+    padding: 12px; color: #fff; background: var(--coral);
+    border: 3px solid var(--ink); border-radius: 0; box-shadow: 0 5px 0 var(--ink); cursor: pointer;
+  }
+  .go:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--ink); }
+  .keys {
+    list-style: none; margin: 20px 0 0; padding: 14px 0 0;
+    border-top: 2px dashed rgba(51, 36, 26, .3);
+    display: grid; grid-template-columns: 1fr 1fr; gap: 9px 12px; font-size: 12.5px;
+  }
+  kbd {
+    display: inline-block; min-width: 21px; padding: 1px 5px; margin-right: 2px;
+    font: 700 11px ui-monospace, Menlo, Consolas, monospace; text-align: center; color: var(--ink);
+    background: #fff; border: 2px solid var(--ink); border-bottom-width: 3px;
+  }
+
+  /* ── 입장 후 화면 위 표시 ── */
+  #hud { position: fixed; inset: 0; pointer-events: none; }
+  #hud > * { pointer-events: auto; }
+  .chip {
+    position: absolute; background: rgba(255, 246, 227, .93);
+    border: 2px solid var(--ink); padding: 6px 10px; font: 600 12px var(--font); color: var(--ink);
+  }
+  #perf { right: 12px; top: 12px; font: 600 11px ui-monospace, Menlo, Consolas, monospace; }
+  #att { left: 12px; top: 12px; font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+  /* 화면 가운데 십자선: 이것으로 바라본 물체에 테두리가 뜬다 */
+  #hud > #aim {
+    position: absolute; left: 50%; top: 50%; width: 16px; height: 16px; margin: -8px;
+    pointer-events: none; filter: drop-shadow(0 0 1px rgba(30, 20, 12, .95));
+  }
+  #aim::before, #aim::after { content: ""; position: absolute; background: #fff; }
+  #aim::before { left: 7px; top: 0; width: 2px; height: 16px; }
+  #aim::after { left: 0; top: 7px; width: 16px; height: 2px; }
+
+  #room { left: 12px; top: 48px; }
+  #toast {
+    left: 50%; top: 18%; transform: translateX(-50%); max-width: min(560px, 90vw); text-align: center; line-height: 1.5;
+    font-size: 14px; font-weight: 800; background: var(--paper); box-shadow: 0 4px 0 var(--ink);
+  }
+
+  /* ── 퇴장 확인창 ── */
+  #exit {
+    position: fixed; inset: 0; display: grid; place-items: center; padding: 16px;
+    background: rgba(36, 24, 14, .55);
+  }
+  #exit h2 { margin: 0 0 8px; font-size: 24px; letter-spacing: -.02em; }
+  #exit p { margin: 0; font-size: 14px; line-height: 1.6; }
+  #exit b { font-variant-numeric: tabular-nums; }
+
+  /* ── 선생님: 입장 화면의 체크 칸, 큰 스크린을 조작하는 리모컨 ── */
+  .check { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 13px; font-weight: 700; cursor: pointer; }
+  .check input { width: 18px; height: 18px; margin: 0; accent-color: var(--coral); }
+  #remoteBtn { left: 12px; top: 84px; cursor: pointer; border-radius: 0; box-shadow: 0 3px 0 var(--ink); }
+  #remote {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 136px;
+    display: grid; gap: 8px; padding: 14px 12px 20px; background: #2b2e36;
+    border: 3px solid #14161b; border-radius: 22px; box-shadow: 0 6px 0 rgba(0, 0, 0, .35);
+  }
+  #remoteLed {
+    padding: 5px 4px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font: 700 12px ui-monospace, Menlo, Consolas, monospace; color: #9dffb0;
+    background: #10231a; border: 2px solid #14161b; border-radius: 6px;
+  }
+  #remote button {
+    padding: 8px 4px; font: 800 13px var(--font); color: #fff; background: #4a4f5c;
+    border: 2px solid #14161b; border-radius: 10px; box-shadow: 0 3px 0 #14161b; cursor: pointer;
+  }
+  #remote button:active { transform: translateY(2px); box-shadow: 0 1px 0 #14161b; }
+  #remote button:disabled { opacity: .4; cursor: default; }
+  #remote .power { background: #e0503c; }
+  #remote .arrows { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  #remote .arrows button { padding: 0; font-size: 18px; border-radius: 50%; aspect-ratio: 1; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
+  .row .go { font-size: 16px; }
+  .go.ghost { color: var(--ink); background: #fff; }
+  .go:focus-visible, .pick button:focus-visible { outline: 3px solid var(--mint); outline-offset: 2px; }
+  #help {
+    left: 50%; bottom: 14px; transform: translateX(-50%);
+    max-width: calc(100% - 24px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  #acts { position: absolute; left: 50%; bottom: 58px; transform: translateX(-50%); display: flex; gap: 8px; }
+  #acts button {
+    font: 800 16px var(--font); color: var(--ink); background: var(--paper);
+    padding: 10px 16px; border: 3px solid var(--ink); border-radius: 0;
+    box-shadow: 0 4px 0 var(--ink); cursor: pointer; white-space: nowrap;
+  }
+  #acts #act { color: #fff; background: var(--coral); }
+  #acts button:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+  #acts kbd { margin-right: 8px; }
+
+  /* ── 질문 입력 칸 · 소곤거리기 창 ── */
+  #ask { left: 50%; bottom: 116px; transform: translateX(-50%); padding: 6px; }
+  #ask input, #whisper input {
+    width: 100%; font: 600 14px var(--font); color: var(--ink); padding: 7px 9px;
+    background: #fff; border: 2px solid var(--ink); border-radius: 0; outline: none;
+    -webkit-user-select: text; user-select: text;
+  }
+  #ask input { width: min(340px, 78vw); }
+  #whisper { right: 12px; bottom: 58px; width: 250px; padding: 8px; }
+  #whisperHead { display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+  #whisperHead button { font: 800 14px var(--font); color: var(--ink); background: none; border: 0; cursor: pointer; }
+  #whisperLog { max-height: 140px; overflow-y: auto; margin: 6px 0; display: grid; gap: 4px; font-size: 13px; }
+  #whisperLog div { justify-self: start; max-width: 90%; padding: 3px 7px; background: #fff; border: 2px solid var(--ink); overflow-wrap: anywhere; }
+  #whisperLog div.me { justify-self: end; background: #ffe9b8; }
+  #stick, #jump { display: none; position: absolute; bottom: 26px; touch-action: none; }
+  #stick {
+    left: 26px; width: 124px; height: 124px; border-radius: 50%;
+    background: rgba(255, 246, 227, .35); border: 3px solid rgba(51, 36, 26, .7);
+  }
+  #stick i {
+    position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; margin: -26px;
+    border-radius: 50%; background: var(--paper); border: 3px solid var(--ink);
+  }
+  #jump {
+    right: 26px; width: 84px; height: 84px; border-radius: 50%;
+    font: 800 15px var(--font); color: var(--ink);
+    background: rgba(255, 246, 227, .85); border: 3px solid var(--ink);
+  }
+  .keys.touch { display: none; }
+  @media (max-width: 640px) {
+    #perf { top: 120px; left: 12px; right: auto; }   /* 좁은 화면에서는 출석·수업·리모컨 표시 아래로 */
+  }
+  @media (pointer: coarse) {
+    .keys { display: none; }
+    .keys.touch { display: grid; }
+    #help, #acts kbd { display: none; }
+    #acts { bottom: 170px; }
+    #ask { bottom: 228px; }
+    #whisper { bottom: 228px; }
+    #stick, #jump { display: block; }
+  }
+
+  #fail {
+    position: fixed; inset: 0; display: grid; place-items: center; padding: 24px;
+    text-align: center; font-size: 16px; line-height: 1.7; color: #fff6e3; background: #241c15;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="view" tabindex="0"></canvas>
+
+<div id="entry">
+  <form class="card" id="enterForm">
+    <span class="room-no">ROOM 101</span>
+    <h1>3D 강의실</h1>
+    <p class="sub">캐릭터와 이름을 정하고 수업 코드로 입장하세요.</p>
+    <div class="pick" role="group" aria-label="캐릭터 고르기">
+      <button type="button" data-who="roy" style="--c:#5fc46b" aria-pressed="true"><i></i><span>로이<small>초록 옷</small><small id="rec-roy">출석 00:00:00</small></span></button>
+      <button type="button" data-who="stella" style="--c:#ff9cc2" aria-pressed="false"><i></i><span>스텔라<small>분홍 옷</small><small id="rec-stella">출석 00:00:00</small></span></button>
+    </div>
+    <div class="fields">
+      <label>이름<input id="nick" maxlength="12" autocomplete="off" spellcheck="false"></label>
+      <label>수업 코드<input id="code" maxlength="20" placeholder="비우면 혼자 입장" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+    </div>
+    <label class="check"><input type="checkbox" id="teacher">선생님으로 입장 (리모컨으로 큰 스크린을 조작해요)</label>
+    <p class="note" id="netNote">같은 수업 코드로 들어온 사람끼리 같은 강의실에서 만나요.</p>
+    <button class="go" type="submit">입장하기</button>
+    <ul class="keys">
+      <li><kbd>WASD</kbd><kbd>방향키</kbd> 이동</li>
+      <li>마우스 드래그 · 둘러보기</li>
+      <li>책상 바라보고 <kbd>X</kbd> 앉기</li>
+      <li>앉아서 <kbd>X</kbd> 일어나기</li>
+      <li><kbd>Shift</kbd> 달리기</li>
+      <li><kbd>Space</kbd> 점프</li>
+      <li>문으로 가기 · 나가기</li>
+    </ul>
+    <ul class="keys touch">
+      <li>왼쪽 스틱 · 이동</li>
+      <li>화면 드래그 · 둘러보기</li>
+      <li>책상 바라보고 앉기 버튼</li>
+      <li>문으로 가기 · 나가기</li>
+    </ul>
+  </form>
+</div>
+
+<div id="hud" hidden>
+  <div id="aim"></div>
+  <div id="att" class="chip" title="강의실에 있는 동안 쌓이는 출석 시간">출석 00:00:00</div>
+  <div id="room" class="chip" hidden></div>
+  <div id="perf" class="chip" title="화면이 멈춰 있으면 그리기를 쉬어서 컴퓨터 부담을 줄여요">준비 중</div>
+  <div id="toast" class="chip" hidden></div>
+  <button id="remoteBtn" class="chip" type="button" hidden>리모컨 <kbd>R</kbd></button>
+  <div id="remote" hidden>
+    <div id="remoteLed">꺼짐</div>
+    <button id="stopBtn" class="power" type="button" title="큰 스크린 끄기">⏻ 끄기</button>
+    <button id="fileBtn" type="button" title="PDF · 이미지 파일을 스크린에 띄우기">자료 열기</button>
+    <button id="shareBtn" type="button" title="내 화면을 스크린에 띄우기">화면 공유</button>
+    <div class="arrows">
+      <button id="prevBtn" type="button" title="이전 장 (Q)">◀</button>
+      <button id="nextBtn" type="button" title="다음 장 (E)">▶</button>
+    </div>
+    <input id="file" type="file" accept=".pdf,application/pdf,image/*,.ppt,.pptx" multiple hidden>
+  </div>
+  <div id="acts">
+    <button id="askBtn" type="button" hidden><kbd>Q</kbd>질문</button>
+    <button id="okBtn" type="button" hidden><kbd>E</kbd>이해했어요</button>
+    <button id="act" type="button" hidden><kbd>X</kbd><span id="actText">앉기</span></button>
+  </div>
+  <form id="ask" class="chip" hidden>
+    <input id="askText" maxlength="60" placeholder="질문을 적고 Enter (Esc 취소)" autocomplete="off" spellcheck="false">
+  </form>
+  <div id="whisper" class="chip" hidden>
+    <div id="whisperHead"><b id="whisperName"></b><button id="whisperClose" type="button" aria-label="닫기">×</button></div>
+    <div id="whisperLog"></div>
+    <form id="whisperForm">
+      <input id="whisperText" maxlength="60" placeholder="소곤소곤… Enter로 쪽지 보내기" autocomplete="off" spellcheck="false">
+    </form>
+  </div>
+  <div id="help" class="chip">WASD·방향키 이동 · 드래그 둘러보기 · 책상을 바라보고 X 앉기 · 문으로 가면 나가기</div>
+  <div id="stick"><i></i></div>
+  <button id="jump" type="button">점프</button>
+</div>
+
+<div id="exit" hidden>
+  <div class="card" role="dialog" aria-modal="true" aria-labelledby="exitTitle">
+    <h2 id="exitTitle">강의실에서 나갈까요?</h2>
+    <p>지금까지 출석한 시간 <b id="exitTime">00:00:00</b> 은 그대로 남아요.<br>나가면 그 뒤로는 시간이 더 쌓이지 않아요.</p>
+    <div class="row">
+      <button id="stayBtn" class="go ghost" type="button">계속 있기</button>
+      <button id="leaveBtn" class="go" type="button">나가기</button>
+    </div>
+  </div>
+</div>
+
+<div id="fail" hidden></div>
+
+<script type="module">
+/* ════════════════════════════════════════════════════════════════
+   3D 강의실  —  파일 하나로 돌아가는 가벼운 three.js 장면
+
+   부하를 줄이는 방법 (이 파일 전체에 적용되어 있어요)
+   1. 책상·의자처럼 반복되는 물체는 InstancedMesh 로 한 번에 그린다
+   2. 텍스처는 그림 파일 없이 작은 캔버스(16~128px)에 코드로 그린다
+   3. 실시간 그림자 대신 바닥에 깔린 반투명 "가짜 그림자"를 쓴다
+   4. 움직임이 없으면 화면을 다시 그리지 않는다 (렌더 온 디맨드)
+   5. 고해상도 화면에서도 픽셀 배율을 1.5배까지만 쓴다
+   6. 충돌·길찾기는 3D 엔진 없이 간단한 계산으로 처리한다
+   ════════════════════════════════════════════════════════════════ */
+
+const $ = (id) => document.getElementById(id);
+
+function fail(message) {
+  $('entry').hidden = true;
+  $('hud').hidden = true;
+  $('fail').textContent = message;
+  $('fail').hidden = false;
+}
+
+let THREE;
+try {
+  THREE = await import('https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js');
+} catch (err) {
+  fail('3D 엔진(three.js)을 내려받지 못했어요. 인터넷 연결을 확인한 뒤 새로고침 해 주세요.');
+  throw err;
+}
+
+/* ───────────── 설정: 여기 값만 바꿔도 강의실이 달라져요 ───────────── */
+const ROOM = { w: 12, d: 16, h: 4.6 };                    // 가로(x) · 깊이(z) · 높이(y)
+const DESK_COLS = [-4.0, -2.95, -1.9, 1.9, 2.95, 4.0];    // 책상 열의 x 위치 (가운데는 통로)
+const DESK_ROWS = [-3.4, -1.6, 0.2, 2.0];                 // 책상 줄의 z 위치 (앞 → 뒤)
+const CHARACTERS = {                                      // 캐릭터 옷·머리 색
+  roy: {
+    name: '로이', hood: '#5fc46b', hoodDark: '#3f9f52', pants: '#44568a',
+    hair: '#5a3a2a', hairLight: '#7b5340', longHair: false, pin: false,
+  },
+  stella: {
+    name: '스텔라', hood: '#ff9cc2', hoodDark: '#e9749f', pants: '#7c6bb0',
+    hair: '#4b2e39', hairLight: '#6d4656', longHair: true, pin: true,
+  },
+};
+const SLIDE = {                                           // 큰 스크린에 띄울 내용
+  label: '오늘의 강의',
+  title: '3D 강의실에 오신 것을 환영합니다',
+  lines: [
+    'W A S D 또는 방향키로 걸어 다녀요',
+    '마우스를 끌어서 둘러봐요',
+    '책상을 바라보고 X 키를 누르면 자리에 앉아요',
+    '앉은 뒤 X 키를 누르면 일어나요',
+    '문으로 걸어가면 강의실에서 나갈 수 있어요',
+  ],
+};
+const DOOR = { z: 5.7, w: 1.3, h: 2.3 };                  // 나가는 문 (오른쪽 벽)
+const WALK = 2.4, RUN = 4.4, JUMP = 3.7, GRAVITY = 12;    // 걷기·달리기 속도, 점프 세기, 중력
+const MATE_WANDERS = true;                                // (혼자 입장했을 때) 친구가 가끔 자리를 옮길지
+
+// 다른 기기의 사람들과 함께 접속하려면 Supabase 프로젝트의 주소와 공개 키를 따옴표 안에 붙여 넣으세요.
+// 비워 두면 수업 코드는 "이 컴퓨터, 같은 브라우저의 다른 탭"끼리만 연결됩니다.
+const SUPABASE_URL = 'https://hytmgqimlenezxczahda.supabase.co';          // Supabase 프로젝트 "3d-classroom"
+const SUPABASE_KEY = 'sb_publishable_Txj300KhZywVoWekncW1rA_3go0XLOW';   // 공개(Publishable) 키. secret 키는 절대 넣지 마세요
+const MAX_PIXEL_RATIO = 1.5;                              // 낮출수록 가볍고, 높일수록 선명
+const UI_FONT = '"Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif';
+
+/* ───────────── 렌더러 · 장면 · 카메라 · 조명 ───────────── */
+const canvas = $('view');
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({
+    canvas,
+    antialias: window.devicePixelRatio <= 1,   // 고해상도 화면은 이미 부드러워서 끈다
+    powerPreference: 'low-power',              // 노트북에서 내장 그래픽을 쓰도록 요청
+  });
+} catch (err) {
+  fail('이 브라우저에서는 3D(WebGL)를 쓸 수 없어요. 크롬·엣지·사파리 최신 버전으로 열어 주세요.');
+  throw err;
+}
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#241c15');
+const camera = new THREE.PerspectiveCamera(70, 1, 0.05, 40);
+
+// 조명은 딱 두 개, 그림자 계산은 하지 않는다
+scene.add(new THREE.HemisphereLight('#fff8ec', '#d9c9b2', 2.7));
+const sun = new THREE.DirectionalLight('#fff1d6', 1.1);
+sun.position.set(-5, 8, 4);        // 창문(왼쪽) 쪽에서 들어오는 빛
+scene.add(sun);
+
+/* ───────────── 작은 도구들 ───────────── */
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+const TAU = Math.PI * 2;
+const wrap = (a) => ((a + Math.PI) % TAU + TAU) % TAU - Math.PI;   // 각도를 -180°~180° 로 맞춘다
+const FRONT = Math.PI;             // 스크린 쪽을 바라보는 방향 (0 = 뒤쪽 벽)
+
+// 항상 같은 무늬가 나오도록 하는 간단한 난수
+function rng(seed) {
+  return () => {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
+}
+
+// 캔버스에 그림을 그려 텍스처로 만든다. 기본은 "픽셀이 또렷한" 도트 스타일
+function makeTex(w, h, draw, { smooth = false, repeat = false } = {}) {
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  if (!smooth) t.magFilter = THREE.NearestFilter;
+  if (repeat) t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+
+// 움직이지 않는 물체: 위치 계산을 한 번만 하고 고정
+function addStatic(mesh) {
+  mesh.updateMatrix();
+  mesh.matrixAutoUpdate = false;
+  scene.add(mesh);
+  return mesh;
+}
+
+// 같은 모양 여러 개를 한 번의 그리기 호출로 처리 (InstancedMesh)
+const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler();
+const _p = new THREE.Vector3(), _s = new THREE.Vector3();
+function instanced(geo, mat, list) {
+  const mesh = new THREE.InstancedMesh(geo, mat, list.length);
+  list.forEach((it, i) => {
+    _e.set(...(it.r || [0, 0, 0]));
+    _m.compose(_p.set(...it.p), _q.setFromEuler(_e), _s.set(...(it.s || [1, 1, 1])));
+    mesh.setMatrixAt(i, _m);
+  });
+  mesh.instanceMatrix.needsUpdate = true;
+  return addStatic(mesh);
+}
+
+// 아틀라스(여러 그림을 모은 한 장)에서 원하는 칸을 면에 입힌다
+function setFaceUV(geo, face, [x, y, w, h], size = 64) {
+  const uv = geo.attributes.uv, e = 0.02;
+  const u0 = (x + e) / size, u1 = (x + w - e) / size;
+  const v0 = 1 - (y + h - e) / size, v1 = 1 - (y + e) / size;
+  for (let i = 0; i < 4; i++) {
+    const k = face * 4 + i;
+    uv.setXY(k, uv.getX(k) > 0.5 ? u1 : u0, uv.getY(k) > 0.5 ? v1 : v0);
+  }
+}
+function atlasBox(w, h, d, faces) {
+  const geo = new THREE.BoxGeometry(w, h, d);
+  ['px', 'nx', 'py', 'ny', 'pz', 'nz'].forEach((name, f) => setFaceUV(geo, f, faces[name] || faces.all));
+  return geo;
+}
+
+const box = new THREE.BoxGeometry(1, 1, 1);    // 모든 상자가 함께 쓰는 기본 도형
+const quad = new THREE.PlaneGeometry(1, 1);    // 모든 납작한 판이 함께 쓰는 기본 도형
+
+/* ───────────── 텍스처 (전부 코드로 그린 도트 그림) ───────────── */
+const floorTex = makeTex(64, 64, (g) => {
+  const r = rng(11);
+  const tones = ['#d7a468', '#cf9a5d', '#dcab72', '#d19f63'];
+  const seams = [12, 44, 28, 58];
+  for (let col = 0; col < 4; col++) {
+    const x = col * 16;
+    g.fillStyle = tones[col];
+    g.fillRect(x, 0, 16, 64);
+    g.fillStyle = 'rgba(122, 74, 34, .16)';
+    for (let i = 0; i < 16; i++) g.fillRect(x + 2 + (r() * 12 | 0), r() * 64 | 0, 1, 3 + (r() * 6 | 0));
+    g.fillStyle = 'rgba(255, 240, 210, .2)';
+    for (let i = 0; i < 6; i++) g.fillRect(x + 2 + (r() * 12 | 0), r() * 64 | 0, 1, 2 + (r() * 4 | 0));
+    g.fillStyle = '#a97642';
+    g.fillRect(x, 0, 1, 64);
+    g.fillRect(x, seams[col], 16, 1);
+  }
+}, { repeat: true });
+floorTex.repeat.set(ROOM.w / 1.5, ROOM.d / 1.5);
+floorTex.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+
+const wallTex = makeTex(64, 128, (g) => {
+  const r = rng(5);
+  g.fillStyle = '#f7ecd6';
+  g.fillRect(0, 0, 64, 96);
+  g.fillStyle = 'rgba(160, 130, 90, .1)';
+  for (let i = 0; i < 70; i++) g.fillRect(r() * 64 | 0, r() * 92 | 0, 1, 1);
+  g.fillStyle = '#fffaf0';            // 허리 몰딩
+  g.fillRect(0, 94, 64, 3);
+  g.fillStyle = '#c9b78f';
+  g.fillRect(0, 97, 64, 1);
+  g.fillStyle = '#8fbfa6';            // 아래쪽 민트색 패널
+  g.fillRect(0, 98, 64, 24);
+  g.fillStyle = '#7dae95';
+  for (let x = 0; x < 64; x += 16) g.fillRect(x, 98, 1, 24);
+  g.fillStyle = '#a3ceb7';
+  for (let x = 1; x < 64; x += 16) g.fillRect(x, 98, 1, 24);
+  g.fillStyle = '#6e4f37';            // 걸레받이
+  g.fillRect(0, 122, 64, 6);
+  g.fillStyle = '#86634a';
+  g.fillRect(0, 122, 64, 1);
+}, { repeat: true });
+
+const ceilTex = makeTex(32, 32, (g) => {
+  const r = rng(3);
+  g.fillStyle = '#efe9dc';
+  g.fillRect(0, 0, 32, 32);
+  g.fillStyle = 'rgba(120, 110, 90, .12)';
+  for (let i = 0; i < 26; i++) g.fillRect(r() * 32 | 0, r() * 32 | 0, 1, 1);
+  g.fillStyle = '#d6cfbf';
+  g.fillRect(0, 0, 32, 1);
+  g.fillRect(0, 0, 1, 32);
+}, { repeat: true });
+ceilTex.repeat.set(ROOM.w / 2, ROOM.d / 2);
+
+const deskTex = makeTex(32, 32, (g) => {
+  const r = rng(21);
+  g.fillStyle = '#ecc892';
+  g.fillRect(0, 0, 32, 32);
+  g.fillStyle = 'rgba(160, 110, 50, .18)';
+  for (let i = 0; i < 18; i++) g.fillRect(r() * 24 | 0, 3 + (r() * 26 | 0), 3 + (r() * 6 | 0), 1);
+  g.fillStyle = '#c99e63';            // 테두리
+  g.fillRect(0, 0, 32, 2); g.fillRect(0, 30, 32, 2); g.fillRect(0, 0, 2, 32); g.fillRect(30, 0, 2, 32);
+  g.fillStyle = '#f6dcae';
+  g.fillRect(2, 2, 28, 1);
+  g.fillStyle = '#d2a970';            // 연필 홈
+  g.fillRect(9, 5, 14, 1);
+});
+
+const chairTex = makeTex(16, 16, (g) => {
+  g.fillStyle = '#4c9fc4';
+  g.fillRect(0, 0, 16, 16);
+  g.fillStyle = '#6bb6d6';
+  g.fillRect(1, 1, 14, 2);
+  g.fillStyle = '#3b86a9';
+  g.fillRect(0, 14, 16, 2); g.fillRect(0, 0, 1, 16); g.fillRect(15, 0, 1, 16);
+});
+
+const lecternTex = makeTex(32, 32, (g) => {
+  const r = rng(8);
+  g.fillStyle = '#a66a3f';
+  g.fillRect(0, 0, 32, 32);
+  g.fillStyle = 'rgba(70, 35, 10, .18)';
+  for (let i = 0; i < 20; i++) g.fillRect(3 + (r() * 26 | 0), r() * 28 | 0, 1, 2 + (r() * 5 | 0));
+  g.fillStyle = '#84502c';            // 바깥 테두리
+  g.fillRect(0, 0, 32, 2); g.fillRect(0, 30, 32, 2); g.fillRect(0, 0, 2, 32); g.fillRect(30, 0, 2, 32);
+  g.fillStyle = '#8f5932';            // 안쪽 패널 선
+  g.fillRect(5, 5, 22, 1); g.fillRect(5, 26, 22, 1); g.fillRect(5, 5, 1, 22); g.fillRect(26, 5, 1, 22);
+  g.fillStyle = '#ffd166';            // 가운데 표식
+  g.fillRect(14, 11, 4, 10); g.fillRect(11, 14, 10, 4);
+});
+
+const windowTex = makeTex(104, 72, (g, w, h) => {
+  ['#6ec1f0', '#7fcaf3', '#93d4f6', '#a9defa', '#c1e8fc', '#d8f1fd'].forEach((c, i) => {
+    g.fillStyle = c;
+    g.fillRect(0, i * 9, w, 9);
+  });
+  g.fillStyle = '#d8f1fd';
+  g.fillRect(0, 54, w, 18);
+  const cloud = (x, y) => {
+    g.fillStyle = '#ffffff';
+    g.fillRect(x, y, 16, 4); g.fillRect(x + 3, y - 3, 9, 3); g.fillRect(x + 7, y - 5, 4, 2);
+    g.fillStyle = '#e3f1fa';
+    g.fillRect(x + 1, y + 3, 14, 1);
+  };
+  cloud(12, 20); cloud(62, 14); cloud(80, 34); cloud(30, 40);
+  g.fillStyle = '#9ad68a';            // 먼 언덕
+  for (let x = 0; x < w; x++) {
+    const top = 50 - Math.round(4 * Math.sin(x / 13) + 2 * Math.sin(x / 5 + 1));
+    g.fillRect(x, top, 1, h - top);
+  }
+  g.fillStyle = '#6fbf63';            // 가까운 풀밭
+  g.fillRect(0, h - 11, w, 11);
+  const tree = (x, y) => {
+    g.fillStyle = '#7a5230';
+    g.fillRect(x + 3, y + 8, 2, 6);
+    g.fillStyle = '#3f9a4d';
+    g.fillRect(x, y + 2, 8, 7); g.fillRect(x + 2, y, 4, 2);
+    g.fillStyle = '#58b561';
+    g.fillRect(x + 1, y + 2, 3, 3);
+  };
+  tree(16, 46); tree(40, 49); tree(68, 45); tree(88, 48);
+  g.fillStyle = '#fdfaf0';            // 창틀
+  g.fillRect(0, 0, w, 5); g.fillRect(0, h - 5, w, 5); g.fillRect(0, 0, 5, h); g.fillRect(w - 5, 0, 5, h);
+  g.fillRect(w / 2 - 2, 0, 4, h); g.fillRect(0, 28, w, 3);
+  g.fillStyle = '#cfc8b4';            // 창틀 그늘
+  g.fillRect(5, 5, w - 10, 1); g.fillRect(5, 31, w - 10, 1);
+  g.fillRect(5, 5, 1, h - 10); g.fillRect(w / 2 + 2, 5, 1, h - 10);
+  g.fillRect(0, h - 1, w, 1);
+});
+
+const doorTex = makeTex(36, 64, (g) => {
+  g.fillStyle = '#6e4f37';            // 문틀
+  g.fillRect(0, 0, 36, 64);
+  g.fillStyle = '#c4824f';            // 문짝
+  g.fillRect(3, 3, 30, 61);
+  g.fillStyle = '#a96a3c';
+  g.fillRect(7, 30, 22, 13); g.fillRect(7, 46, 22, 13);
+  g.fillStyle = '#d99a66';
+  g.fillRect(7, 30, 22, 1); g.fillRect(7, 46, 22, 1);
+  g.fillStyle = '#6e4f37';            // 작은 유리창
+  g.fillRect(8, 7, 20, 18);
+  g.fillStyle = '#bfe6f7';
+  g.fillRect(9, 8, 18, 16);
+  g.fillStyle = '#e6f6fd';
+  g.fillRect(11, 10, 4, 10);
+  g.fillStyle = '#ffd166';            // 손잡이
+  g.fillRect(28, 35, 3, 4);
+});
+
+const boardTex = makeTex(96, 48, (g) => {
+  const r = rng(17);
+  g.fillStyle = '#8a5a34';
+  g.fillRect(0, 0, 96, 48);
+  g.fillStyle = '#d9ad74';            // 코르크
+  g.fillRect(3, 3, 90, 42);
+  g.fillStyle = 'rgba(120, 80, 30, .25)';
+  for (let i = 0; i < 90; i++) g.fillRect(3 + (r() * 90 | 0), 3 + (r() * 42 | 0), 1, 1);
+  const papers = [
+    [8, 8, 18, 22, '#fffdf5'], [30, 10, 16, 14, '#ffe08a'], [50, 7, 20, 26, '#fffdf5'],
+    [74, 9, 14, 12, '#ffb3b3'], [30, 28, 14, 12, '#a8dcf0'], [73, 25, 16, 16, '#c8f0b8'],
+  ];
+  for (const [x, y, w, h, c] of papers) {
+    g.fillStyle = 'rgba(0, 0, 0, .18)';
+    g.fillRect(x + 1, y + 1, w, h);
+    g.fillStyle = c;
+    g.fillRect(x, y, w, h);
+    g.fillStyle = 'rgba(60, 40, 30, .32)';
+    for (let yy = y + 5; yy < y + h - 2; yy += 3) g.fillRect(x + 2, yy, w - 4 - (r() * 5 | 0), 1);
+    g.fillStyle = '#e0503c';
+    g.fillRect(x + (w >> 1) - 1, y + 1, 2, 2);
+  }
+});
+
+// 창문으로 들어온 햇빛이 바닥에 비친 모양
+const sunTex = makeTex(32, 32, (g) => {
+  g.shadowColor = '#fff2c4';
+  g.shadowBlur = 3;
+  g.fillStyle = '#fff2c4';
+  g.fillRect(4, 4, 11, 10); g.fillRect(18, 4, 11, 10);
+  g.fillRect(4, 17, 11, 11); g.fillRect(18, 17, 11, 11);
+}, { smooth: true });
+
+// 물체 밑에 까는 가짜 그림자
+const shadowTex = makeTex(32, 32, (g) => {
+  const grd = g.createRadialGradient(16, 16, 2, 16, 16, 16);
+  grd.addColorStop(0, 'rgba(40, 22, 8, .6)');
+  grd.addColorStop(1, 'rgba(40, 22, 8, 0)');
+  g.fillStyle = grd;
+  g.fillRect(0, 0, 32, 32);
+}, { smooth: true });
+
+function drawClock(g) {
+  g.clearRect(0, 0, 64, 64);
+  g.fillStyle = '#33241a';
+  g.beginPath(); g.arc(32, 32, 31, 0, 7); g.fill();
+  g.fillStyle = '#fffdf5';
+  g.beginPath(); g.arc(32, 32, 26, 0, 7); g.fill();
+  g.fillStyle = '#33241a';
+  for (let i = 0; i < 12; i++) {
+    const a = i * Math.PI / 6;
+    g.fillRect(32 + Math.sin(a) * 21 - 1.5, 32 - Math.cos(a) * 21 - 1.5, 3, 3);
+  }
+  const now = new Date(), min = now.getMinutes(), hour = (now.getHours() % 12) + min / 60;
+  const hand = (a, len, width) => {
+    g.strokeStyle = '#33241a'; g.lineWidth = width; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(32, 32); g.lineTo(32 + Math.sin(a) * len, 32 - Math.cos(a) * len); g.stroke();
+  };
+  hand(hour * Math.PI / 6, 12, 4);
+  hand(min * Math.PI / 30, 19, 3);
+  g.fillStyle = '#ff8257';
+  g.beginPath(); g.arc(32, 32, 3, 0, 7); g.fill();
+  return min;
+}
+let clockMinute = -1;
+const clockTex = makeTex(64, 64, (g) => { clockMinute = drawClock(g); }, { smooth: true });
+
+const screenTex = makeTex(1024, 576, (g, w, h) => {
+  const bg = g.createLinearGradient(0, 0, w, h);
+  bg.addColorStop(0, '#24376a');
+  bg.addColorStop(1, '#131b38');
+  g.fillStyle = bg;
+  g.fillRect(0, 0, w, h);
+  g.fillStyle = 'rgba(255, 255, 255, .04)';
+  for (let x = 0; x < w; x += 32) g.fillRect(x, 0, 1, h);
+  for (let y = 0; y < h; y += 32) g.fillRect(0, y, w, 1);
+
+  g.textBaseline = 'middle';
+  g.font = `800 24px ${UI_FONT}`;
+  const lw = g.measureText(SLIDE.label).width + 36;
+  g.fillStyle = '#ffc94a';
+  g.fillRect(64, 62, lw, 44);
+  g.fillStyle = '#1a2447';
+  g.fillText(SLIDE.label, 82, 85);
+
+  g.fillStyle = '#ffffff';
+  g.font = `800 56px ${UI_FONT}`;
+  g.fillText(SLIDE.title, 64, 176, w - 128);
+  g.fillStyle = '#ff8257';
+  g.fillRect(64, 226, 110, 7);
+
+  g.font = `600 31px ${UI_FONT}`;
+  const gap = Math.min(56, 224 / Math.max(1, SLIDE.lines.length - 1));   // 줄이 많으면 간격을 좁힌다
+  SLIDE.lines.forEach((line, i) => {
+    const y = 290 + i * gap;
+    g.fillStyle = '#8fcdb0';
+    g.fillRect(66, y - 7, 14, 14);
+    g.fillStyle = '#dbe6ff';
+    g.fillText(line, 100, y, w - 164);
+  });
+
+  g.font = `600 19px ${UI_FONT}`;
+  g.fillStyle = 'rgba(255, 255, 255, .45)';
+  g.fillText('ROOM 101', 64, h - 36);
+  g.textAlign = 'right';
+  g.fillText('1 / 1', w - 64, h - 36);
+}, { smooth: true });
+screenTex.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+
+// 아바타: 머리·몸·팔·다리 그림을 64×64 한 장에 모아 둔다 (캐릭터마다 색만 다르게)
+function makeAvatarTex(look) {
+  const tex = makeTex(64, 64, (g) => {
+    const R = (c, x, y, w, h) => { g.fillStyle = c; g.fillRect(x, y, w, h); };
+    const SKIN = '#ffdcb8', SKIN_D = '#f2c29b', EYE = '#2e2433', SOLE = '#d5d5d5', PIN = '#ffd84a';
+    const { hood: HOOD, hoodDark: HOOD_D, pants: PANTS, hair: HAIR, hairLight: HAIR_L } = look;
+    const lock = look.longHair ? 10 : 6;     // 얼굴 옆으로 내려오는 머리 길이
+    const back = look.longHair ? 11 : 9;     // 옆에서 본 뒷머리 길이
+
+    // 얼굴 (0,0)
+    R(SKIN, 0, 0, 16, 16);
+    R(HAIR, 0, 0, 16, 5);
+    R(HAIR, 0, 5, 2, lock); R(HAIR, 14, 5, 2, lock);
+    R(HAIR, 2, 5, 3, 1); R(HAIR, 6, 5, 2, 1); R(HAIR, 10, 5, 4, 1);
+    R(HAIR_L, 3, 1, 5, 1); R(HAIR_L, 10, 2, 3, 1);
+    if (look.pin) { R(PIN, 11, 3, 3, 1); R(PIN, 12, 2, 1, 3); }     // 별 머리핀
+    R(EYE, 3, 8, 3, 4); R(EYE, 10, 8, 3, 4);
+    R('#ffffff', 3, 8, 1, 2); R('#ffffff', 10, 8, 1, 2);
+    R('#ff9d9d', 2, 12, 2, 1); R('#ff9d9d', 12, 12, 2, 1);
+    R('#c9584e', 7, 12, 2, 1);
+    R(SKIN_D, 2, 15, 12, 1);
+    // 뒤통수 (16,0)
+    R(HAIR, 16, 0, 16, 14); R(SKIN, 16, 14, 16, 2);
+    if (look.longHair) R(HAIR, 16, 14, 16, 2);
+    else { R(HAIR, 16, 14, 3, 1); R(HAIR, 22, 14, 4, 1); R(HAIR, 29, 14, 3, 1); }
+    R(HAIR_L, 19, 2, 6, 1); R(HAIR_L, 26, 4, 3, 1);
+    // 옆머리 (32,0): 왼쪽 끝이 얼굴 쪽
+    R(SKIN, 32, 0, 16, 16); R(HAIR, 32, 0, 16, 5); R(HAIR, 32, 5, 2, lock); R(HAIR, 39, 5, 9, back);
+    R(SKIN_D, 36, 8, 2, 3); R(SKIN_D, 34, 15, 5, 1);
+    // 반대쪽 옆머리 (48,0): 오른쪽 끝이 얼굴 쪽
+    R(SKIN, 48, 0, 16, 16); R(HAIR, 48, 0, 16, 5); R(HAIR, 62, 5, 2, lock); R(HAIR, 48, 5, 9, back);
+    R(SKIN_D, 58, 8, 2, 3); R(SKIN_D, 57, 15, 5, 1);
+    // 정수리 (0,16) · 턱 밑 (16,16)
+    R(HAIR, 0, 16, 16, 16); R(HAIR_L, 4, 20, 6, 1); R(HAIR_L, 3, 21, 1, 3); R(HAIR_L, 10, 25, 3, 1);
+    R(SKIN_D, 16, 16, 16, 16);
+    // 후드티 앞 (32,16) · 뒤 (42,16) · 옆 (52,16) · 위아래 (58,16)
+    R(HOOD, 32, 16, 10, 10); R(HOOD_D, 35, 16, 4, 2); R('#ffffff', 35, 18, 1, 2); R('#ffffff', 38, 18, 1, 2);
+    R(HOOD_D, 34, 22, 6, 1); R(HOOD_D, 34, 22, 1, 3); R(HOOD_D, 39, 22, 1, 3); R(HOOD_D, 32, 25, 10, 1);
+    R(HOOD, 42, 16, 10, 10); R(HOOD_D, 44, 16, 6, 4); R(HOOD, 45, 16, 4, 3); R(HOOD_D, 42, 25, 10, 1);
+    R(HOOD, 52, 16, 6, 10); R(HOOD_D, 52, 25, 6, 1);
+    R(HOOD_D, 58, 16, 4, 4);
+    // 팔 (32,28) · 어깨 (36,28) · 손바닥 (40,28)
+    R(HOOD, 32, 28, 4, 7); R(HOOD_D, 32, 35, 4, 1); R(SKIN, 32, 36, 4, 2);
+    R(HOOD, 36, 28, 4, 4); R(SKIN, 40, 28, 4, 4);
+    // 다리 (32,40) · 위 (37,40) · 신발 바닥 (41,40)
+    R(PANTS, 32, 40, 5, 6); R('#fafafa', 32, 46, 5, 1); R(SOLE, 32, 47, 5, 1);
+    R(PANTS, 37, 40, 4, 4); R(SOLE, 41, 40, 4, 4);
+    // 감은 눈 (0,32): 배경은 투명
+    R(SKIN, 3, 40, 3, 4); R(SKIN, 10, 40, 3, 4); R(EYE, 3, 42, 3, 1); R(EYE, 10, 42, 3, 1);
+  });
+  tex.minFilter = THREE.NearestFilter;
+  tex.generateMipmaps = false;
+  return tex;
+}
+
+/* ───────────── 방: 바닥 · 벽 · 천장 ───────────── */
+const HW = ROOM.w / 2, HD = ROOM.d / 2;
+
+const floor = new THREE.Mesh(quad, new THREE.MeshLambertMaterial({ map: floorTex }));
+floor.scale.set(ROOM.w, ROOM.d, 1);
+floor.rotation.x = -Math.PI / 2;
+addStatic(floor);
+
+const ceiling = new THREE.Mesh(quad, new THREE.MeshBasicMaterial({ map: ceilTex, color: '#ebe6dc' }));
+ceiling.scale.set(ROOM.w, ROOM.d, 1);
+ceiling.rotation.x = Math.PI / 2;
+ceiling.position.y = ROOM.h;
+addStatic(ceiling);
+
+const wallMat = new THREE.MeshLambertMaterial({ map: wallTex });
+function wall(width, x, z, turn) {
+  const geo = new THREE.PlaneGeometry(width, ROOM.h);
+  const uv = geo.attributes.uv;
+  for (let i = 0; i < uv.count; i++) uv.setX(i, uv.getX(i) * width / 2);   // 무늬가 2칸마다 반복
+  const m = new THREE.Mesh(geo, wallMat);
+  m.position.set(x, ROOM.h / 2, z);
+  m.rotation.y = turn;
+  addStatic(m);
+}
+wall(ROOM.w, 0, -HD, 0);                // 앞 벽 (스크린)
+wall(ROOM.w, 0, HD, Math.PI);           // 뒤 벽 (게시판)
+wall(ROOM.d, -HW, 0, Math.PI / 2);      // 왼쪽 벽 (창문)
+wall(ROOM.d, HW, 0, -Math.PI / 2);      // 오른쪽 벽 (문)
+
+// 천장 조명판 6개 → 그리기 호출 1번
+instanced(quad, new THREE.MeshBasicMaterial({ color: '#fffbea' }),
+  [-5, 0, 5].flatMap((z) => [-2.8, 2.8].map((x) => (
+    { p: [x, ROOM.h - 0.01, z], r: [Math.PI / 2, 0, 0], s: [2.0, 0.6, 1] }
+  ))));
+
+/* ───────────── 창문 3개 + 창턱 + 바닥 햇빛 ───────────── */
+const WINDOW_Z = [-4.5, 0, 4.5];
+instanced(quad, new THREE.MeshBasicMaterial({ map: windowTex }),
+  WINDOW_Z.map((z) => ({ p: [-HW + 0.02, 2.45, z], r: [0, Math.PI / 2, 0], s: [2.6, 1.9, 1] })));
+instanced(box, new THREE.MeshLambertMaterial({ color: '#fdfaf0' }),
+  WINDOW_Z.map((z) => ({ p: [-HW + 0.09, 1.47, z], s: [0.18, 0.07, 2.8] })));
+instanced(quad, new THREE.MeshBasicMaterial({
+  map: sunTex, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false,
+}), WINDOW_Z.map((z) => ({ p: [-HW + 0.95, 0.01, z + 0.35], r: [-Math.PI / 2, 0, 0], s: [1.5, 2.3, 1] })));
+
+/* ───────────── 큰 스크린 ───────────── */
+const SCREEN = { w: 6.0, h: 3.375, y: 2.64 };
+const screenFrame = new THREE.Mesh(box, new THREE.MeshLambertMaterial({ color: '#2b2e36' }));
+screenFrame.scale.set(SCREEN.w + 0.3, SCREEN.h + 0.3, 0.08);
+screenFrame.position.set(0, SCREEN.y, -HD + 0.04);
+addStatic(screenFrame);
+const screen = new THREE.Mesh(quad, new THREE.MeshBasicMaterial({ map: screenTex }));   // 스스로 빛나는 화면
+screen.scale.set(SCREEN.w, SCREEN.h, 1);
+screen.position.set(0, SCREEN.y, -HD + 0.09);
+addStatic(screen);
+
+/* ───────────── 벽 장식: 시계 · 문 · 게시판 ───────────── */
+const clock = new THREE.Mesh(quad, new THREE.MeshBasicMaterial({ map: clockTex, transparent: true, depthWrite: false }));
+clock.scale.set(0.8, 0.8, 1);
+clock.position.set(4.6, 3.55, -HD + 0.03);
+addStatic(clock);
+
+const door = new THREE.Mesh(quad, new THREE.MeshLambertMaterial({ map: doorTex }));
+door.scale.set(DOOR.w, DOOR.h, 1);
+door.position.set(HW - 0.02, DOOR.h / 2, DOOR.z);
+door.rotation.y = -Math.PI / 2;
+addStatic(door);
+
+const exitSign = new THREE.Mesh(quad, new THREE.MeshBasicMaterial({
+  map: makeTex(128, 48, (g) => {
+    g.fillStyle = '#2f9e62';
+    g.fillRect(0, 0, 128, 48);
+    g.strokeStyle = '#eafff3';
+    g.lineWidth = 3;
+    g.strokeRect(4.5, 4.5, 119, 39);
+    g.fillStyle = '#ffffff';
+    g.font = `800 28px ${UI_FONT}`;
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText('나가는 문', 64, 25);
+  }, { smooth: true }),
+}));
+exitSign.scale.set(0.9, 0.34, 1);
+exitSign.position.set(HW - 0.02, DOOR.h + 0.3, DOOR.z);
+exitSign.rotation.y = -Math.PI / 2;
+addStatic(exitSign);
+
+const board = new THREE.Mesh(quad, new THREE.MeshLambertMaterial({ map: boardTex }));
+board.scale.set(3.6, 1.8, 1);
+board.position.set(-2.2, 2.4, HD - 0.02);
+board.rotation.y = Math.PI;
+addStatic(board);
+
+/* ───────────── 교탁 ───────────── */
+const LECTERN = { x: 4.2, z: -5.9 };
+const lecternMat = new THREE.MeshLambertMaterial({ map: lecternTex });
+const lecternBody = new THREE.Mesh(box, lecternMat);
+lecternBody.scale.set(0.9, 0.8, 0.55);
+lecternBody.position.set(LECTERN.x, 0.4, LECTERN.z);
+addStatic(lecternBody);
+const lecternTop = new THREE.Mesh(box, new THREE.MeshLambertMaterial({ map: deskTex, color: '#e2b98a' }));
+lecternTop.scale.set(1.06, 0.06, 0.72);
+lecternTop.position.set(LECTERN.x, 0.84, LECTERN.z);
+lecternTop.rotation.x = -0.13;       // 선생님 쪽으로 살짝 기울인 윗판
+addStatic(lecternTop);
+
+/* ───────────── 책상 · 의자 (전부 합쳐 그리기 호출 4번) ───────────── */
+const obstacles = [];                // 지나갈 수 없는 네모 영역 (위에서 본 모양)
+const block = (x0, x1, z0, z1) => obstacles.push({ x0, x1, z0, z1 });
+block(LECTERN.x - 0.53, LECTERN.x + 0.53, LECTERN.z - 0.36, LECTERN.z + 0.36);
+
+const seats = [];                    // 앉을 수 있는 자리 목록
+const deskTops = [], chairParts = [], metalLegs = [], floorShadows = [];
+for (const z of DESK_ROWS) {
+  for (const x of DESK_COLS) {
+    // 책상: 상판 + 서랍 + 다리 4개
+    deskTops.push({ p: [x, 0.6, z], s: [1.0, 0.05, 0.58] });
+    deskTops.push({ p: [x, 0.5, z - 0.03], s: [0.86, 0.13, 0.44] });
+    for (const dx of [-0.45, 0.45]) for (const dz of [-0.24, 0.24]) {
+      metalLegs.push({ p: [x + dx, 0.29, z + dz], s: [0.05, 0.58, 0.05] });
+    }
+    // 의자: 앉는 판 + 등받이 + 다리 4개 (뒷다리는 등받이까지 이어진다)
+    const cz = z + 0.62;
+    chairParts.push({ p: [x, 0.34, cz], s: [0.42, 0.05, 0.42] });
+    chairParts.push({ p: [x, 0.66, cz + 0.2], s: [0.42, 0.3, 0.05] });
+    for (const dx of [-0.18, 0.18]) {
+      metalLegs.push({ p: [x + dx, 0.16, cz - 0.18], s: [0.04, 0.32, 0.04] });
+      metalLegs.push({ p: [x + dx, 0.4, cz + 0.2], s: [0.04, 0.8, 0.04] });
+    }
+    floorShadows.push({ p: [x, 0.012, z + 0.3], r: [-Math.PI / 2, 0, 0], s: [1.5, 1.7, 1] });
+    block(x - 0.5, x + 0.5, z - 0.29, z + 0.29);
+    block(x - 0.21, x + 0.21, cz - 0.21, cz + 0.24);
+
+    seats.push({
+      kind: 'seat', x, z, cz,
+      sit: { x, z: cz - 0.06 },                                    // 앉았을 때 몸의 위치
+      sides: [{ x: x - 0.525, z: cz }, { x: x + 0.525, z: cz }],   // 의자 옆, 앉기 직전에 서는 곳
+      boxes: [                                                     // 책상 · 의자를 감싸는 상자 (바라보기 판정과 테두리에 쓴다)
+        new THREE.Box3(new THREE.Vector3(x - 0.5, 0, z - 0.29), new THREE.Vector3(x + 0.5, 0.625, z + 0.29)),
+        new THREE.Box3(new THREE.Vector3(x - 0.21, 0, cz - 0.21), new THREE.Vector3(x + 0.21, 0.81, cz + 0.225)),
+      ],
+      body: new THREE.Box3(                                        // 앉은 사람의 몸이 차지하는 자리 (친구를 바라봤는지 판정)
+        new THREE.Vector3(x - 0.34, 0.3, cz - 0.4), new THREE.Vector3(x + 0.34, 1.5, cz + 0.28)),
+      taken: null,                                                 // 지금 이 자리를 쓰는 캐릭터
+    });
+  }
+}
+floorShadows.push({ p: [LECTERN.x, 0.012, LECTERN.z], r: [-Math.PI / 2, 0, 0], s: [1.5, 1.2, 1] });
+
+const shadowMat = new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, opacity: 0.5, depthWrite: false });
+instanced(quad, shadowMat, floorShadows);
+instanced(box, new THREE.MeshLambertMaterial({ map: deskTex }), deskTops);
+instanced(box, new THREE.MeshLambertMaterial({ map: chairTex }), chairParts);
+instanced(box, new THREE.MeshLambertMaterial({ color: '#8d949e' }), metalLegs);
+
+// 상호작용할 수 있는 것들: 자리 24개 + 문
+const doorObj = {
+  kind: 'door',
+  boxes: [new THREE.Box3(
+    new THREE.Vector3(HW - 0.06, 0, DOOR.z - DOOR.w / 2), new THREE.Vector3(HW - 0.01, DOOR.h, DOOR.z + DOOR.w / 2))],
+};
+const interactables = [...seats, doorObj];
+
+// 바라본 물체에 뜨는 검은 테두리 (마인크래프트 방식). 가는 막대 12개로 상자 모서리를 그린다
+// 선은 굵기 없이 화면 1픽셀로 그린다 (상자 2개 × 모서리 12개 × 양 끝점 2개까지)
+const outlinePos = new THREE.BufferAttribute(new Float32Array(2 * 12 * 2 * 3), 3);
+const outlineGeo = new THREE.BufferGeometry();
+outlineGeo.setAttribute('position', outlinePos);
+outlineGeo.setDrawRange(0, 0);
+const outline = new THREE.LineSegments(outlineGeo, new THREE.LineBasicMaterial({ color: '#141210' }));
+outline.frustumCulled = false;
+outline.matrixAutoUpdate = false;
+scene.add(outline);
+
+function showOutline(boxes) {
+  let n = 0;
+  const line = (ax, ay, az, bx, by, bz) => {
+    outlinePos.setXYZ(n++, ax, ay, az);
+    outlinePos.setXYZ(n++, bx, by, bz);
+  };
+  for (const b of boxes) {
+    const x0 = b.min.x - 0.01, x1 = b.max.x + 0.01, y0 = b.min.y + 0.004, y1 = b.max.y + 0.01;
+    const z0 = b.min.z - 0.01, z1 = b.max.z + 0.01;
+    for (const y of [y0, y1]) for (const z of [z0, z1]) line(x0, y, z, x1, y, z);
+    for (const x of [x0, x1]) for (const z of [z0, z1]) line(x, y0, z, x, y1, z);
+    for (const x of [x0, x1]) for (const y of [y0, y1]) line(x, y, z0, x, y, z1);
+  }
+  outlinePos.needsUpdate = true;
+  outlineGeo.setDrawRange(0, n);
+}
+
+/* ───────────── 충돌: 벽 + 책상·의자·교탁 ───────────── */
+const BODY_R = 0.2, WALL_PAD = 0.36;
+function collide(p) {
+  for (const o of obstacles) {
+    const cx = clamp(p.x, o.x0, o.x1), cz = clamp(p.z, o.z0, o.z1);
+    const dx = p.x - cx, dz = p.z - cz, d2 = dx * dx + dz * dz;
+    if (d2 >= BODY_R * BODY_R) continue;
+    if (d2 > 1e-8) {                 // 모서리·옆면에 닿음 → 닿은 방향으로 밀어낸다
+      const d = Math.sqrt(d2);
+      p.x = cx + dx / d * BODY_R;
+      p.z = cz + dz / d * BODY_R;
+    } else {                         // 완전히 안에 들어옴 → 가장 가까운 면으로 내보낸다
+      const l = p.x - o.x0, r = o.x1 - p.x, f = p.z - o.z0, b = o.z1 - p.z, m = Math.min(l, r, f, b);
+      if (m === l) p.x = o.x0 - BODY_R;
+      else if (m === r) p.x = o.x1 + BODY_R;
+      else if (m === f) p.z = o.z0 - BODY_R;
+      else p.z = o.z1 + BODY_R;
+    }
+  }
+  p.x = clamp(p.x, -HW + WALL_PAD, HW - WALL_PAD);
+  p.z = clamp(p.z, -HD + WALL_PAD, HD - WALL_PAD);
+}
+
+/* ───────────── 길찾기: 바닥을 10cm 칸으로 나눠 책상을 피해 가는 길을 찾는다 (A*) ───────────── */
+const CELL = 0.1, NAV_R = 0.22;
+const NX = Math.round(ROOM.w / CELL), NZ = Math.round(ROOM.d / CELL), NCELL = NX * NZ;
+const blocked = new Uint8Array(NCELL);       // 1 = 지나갈 수 없는 칸
+const cellX = (i) => -HW + (i % NX + 0.5) * CELL;
+const cellZ = (i) => -HD + ((i / NX | 0) + 0.5) * CELL;
+const cellAt = (x, z) =>
+  clamp(Math.floor((z + HD) / CELL), 0, NZ - 1) * NX + clamp(Math.floor((x + HW) / CELL), 0, NX - 1);
+for (let i = 0; i < NCELL; i++) {
+  const x = cellX(i), z = cellZ(i);
+  if (Math.abs(x) > HW - WALL_PAD || Math.abs(z) > HD - WALL_PAD) { blocked[i] = 1; continue; }
+  for (const o of obstacles) {
+    const dx = x - clamp(x, o.x0, o.x1), dz = z - clamp(z, o.z0, o.z1);
+    if (dx * dx + dz * dz < NAV_R * NAV_R) { blocked[i] = 1; break; }
+  }
+}
+
+// 막힌 칸을 골랐을 때 가장 가까운 빈 칸으로 바꿔 준다
+function nearestFree(x, z) {
+  const c = cellAt(x, z);
+  if (!blocked[c]) return c;
+  const cx = c % NX, cz = c / NX | 0;
+  for (let r = 1; r <= 14; r++) {
+    let best = -1, bestD = Infinity;
+    for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
+      const nx = cx + dx, nz = cz + dz;
+      if (nx < 0 || nz < 0 || nx >= NX || nz >= NZ || blocked[nz * NX + nx]) continue;
+      const d = dx * dx + dz * dz;
+      if (d < bestD) { bestD = d; best = nz * NX + nx; }
+    }
+    if (best >= 0) return best;
+  }
+  return -1;
+}
+
+// 두 점 사이를 똑바로 걸어갈 수 있는지
+function clearLine(ax, az, bx, bz) {
+  const n = Math.ceil(Math.hypot(bx - ax, bz - az) / 0.04);
+  for (let i = 1; i <= n; i++) {
+    const t = i / n;
+    if (blocked[cellAt(ax + (bx - ax) * t, az + (bz - az) * t)]) return false;
+  }
+  return true;
+}
+
+const gScore = new Float32Array(NCELL), cameFrom = new Int32Array(NCELL), closed = new Uint8Array(NCELL);
+const heapN = [], heapF = [];        // 다음에 살펴볼 칸들 (가까운 순서로 꺼내는 힙)
+function heapPush(n, f) {
+  let c = heapN.length;
+  heapN.push(n); heapF.push(f);
+  while (c > 0) {
+    const p = (c - 1) >> 1;
+    if (heapF[p] <= heapF[c]) break;
+    [heapN[p], heapN[c]] = [heapN[c], heapN[p]];
+    [heapF[p], heapF[c]] = [heapF[c], heapF[p]];
+    c = p;
+  }
+}
+function heapPop() {
+  const top = heapN[0], n = heapN.pop(), f = heapF.pop();
+  if (heapN.length) {
+    heapN[0] = n; heapF[0] = f;
+    let p = 0;
+    for (;;) {
+      const l = p * 2 + 1, r = l + 1;
+      let m = p;
+      if (l < heapN.length && heapF[l] < heapF[m]) m = l;
+      if (r < heapN.length && heapF[r] < heapF[m]) m = r;
+      if (m === p) break;
+      [heapN[p], heapN[m]] = [heapN[m], heapN[p]];
+      [heapF[p], heapF[m]] = [heapF[m], heapF[p]];
+      p = m;
+    }
+  }
+  return top;
+}
+const NB_X = [1, -1, 0, 0, 1, 1, -1, -1], NB_Z = [0, 0, 1, -1, 1, -1, 1, -1];
+
+// (sx,sz) → (tx,tz) 로 가는 길을 점 목록으로 돌려준다. 길이 없으면 null
+function findPath(sx, sz, tx, tz) {
+  const start = nearestFree(sx, sz), goal = nearestFree(tx, tz);
+  if (start < 0 || goal < 0) return null;
+  const gx = goal % NX, gz = goal / NX | 0;
+  const guess = (i) => {
+    const dx = Math.abs(i % NX - gx), dz = Math.abs((i / NX | 0) - gz);
+    return Math.max(dx, dz) + 0.4142 * Math.min(dx, dz);
+  };
+  gScore.fill(Infinity);
+  closed.fill(0);
+  heapN.length = heapF.length = 0;
+  gScore[start] = 0;
+  heapPush(start, guess(start));
+  while (heapN.length) {
+    const cur = heapPop();
+    if (cur === goal) break;
+    if (closed[cur]) continue;
+    closed[cur] = 1;
+    const cx = cur % NX, cz = cur / NX | 0;
+    for (let k = 0; k < 8; k++) {
+      const nx = cx + NB_X[k], nz = cz + NB_Z[k];
+      if (nx < 0 || nz < 0 || nx >= NX || nz >= NZ) continue;
+      const n = nz * NX + nx;
+      if (blocked[n] || closed[n]) continue;
+      if (k >= 4 && (blocked[cz * NX + nx] || blocked[nz * NX + cx])) continue;   // 모서리를 비스듬히 스치지 않기
+      const g = gScore[cur] + (k >= 4 ? 1.4142 : 1);
+      if (g < gScore[n]) {
+        gScore[n] = g;
+        cameFrom[n] = cur;
+        heapPush(n, g + guess(n));
+      }
+    }
+  }
+  if (gScore[goal] === Infinity) return null;
+
+  const pts = [];
+  for (let c = goal; c !== start; c = cameFrom[c]) pts.push({ x: cellX(c), z: cellZ(c) });
+  pts.push({ x: cellX(start), z: cellZ(start) });
+  pts.reverse();
+  if (cellAt(tx, tz) === goal) pts[pts.length - 1] = { x: tx, z: tz };
+
+  // 계단 모양 길을 곧게 편다: 똑바로 갈 수 있는 가장 먼 점만 남긴다
+  const out = [];
+  let ax = sx, az = sz, i = 0;
+  while (i < pts.length) {
+    let j = i;
+    while (j + 1 < pts.length && clearLine(ax, az, pts[j + 1].x, pts[j + 1].z)) j++;
+    out.push(pts[j]);
+    ax = pts[j].x;
+    az = pts[j].z;
+    i = j + 1;
+  }
+  out.cost = gScore[goal];
+  return out;
+}
+
+/* ───────────── 아바타 (2등신 블록 캐릭터) ───────────── */
+const AV = { leg: 0.26, body: 0.34, head: 0.64 };
+const EYE_H = AV.leg + AV.body + AV.head / 2;   // 눈높이 = 머리 한가운데
+const EYE_FWD = 0.1;                            // 1인칭 카메라를 얼굴 쪽으로 살짝 내민다
+const SEAT_RISE = 0.15;                         // 앉으면 엉덩이가 의자 높이까지 올라간다
+const HEAD_TURN = 1.3;                          // 몸통 기준으로 고개가 돌아가는 한계 (약 75°)
+const SEAT_LOOK = 2.9;                          // 앉아서 둘러볼 수 있는 범위 (뒷자리 친구까지 돌아볼 수 있게 약 165°)
+
+function buildAvatar(look, name) {
+  // 같은 옷을 입은 캐릭터끼리는 그림 한 장을 함께 쓴다
+  const mat = look.mat || (look.mat = new THREE.MeshLambertMaterial({ map: makeAvatarTex(look), alphaTest: 0.5 }));
+  const root = new THREE.Group();     // 위치·몸 방향
+  const rig = new THREE.Group();      // 걸을 때 통통, 앉을 때 위로
+  root.add(rig);
+  const part = (geo, x, y, z) => {
+    const m = new THREE.Mesh(geo, mat);
+    m.position.set(x, y, z);
+    rig.add(m);
+    return m;
+  };
+
+  // 머리가 몸 전체 키의 절반 → 2등신. 목을 축으로 끄덕이도록 도형을 위로 올려 둔다
+  const headGeo = atlasBox(AV.head, AV.head, AV.head, {
+    pz: [0, 0, 16, 16], nz: [16, 0, 16, 16], px: [32, 0, 16, 16], nx: [48, 0, 16, 16],
+    py: [0, 16, 16, 16], ny: [16, 16, 16, 16],
+  });
+  headGeo.translate(0, AV.head / 2, 0);
+  const head = part(headGeo, 0, AV.leg + AV.body, 0);
+  head.rotation.order = 'YXZ';        // 좌우로 돌린 다음 위아래로 끄덕인다
+
+  part(atlasBox(0.36, AV.body, 0.22, {
+    pz: [32, 16, 10, 10], nz: [42, 16, 10, 10], px: [52, 16, 6, 10], nx: [52, 16, 6, 10],
+    py: [58, 16, 4, 4], ny: [58, 16, 4, 4],
+  }), 0, AV.leg + AV.body / 2, 0);
+
+  // 팔·다리는 위쪽 끝(어깨·골반)을 축으로 흔들리도록 도형을 아래로 내려 둔다
+  const armGeo = atlasBox(0.12, 0.28, 0.14, { all: [32, 28, 4, 10], py: [36, 28, 4, 4], ny: [40, 28, 4, 4] });
+  armGeo.translate(0, -0.12, 0);
+  const legGeo = atlasBox(0.16, AV.leg, 0.18, { all: [32, 40, 5, 8], py: [37, 40, 4, 4], ny: [41, 40, 4, 4] });
+  legGeo.translate(0, -AV.leg / 2, 0);
+  const shoulder = AV.leg + AV.body - 0.04;
+  const armL = part(armGeo, 0.24, shoulder, 0), armR = part(armGeo, -0.24, shoulder, 0);
+  const legL = part(legGeo, 0.09, AV.leg, 0), legR = part(legGeo, -0.09, AV.leg, 0);
+  legL.rotation.order = legR.rotation.order = 'YXZ';   // 앉을 때 다리를 앞으로 뻗고 살짝 벌린다
+
+  // 눈 깜빡임용 덮개 (평소엔 숨김)
+  const lidGeo = new THREE.PlaneGeometry(AV.head, AV.head);
+  setFaceUV(lidGeo, 0, [0, 32, 16, 16]);
+  const lids = new THREE.Mesh(lidGeo, mat);
+  lids.position.set(0, AV.head / 2, AV.head / 2 + 0.003);
+  lids.visible = false;
+  head.add(lids);
+
+  // 머리 위 이름표
+  const tag = new THREE.Sprite(new THREE.SpriteMaterial({
+    depthWrite: false,
+    map: makeTex(256, 64, (g) => {
+      g.font = `800 30px ${UI_FONT}`;
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      const w = Math.min(244, g.measureText(name).width + 40);
+      g.fillStyle = 'rgba(51, 36, 26, .82)';
+      g.fillRect(128 - w / 2, 10, w, 44);
+      g.fillStyle = '#fff6e3';
+      g.fillText(name, 128, 33, 220);
+    }, { smooth: true }),
+  }));
+  tag.scale.set(1.0, 0.25, 1);
+  root.add(tag);
+
+  const blob = new THREE.Mesh(quad, shadowMat);     // 발밑 그림자
+  blob.rotation.x = -Math.PI / 2;
+  blob.position.y = 0.014;
+
+  scene.add(root, blob);
+  // 나간 사람의 캐릭터를 치울 때 쓴다
+  const dispose = () => {
+    scene.remove(root, blob);
+    rig.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
+    tag.material.map.dispose();
+    tag.material.dispose();
+  };
+  return { root, rig, head, armL, armR, legL, legR, lids, tag, blob, dispose };
+}
+
+/* ───────────── 캐릭터 한 명의 움직임 (나 · 친구가 같은 규칙을 쓴다) ─────────────
+   mode:  free      자유롭게 서 있거나 걷는 중
+          path      앉을 자리까지 찾아 둔 길을 따라 걷는 중
+          sitting   의자에 앉는 동작 중
+          seated    앉아 있음
+          standing  일어나는 동작 중                                                */
+class Actor {
+  constructor(look, name = look.name) {
+    this.name = name;
+    this.model = buildAvatar(look, name);
+    this.pos = new THREE.Vector3();
+    this.vel = { x: 0, z: 0 };
+    this.vy = 0;
+    this.bodyYaw = 0;                 // 몸이 향하는 방향
+    this.lookYaw = 0;                 // 시선 방향 (고개는 이쪽을 본다)
+    this.lookPitch = 0;               // 시선 높낮이 (+ 가 아래)
+    this.mode = 'free';
+    this.input = { x: 0, z: 0, jump: false };   // 직접 조종할 때 가고 싶은 속도
+    this.path = null;
+    this.pathAt = 0;
+    this.seat = null;
+    this.exit = null;                 // 일어설 때 돌아갈 지점
+    this.t = 0;                       // 앉기·일어서기 진행도 0~1
+    this.yawFrom = 0;
+    this.walkPhase = 0;
+    this.walkAmt = 0; this.airAmt = 0; this.sitAmt = 0; this.wave = 0;
+    this.isSelf = false;              // 내가 조종하는 캐릭터인지 (1인칭이라 내 머리는 숨긴다)
+    this.reachAmt = 0; this.reachSide = 0; this.reachFwd = 0;   // 쪽지를 주고받을 때 팔을 뻗는 정도와 방향
+    this.bubble = null;               // 머리 위 말풍선 (질문 · 반응)
+    this.bubbleUntil = 0;
+    this.nextBlink = performance.now() + 1500 + Math.random() * 2500;
+    this.blinkEnd = 0;
+  }
+
+  place(x, z, yaw) {
+    this.pos.set(x, 0, z);
+    this.bodyYaw = this.lookYaw = yaw;
+    this.applyPose();
+  }
+
+  // 하던 일을 모두 멈추고 처음 자리에 다시 세운다 (강의실에서 나갔을 때)
+  reset(x, z) {
+    this.leaveSeat();
+    this.mode = 'free';
+    this.path = this.exit = null;
+    this.vel.x = this.vel.z = this.vy = 0;
+    this.input.x = this.input.z = 0;
+    this.input.jump = false;
+    this.walkPhase = this.walkAmt = this.airAmt = this.sitAmt = this.lookPitch = 0;
+    this.place(x, z, 0);
+  }
+
+  setSelf(on) {
+    this.isSelf = on;
+    this.model.head.visible = !on;
+    this.model.tag.visible = !on;
+  }
+
+  // 자리까지 걸어가서 앉기
+  goSit(seat) {
+    if (this.mode !== 'free' && this.mode !== 'path') return false;
+    if (seat.taken && seat.taken !== this) return false;
+    let best = null, bestSide = null;
+    for (const side of seat.sides) {       // 의자 왼쪽·오른쪽 중 더 가까운 쪽으로 들어간다
+      const path = findPath(this.pos.x, this.pos.z, side.x, side.z);
+      if (path && (!best || path.cost < best.cost)) { best = path; bestSide = side; }
+    }
+    if (!best) return false;
+    this.cancel();
+    this.path = best;
+    this.pathAt = 0;
+    this.mode = 'path';
+    this.seat = seat;
+    this.exit = bestSide;
+    seat.taken = this;
+    return true;
+  }
+
+  // 걷던 길 그만두기
+  cancel() {
+    if (this.mode !== 'path') return;
+    this.mode = 'free';
+    this.path = null;
+    this.leaveSeat();
+  }
+
+  // 자리 비우기 (그새 다른 사람 차지가 된 자리라면 표시는 건드리지 않는다)
+  leaveSeat() {
+    if (this.seat && this.seat.taken === this) this.seat.taken = null;
+    this.seat = null;
+  }
+
+  stand() {
+    if (this.mode !== 'seated') return false;
+    this.mode = 'standing';
+    this.t = 0;
+    return true;
+  }
+
+  arrive() {
+    this.vel.x = this.vel.z = 0;
+    this.path = null;
+    if (this.seat) {
+      this.mode = 'sitting';
+      this.t = 0;
+      this.yawFrom = this.bodyYaw;
+      this.exit = { x: this.pos.x, z: this.pos.z };
+    } else {
+      this.mode = 'free';
+    }
+  }
+
+  // 한 프레임 진행. 화면을 다시 그려야 하면 true
+  update(dt) {
+    let active = false;
+    const yaw0 = this.bodyYaw;
+
+    if (this.mode === 'path') {
+      active = true;
+      let left = WALK * dt;
+      while (left > 0 && this.mode === 'path') {
+        const wp = this.path[this.pathAt];
+        if (!wp) { this.arrive(); break; }
+        const dx = wp.x - this.pos.x, dz = wp.z - this.pos.z, d = Math.hypot(dx, dz);
+        if (d <= left) {
+          this.pos.x = wp.x;
+          this.pos.z = wp.z;
+          left -= d;
+          this.pathAt++;
+        } else {
+          this.vel.x = dx / d * WALK;
+          this.vel.z = dz / d * WALK;
+          this.pos.x += dx / d * left;
+          this.pos.z += dz / d * left;
+          left = 0;
+        }
+      }
+    } else if (this.mode === 'free') {
+      const ease = 1 - Math.exp(-14 * dt);
+      this.vel.x += (this.input.x - this.vel.x) * ease;
+      this.vel.z += (this.input.z - this.vel.z) * ease;
+      if (this.input.x === 0 && this.input.z === 0 && Math.hypot(this.vel.x, this.vel.z) < 0.03) {
+        this.vel.x = this.vel.z = 0;
+      }
+      if (this.vel.x !== 0 || this.vel.z !== 0) {
+        this.pos.x += this.vel.x * dt;
+        this.pos.z += this.vel.z * dt;
+        collide(this.pos);
+        active = true;
+      }
+    } else if (this.mode === 'sitting' || this.mode === 'standing') {
+      active = true;
+      this.t = Math.min(1, this.t + dt / 0.42);
+      const k = this.t * this.t * (3 - 2 * this.t);               // 부드럽게 시작하고 끝나는 곡선
+      const a = this.mode === 'sitting' ? k : 1 - k;              // 0 = 서 있음, 1 = 앉음
+      this.pos.x = this.exit.x + (this.seat.sit.x - this.exit.x) * a;
+      this.pos.z = this.exit.z + (this.seat.sit.z - this.exit.z) * a;
+      this.sitAmt = a;
+      if (this.mode === 'sitting') this.bodyYaw = this.yawFrom + wrap(FRONT - this.yawFrom) * k;
+      if (this.t >= 1) {
+        if (this.mode === 'sitting') {
+          this.mode = 'seated';
+          this.bodyYaw = FRONT;
+        } else {
+          this.mode = 'free';
+          this.leaveSeat();
+        }
+      }
+    }
+
+    // 점프 · 중력
+    if (this.input.jump && this.mode === 'free' && this.pos.y === 0) this.vy = JUMP;
+    this.input.jump = false;
+    const air = this.pos.y > 0 || this.vy > 0;
+    if (air) {
+      this.vy -= GRAVITY * dt;
+      this.pos.y += this.vy * dt;
+      if (this.pos.y <= 0) { this.pos.y = 0; this.vy = 0; }
+      active = true;
+    }
+
+    // 몸 방향: 걷는 쪽으로 돌고, 고개가 한계보다 더 돌아가면 몸이 따라 돈다 (마인크래프트 방식)
+    const upright = this.mode === 'free' || this.mode === 'path';
+    const sp = upright ? Math.hypot(this.vel.x, this.vel.z) : 0;
+    const moving = sp > 0.2;
+    if (moving) {
+      let want = Math.atan2(this.vel.x, this.vel.z);
+      if (this.mode === 'free' && Math.abs(wrap(want - this.lookYaw)) > 1.66) want += Math.PI;   // 뒷걸음질
+      this.bodyYaw += wrap(want - this.bodyYaw) * (1 - Math.exp(-12 * dt));
+    }
+    if (upright) {
+      const rel = wrap(this.lookYaw - this.bodyYaw);
+      if (Math.abs(rel) > HEAD_TURN) this.bodyYaw = this.lookYaw - Math.sign(rel) * HEAD_TURN;
+    }
+
+    // 걷기·점프 동작의 세기
+    this.walkAmt += ((moving ? 1 : 0) - this.walkAmt) * (1 - Math.exp(-10 * dt));
+    this.airAmt += ((air ? 1 : 0) - this.airAmt) * (1 - Math.exp(-14 * dt));
+    if (moving) this.walkPhase += (7 + sp * 2.4) * dt;
+
+    this.applyPose();
+    return active || this.walkAmt > 0.002 || this.airAmt > 0.002 || Math.abs(this.bodyYaw - yaw0) > 1e-4;
+  }
+
+  // 지금 상태를 3D 모델의 자세로 옮긴다
+  applyPose() {
+    const m = this.model, sit = this.sitAmt, up = 1 - sit;
+    const swing = Math.sin(this.walkPhase) * this.walkAmt * up;
+    m.legL.rotation.x = swing * 0.8 - 1.41 * sit;         // 앉으면 다리를 앞으로 뻗는다
+    m.legR.rotation.x = -swing * 0.8 - 1.41 * sit;
+    m.legL.rotation.y = 0.25 * sit;
+    m.legR.rotation.y = -0.25 * sit;
+    let lx = (-swing * 0.9 - 1.25 * sit) * (1 - this.wave);     // 앉으면 두 팔을 책상 위로, 손을 들 땐 한 팔을 옆으로
+    let rx = swing * 0.9 - 1.25 * sit;
+    let lz = this.airAmt * 2.0 + this.wave * 1.9;               // 점프하면 두 팔을 든다
+    let rz = -this.airAmt * 2.0;
+    const reach = this.reachAmt;                                // 쪽지를 주고받을 때 상대 쪽으로 팔을 뻗는다
+    if (reach > 0) {
+      if (this.reachSide > 0) { lx *= 1 - reach; lz += 1.35 * reach; }
+      else if (this.reachSide < 0) { rx *= 1 - reach; rz -= 1.35 * reach; }
+      else if (this.reachFwd > 1) rx += (-1.4 - rx) * reach;    // 리모컨으로 스크린을 가리킨다
+      else if (this.reachFwd > 0) { lx -= 0.6 * reach; rx -= 0.6 * reach; }
+      else rx += 2.3 * reach;                                   // 뒷자리: 한 팔을 뒤로 넘긴다
+    }
+    m.armL.rotation.x = lx;
+    m.armR.rotation.x = rx;
+    m.armL.rotation.z = lz;
+    m.armR.rotation.z = rz;
+    m.rig.position.y = Math.abs(Math.sin(this.walkPhase)) * 0.04 * this.walkAmt * up + SEAT_RISE * sit;
+
+    // 고개는 시선을 따라간다 (몸통 기준 좌우 한계 안에서)
+    m.head.rotation.y = clamp(wrap(this.lookYaw - this.bodyYaw), -HEAD_TURN, HEAD_TURN);
+    m.head.rotation.x = clamp(this.lookPitch, -0.9, 0.9) * 0.6;
+    m.head.rotation.z = swing * 0.05;
+
+    m.root.position.copy(this.pos);
+    m.root.rotation.y = this.bodyYaw;
+    m.tag.position.y = AV.leg + AV.body + AV.head + 0.2 + m.rig.position.y;
+    if (this.bubble) this.bubble.position.y = m.tag.position.y + 0.42;
+    m.blob.position.x = this.pos.x;
+    m.blob.position.z = this.pos.z;
+    const bs = 0.8 * (1 - Math.min(this.pos.y, 1) * 0.45);
+    m.blob.scale.set(bs, bs, 1);
+  }
+
+  // 머리 위에 말풍선을 띄우고 손을 든다 (질문 · 반응)
+  say(text, ms, bg = '#fffdf2') {
+    if (!this.bubble) {
+      this.bubble = new THREE.Sprite(new THREE.SpriteMaterial({ depthWrite: false }));
+      this.bubble.scale.set(1.7, 0.53, 1);
+      this.model.root.add(this.bubble);
+    }
+    const mat = this.bubble.material;
+    if (mat.map) mat.map.dispose();
+    mat.map = makeTex(512, 160, (g) => {
+      g.fillStyle = '#33241a';
+      g.fillRect(0, 0, 512, 160);
+      g.fillStyle = bg;
+      g.fillRect(6, 6, 500, 148);
+      g.fillStyle = '#33241a';
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.font = `800 38px ${UI_FONT}`;
+      const lines = [''];                       // 길면 두 줄로 나눈다
+      for (const ch of text) {
+        if (g.measureText(lines[lines.length - 1] + ch).width > 450 && lines.length < 2) lines.push('');
+        lines[lines.length - 1] += ch;
+      }
+      lines.forEach((line, i) => g.fillText(line, 256, 80 + (i - (lines.length - 1) / 2) * 50, 470));
+    }, { smooth: true });
+    mat.needsUpdate = true;
+    this.bubble.visible = !this.isSelf;
+    this.bubbleUntil = performance.now() + ms;
+    this.wave = 1;
+    this.applyPose();
+  }
+
+  // 말풍선을 거둘 때가 됐으면 거두고 true
+  tickBubble(now) {
+    if (!this.bubble || !this.bubbleUntil || now < this.bubbleUntil) return false;
+    this.bubble.visible = false;
+    this.bubbleUntil = 0;
+    this.wave = 0;
+    this.applyPose();
+    return true;
+  }
+
+  // 선생님은 오른손에 리모컨을 들고 있다
+  setRemote(on) {
+    if (on && !this.remote) {
+      this.remote = remoteMesh();
+      this.remote.position.set(0, -0.27, 0.06);
+      this.remote.rotation.x = -1.35;
+      this.model.armR.add(this.remote);
+    }
+    if (this.remote) this.remote.visible = on;
+  }
+
+  // 쪽지를 주고받을 상대가 내 몸 기준으로 어느 쪽에 있는지 정해 둔다
+  reachTo(other) {
+    const dx = other.pos.x - this.pos.x, dz = other.pos.z - this.pos.z;
+    const s = Math.sin(this.bodyYaw), c = Math.cos(this.bodyYaw);
+    const side = dx * c - dz * s, fwd = dx * s + dz * c;       // 왼팔 쪽 / 앞쪽으로 얼마나 떨어져 있나
+    this.reachSide = Math.abs(side) > Math.abs(fwd) ? Math.sign(side) : 0;
+    this.reachFwd = this.reachSide ? 0 : Math.sign(fwd);
+  }
+
+  blink(now) {
+    const lids = this.model.lids;
+    if (this.isSelf || !this.model.root.visible) return false;
+    if (lids.visible) {
+      if (now < this.blinkEnd) return false;
+      lids.visible = false;
+      this.nextBlink = now + 2200 + Math.random() * 2600;
+      return true;
+    }
+    if (now < this.nextBlink) return false;
+    lids.visible = true;
+    this.blinkEnd = now + 130;
+    return true;
+  }
+}
+
+/* ───────────── 등장인물 ───────────── */
+const actors = { roy: new Actor(CHARACTERS.roy), stella: new Actor(CHARACTERS.stella) };
+actors.roy.place(-0.5, 4.4, 0);
+actors.stella.place(0.5, 4.4, 0);
+
+let chosen = 'roy';
+let nickTouched = false;             // 이름 칸을 직접 고쳤는지 (안 고쳤으면 캐릭터 이름을 따라간다)
+let player = actors.roy;             // 내가 조종하는 캐릭터
+let mate = actors.stella;            // 강의실에 함께 있는 친구
+let mateNext = null, mateTimer = 0;
+
+function choose(who) {
+  chosen = who;
+  for (const key in actors) {
+    const a = actors[key], on = key === who;
+    a.wave = on ? 1 : 0;                         // 고른 캐릭터가 한 걸음 나와 손을 든다
+    a.pos.z = on ? 4.75 : 4.4;
+    a.applyPose();
+  }
+  document.querySelectorAll('.pick button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.who === who)));
+  if (!nickTouched) $('nick').value = CHARACTERS[who].name;
+  dirty = true;
+}
+
+/* ───────────── 상태 ───────────── */
+let entered = false;
+let dirty = true;                    // true 일 때만 화면을 새로 그린다
+let jumpQueued = false;
+let target = null;                   // 지금 X 키가 가리키는 것 (자리 또는 문)
+let takenSeat = null;                // 바라보고 있지만 누가 이미 앉아 있는 자리
+let actLabel = '';
+const keys = new Set();
+const joy = { x: 0, y: 0 };          // 터치 조이스틱
+
+/* ───────────── 지금 바라보고 있는 물체 찾기 (화면 가운데 십자선이 가리키는 것) ───────────── */
+const REACH = 2.2;                   // 손이 닿을 만큼 가까운 것만 고를 수 있다 (멀리 있는 물체는 안 된다)
+const viewRay = new THREE.Ray(), _hit = new THREE.Vector3();
+
+function lookedAt() {
+  const cp = Math.cos(player.lookPitch);
+  viewRay.origin.copy(camera.position);
+  viewRay.direction.set(Math.sin(player.lookYaw) * cp, -Math.sin(player.lookPitch), Math.cos(player.lookYaw) * cp);
+  let found = null, best = REACH * REACH;
+  for (const it of interactables) {
+    for (const b of it.boxes) {
+      if (!viewRay.intersectBox(b, _hit)) continue;
+      const d = _hit.distanceToSquared(viewRay.origin);
+      if (d < best) { best = d; found = it; }
+    }
+  }
+  return found;
+}
+
+// 앉아 있을 때: 앞·뒤·옆 한 칸에 앉은 친구의 자리를 바라보고 있으면 그 자리를 돌려준다
+let whisperNear = false;             // 소곤거릴 수 있는 친구가 앞·뒤·옆에 앉아 있는지
+let whisperHinted = false;           // 이번에 앉은 뒤로 안내를 띄웠는지
+function whisperLooked() {
+  whisperNear = false;
+  const mine = player.seat;
+  if (!mine) return null;
+  const cp = Math.cos(player.lookPitch);
+  viewRay.origin.copy(camera.position);
+  viewRay.direction.set(Math.sin(player.lookYaw) * cp, -Math.sin(player.lookPitch), Math.cos(player.lookYaw) * cp);
+  let found = null, best = REACH * REACH;
+  for (const s of seats) {
+    const who = s.taken;
+    if (!isNeighbor(mine, s) || !who || who === player || who.sitAmt < 0.9) continue;
+    if (who.peerId ? !link : who !== mate || online()) continue;    // 함께 접속한 사람, 또는 혼자 입장했을 때의 친구
+    whisperNear = true;
+    // 친구의 책상·의자뿐 아니라 친구 몸을 바라봐도 된다. 단, 앞자리 친구는 스크린을 볼 때 늘 시야에 걸리므로 의자를 봐야 한다
+    const front = s.x === mine.x && s.z < mine.z;
+    for (const b of front ? s.boxes : [...s.boxes, s.body]) {
+      if (!viewRay.intersectBox(b, _hit)) continue;
+      const d = _hit.distanceToSquared(viewRay.origin);
+      if (d < best) { best = d; found = s; }
+    }
+  }
+  return found && (found.whisper || (found.whisper = { kind: 'whisper', boxes: found.boxes, seat: found }));
+}
+// 같은 줄의 바로 옆, 또는 같은 열의 바로 앞·뒤 (통로 건너편은 아니다)
+function isNeighbor(a, b) {
+  if (!a || !b || a === b) return false;
+  return (a.z === b.z && Math.abs(a.x - b.x) < 1.2) || (a.x === b.x && Math.abs(a.z - b.z) < 1.9);
+}
+
+// X 키가 가리킬 것: 바라보고 있는 가까운 책상·문 → 없으면 바로 옆 책상
+function updateTarget() {
+  let t = null;
+  takenSeat = null;
+  if (entered && player.mode === 'free') {
+    const seen = lookedAt();
+    if (seen && seen.taken) takenSeat = seen;      // 이미 누가 앉은 자리는 고를 수 없다
+    else t = seen;
+    if (!t && !takenSeat) {
+      let best = 1.25 * 1.25;
+      for (const s of seats) {
+        if (s.taken) continue;
+        const dx = s.x - player.pos.x, dz = s.cz - player.pos.z, d = dx * dx + dz * dz;
+        if (d < best) { best = d; t = s; }
+      }
+    }
+  } else if (entered && player.mode === 'seated') {
+    t = whisperLooked();               // 앉아 있을 땐 바라본 옆자리 친구와 소곤거릴 수 있다
+  }
+  const seated = entered && player.mode === 'seated';
+  if ($('askBtn').hidden === seated) $('askBtn').hidden = $('okBtn').hidden = !seated;     // 앉으면 학생 메뉴가 뜬다
+  if (!seated) whisperHinted = false;
+  else if (whisperNear && !whisperHinted) {            // 옆에 친구가 앉아 있으면 한 번 알려 준다
+    whisperHinted = true;
+    toast('옆자리 친구를 바라보면 X 키로 소곤거릴 수 있어요', 5000);
+  }
+  if (!seated && !($('ask').hidden && $('whisper').hidden)) { $('ask').hidden = $('whisper').hidden = true; }
+  if (t !== target) {
+    target = t;
+    showOutline(t ? t.boxes : []);
+  }
+
+  const label = !entered ? ''
+    : player.mode === 'seated' ? (target ? '소곤거리기' : '일어나기')
+    : player.mode === 'path' ? '그만두기'
+    : !target ? ''
+    : target.kind === 'door' ? '나가기' : '앉기';
+  if (label !== actLabel) {
+    actLabel = label;
+    $('act').hidden = !label;
+    $('actText').textContent = label;
+  }
+}
+
+// X 키 · 버튼: 앉기 / 일어나기 / (문을 보고 있으면) 나가기
+function act() {
+  if (!entered) return;
+  if (player.mode === 'seated') {
+    if (target && target.kind === 'whisper') openWhisper(target.seat.taken.peerId || 'mate');
+    else player.stand();
+  } else if (player.mode === 'path') player.cancel();
+  else if (player.mode === 'free' && target) {
+    if (target.kind === 'door') askExit();
+    else if (player.goSit(target)) mySeatAt = Date.now();     // 자리를 고른 시각 (둘이 동시에 고르면 빠른 쪽이 앉는다)
+  } else if (player.mode === 'free' && takenSeat) {
+    toast(`${polite(takenSeat.taken.name)}이 앉은 자리예요`);
+  }
+  dirty = true;
+}
+
+const polite = (name) => (name.endsWith('선생님') ? name : `${name} 님`);     // "지영 님", "김 선생님"
+let toastTimer = 0;
+function toast(text, ms = 2600) {
+  $('toast').textContent = text;
+  $('toast').hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { $('toast').hidden = true; }, ms);
+}
+
+/* ───────────── 입력 → 내 캐릭터 ───────────── */
+function readInput() {
+  let ix = joy.x, iz = joy.y;
+  if (keys.has('KeyW') || keys.has('ArrowUp')) iz += 1;
+  if (keys.has('KeyS') || keys.has('ArrowDown')) iz -= 1;
+  if (keys.has('KeyD') || keys.has('ArrowRight')) ix += 1;
+  if (keys.has('KeyA') || keys.has('ArrowLeft')) ix -= 1;
+  const il = Math.hypot(ix, iz);
+  if (il > 1) { ix /= il; iz /= il; }
+  if (il > 0.05 && player.mode === 'path') player.cancel();     // 직접 움직이면 자동 이동은 그만둔다
+  const speed = keys.has('ShiftLeft') || keys.has('ShiftRight') ? RUN : WALK;
+  const s = Math.sin(player.lookYaw), c = Math.cos(player.lookYaw);
+  player.input.x = (iz * s - ix * c) * speed;    // 보고 있는 쪽이 "앞"
+  player.input.z = (iz * c + ix * s) * speed;
+  if (jumpQueued) player.input.jump = true;
+  jumpQueued = false;
+}
+
+// 자리로 걸어가 앉는 동안에는 시선이 가는 방향을 따라간다 (직접 둘러보는 중이면 그대로 둔다)
+function autoLook(dt) {
+  if (lookId !== null) return false;
+  let want = null;
+  if (player.mode === 'path' && Math.hypot(player.vel.x, player.vel.z) > 0.2) want = Math.atan2(player.vel.x, player.vel.z);
+  else if (player.mode === 'sitting') want = FRONT;
+  if (want === null) return false;
+  const k = 1 - Math.exp(-5 * dt), d = wrap(want - player.lookYaw);
+  player.lookYaw += d * k;
+  player.lookPitch += (0.08 - player.lookPitch) * k;
+  return true;
+}
+
+/* ───────────── 친구: 자리에 앉아 있다가 가끔 다른 자리로 옮긴다 ───────────── */
+function freeSeat() {
+  const open = seats.filter((s) => !s.taken);
+  return open.length ? open[Math.random() * open.length | 0] : null;
+}
+
+function mateThink(dt) {
+  const c = mate;
+  if (c.mode === 'seated' && MATE_WANDERS) {
+    mateTimer -= dt;
+    if (mateTimer <= 0) {
+      mateTimer = 25 + Math.random() * 20;
+      mateNext = freeSeat();
+      if (mateNext) c.stand();
+    }
+  } else if (c.mode === 'free' && mateNext) {
+    const s = mateNext;
+    mateNext = c.goSit(s) ? null : freeSeat();
+  }
+
+  // 시선: 걸을 땐 가는 쪽, 내가 가까이 오면 나를, 아니면 스크린을 본다
+  let wantYaw = c.bodyYaw, wantPitch = 0;
+  const dx = player.pos.x - c.pos.x, dz = player.pos.z - c.pos.z, dist = Math.hypot(dx, dz);
+  if (c.mode === 'path') {
+    if (Math.hypot(c.vel.x, c.vel.z) > 0.2) wantYaw = Math.atan2(c.vel.x, c.vel.z);
+  } else if (dist < 3 && dist > 0.4) {
+    wantYaw = Math.atan2(dx, dz);
+  } else if (c.mode === 'seated') {
+    wantYaw = FRONT;
+    wantPitch = -0.2;
+  }
+  if (c.mode !== 'free' && c.mode !== 'path') {     // 앉아 있을 땐 몸은 그대로, 고개만 돌린다
+    wantYaw = c.bodyYaw + clamp(wrap(wantYaw - c.bodyYaw), -HEAD_TURN, HEAD_TURN);
+  }
+  const k = 1 - Math.exp(-6 * dt);
+  const dy = wrap(wantYaw - c.lookYaw), dp = wantPitch - c.lookPitch;
+  c.lookYaw += dy * k;
+  c.lookPitch += dp * k;
+  const looking = Math.abs(dy) > 0.003 || Math.abs(dp) > 0.003;
+  return c.update(dt) || looking;
+}
+
+/* ───────────── 출석 시간: 강의실에 있는 동안만 쌓이고, 나가도 기록은 남는다 ───────────── */
+const STORE_KEY = 'classroom-attendance-v1';
+const attendance = { roy: 0, stella: 0 };       // 캐릭터별로 쌓인 시간 (1000 = 1초)
+try {
+  const saved = JSON.parse(localStorage.getItem(STORE_KEY)) || {};
+  for (const who in attendance) attendance[who] = Math.max(0, Number(saved[who]) || 0);
+} catch {}                                      // 저장소를 못 쓰는 브라우저에서는 이번 접속 동안만 기억한다
+
+let attending = false, attTick = Date.now(), attSaved = 0, attShown = '';
+function saveAttendance() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(attendance)); } catch {}
+}
+function clockText(ms) {
+  const s = Math.floor(ms / 1000), two = (n) => String(n).padStart(2, '0');
+  return `${two(Math.floor(s / 3600))}:${two(Math.floor(s / 60) % 60)}:${two(s % 60)}`;
+}
+function tickAttendance() {
+  const now = Date.now();
+  if (attending && !document.hidden) attendance[chosen] += Math.min(now - attTick, 2000);   // 화면을 보고 있는 동안만
+  attTick = now;
+  if (!attending) return;
+  const text = `${myName || player.name} · 출석 ${clockText(attendance[chosen])}`;
+  if (text !== attShown) { attShown = text; $('att').textContent = text; }
+  if (now - attSaved > 5000) { attSaved = now; saveAttendance(); }
+}
+function showRecords() {
+  for (const who in attendance) $('rec-' + who).textContent = `출석 ${clockText(attendance[who])}`;
+}
+showRecords();
+addEventListener('pagehide', () => {            // 창을 닫아도 기록이 남게, 함께 있던 사람들에겐 나갔다고 알린다
+  tickAttendance();
+  saveAttendance();
+  if (link) link.send({ t: 'b', id: myId });
+});
+
+/* ───────────── 문: 다가가면 나갈지 물어본다 ───────────── */
+let paused = false;                  // 확인창이 떠 있는 동안 움직임을 멈춘다
+let doorAsked = false;               // 문 앞에 서 있는 동안 한 번만 묻는다
+const atDoor = () => player.pos.x > HW - 0.8 && Math.abs(player.pos.z - DOOR.z) < 0.45;
+
+function askExit() {
+  paused = true;
+  keys.clear();
+  joy.x = joy.y = 0;
+  player.cancel();
+  player.vel.x = player.vel.z = 0;
+  player.input.x = player.input.z = 0;
+  $('exitTime').textContent = clockText(attendance[chosen]);
+  $('exit').hidden = false;
+  $('stayBtn').focus();
+}
+function stay() {
+  paused = false;
+  $('exit').hidden = true;
+  canvas.focus();
+  dirty = true;
+}
+function leave() {
+  tickAttendance();                  // 나가는 순간까지만 더하고
+  attending = false;                 // 그 뒤로는 쌓지 않는다 (이미 쌓인 시간은 그대로 둔다)
+  saveAttendance();
+  showRecords();
+  for (const n of notes.splice(0)) scene.remove(n.mesh);
+  whispers.clear();
+  whisperPeer = '';
+  $('ask').hidden = $('whisper').hidden = true;
+  endShow();                         // 띄워 둔 강의 자료를 내리고
+  gestures.length = 0;
+  player.setRemote(false);
+  player.reachAmt = 0;
+  $('remoteBtn').hidden = true;
+  netLeave();                        // 함께 있던 사람들에게 나갔다고 알리고 연결을 끊는다
+  paused = entered = doorAsked = false;
+  setRemoteOut(false);
+  $('exit').hidden = true;
+  $('hud').hidden = true;
+  $('entry').hidden = false;
+  player.setSelf(false);
+  for (const a of [actors.roy, actors.stella]) a.model.root.visible = a.model.blob.visible = true;
+  actors.roy.reset(-0.5, 4.4);
+  actors.stella.reset(0.5, 4.4);
+  mateNext = null;
+  choose(chosen);
+}
+$('stayBtn').addEventListener('click', stay);
+$('leaveBtn').addEventListener('click', leave);
+
+/* ───────────── 함께 접속하기 ─────────────
+   같은 수업 코드로 들어온 사람끼리 이름·위치·앉은 자리를 주고받는다.
+   따로 서버 프로그램을 두지 않고, 각자 자기 상태를 방 전체에 알리는 방식이다.
+     s (state)  내 이름·위치·시선·앉은 자리. 움직이는 동안 자주, 가만히 있으면 가끔 보낸다
+     h (hello)  방금 들어왔으니 모두 자기 상태를 알려 달라는 인사
+     b (bye)    나간다는 알림
+   통로는 두 가지: Supabase Realtime(다른 기기와 연결) 또는 BroadcastChannel(같은 브라우저의 탭끼리) */
+const MAX_PEERS = 40;
+const myId = Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+const peers = new Map();             // 다른 사람들: id → { id, actor, from, goal, t, span, last, seat, at }
+let link = null;                     // 연결 통로 { send, close }
+let linkState = '';                  // 화면에 보여 줄 연결 상태
+let roomCode = '', myName = '';
+let mySeatAt = 0;                    // 내가 지금 자리를 고른 시각
+let lastSent = '', lastSentAt = 0, netTimer = 0, joinTicket = 0, roomShown = '';
+
+const online = () => roomCode !== '';
+const round2 = (v) => Math.round(v * 100) / 100;
+
+// 사람이 많을수록 덜 자주 보낸다 (Supabase 무료 요금제의 초당 메시지 한도를 아끼기 위해)
+function netPace() {
+  const n = peers.size + 1;
+  const sendMs = Math.min(1000, 200 * Math.max(1, n / 4));
+  const beatMs = Math.max(10000, n * 500);
+  return { sendMs, beatMs, goneMs: beatMs * 3.5 };
+}
+
+function snapshot() {
+  const p = player, mine = !!p.seat && p.seat.taken === p;
+  return {
+    t: 's', id: myId, n: myName, c: chosen, tc: isTeacher ? 1 : 0,
+    p: [round2(p.pos.x), round2(p.pos.y), round2(p.pos.z)],
+    r: [round2(wrap(p.bodyYaw)), round2(wrap(p.lookYaw)), round2(p.lookPitch)],
+    s: round2(p.sitAmt),
+    k: mine ? seats.indexOf(p.seat) : -1,        // 앉았거나 앉으러 가는 자리 번호
+    a: mine ? mySeatAt : 0,
+  };
+}
+
+// 내 상태 보내기: 달라졌으면 바로, 그대로면 가끔만
+function netTick() {
+  if (!link || !entered) return;
+  const now = Date.now(), pace = netPace();
+  if (now - lastSentAt > pace.goneMs - 2000) mySeatAt = now;     // 오래 조용했으면(탭을 떠나 있었으면) 자리 순서를 새로 받는다
+  const msg = snapshot(), body = JSON.stringify([msg.p, msg.r, msg.s, msg.k]);
+  const wait = body === lastSent ? pace.beatMs : pace.sendMs;
+  if (now - lastSentAt < wait) return;
+  lastSent = body;
+  lastSentAt = now;
+  link.send(msg);
+}
+
+// 다른 사람의 소식 받기
+function netReceive(m) {
+  if (!entered || !m || typeof m !== 'object' || typeof m.id !== 'string' || m.id === myId) return;
+  if (m.t === 'h') {                 // 새로 온 사람에게 곧바로 내 상태와 (발표 중이면) 강의 자료를 알린다
+    lastSent = '';
+    lastSentAt = 0;
+    if (presenting()) setTimeout(resendShow, 400);
+    return;
+  }
+  if (m.t === 'b') { dropPeer(m.id); return; }
+  if (m.t === 'p') { onShow(m); return; }
+  if (m.t === 'rtc') { if (m.to === myId) onRtc(m); return; }
+  if (m.t === 'q' || m.t === 'e' || m.t === 'w') { onClassMsg(m); return; }
+  if (m.t !== 's' || !Array.isArray(m.p) || !Array.isArray(m.r)) return;
+
+  const num = (v, lo, hi) => (Number.isFinite(v) ? clamp(v, lo, hi) : 0);
+  const goal = {
+    x: num(m.p[0], -HW, HW), y: num(m.p[1], 0, 3), z: num(m.p[2], -HD, HD),
+    body: num(m.r[0], -4, 4), yaw: num(m.r[1], -4, 4), pitch: num(m.r[2], -1.4, 1.4),
+    sit: num(m.s, 0, 1),
+  };
+  const now = Date.now();
+  let peer = peers.get(m.id);
+  if (!peer) {
+    if (peers.size >= MAX_PEERS) return;
+    const look = Object.hasOwn(CHARACTERS, m.c) ? CHARACTERS[m.c] : CHARACTERS.roy;
+    const actor = new Actor(look, String(m.n || look.name).slice(0, 12) + (m.tc ? ' 선생님' : ''));
+    actor.peerId = m.id;
+    if (m.tc) actor.setRemote(true);
+    peer = { id: m.id, actor, from: goal, goal, t: 1, span: 0.2, last: now, seat: null, at: 0 };
+    peers.set(m.id, peer);
+    placePeer(peer, 1);
+  } else {
+    const a = peer.actor;                        // 지금 있는 곳에서 새로 받은 곳까지, 소식 간격만큼의 시간에 걸쳐 옮긴다
+    peer.from = { x: a.pos.x, y: a.pos.y, z: a.pos.z, body: a.bodyYaw, yaw: a.lookYaw, pitch: a.lookPitch, sit: a.sitAmt };
+    peer.span = clamp((now - peer.last) / 1000, 0.1, netPace().sendMs * 0.0015);
+    peer.t = 0;
+    peer.goal = goal;
+    peer.last = now;
+  }
+  setPeerSeat(peer, Number.isInteger(m.k) ? m.k : -1, Number(m.a) || 0);
+  dirty = true;
+}
+
+function placePeer(peer, k) {
+  const a = peer.actor, f = peer.from, g = peer.goal;
+  a.pos.set(f.x + (g.x - f.x) * k, f.y + (g.y - f.y) * k, f.z + (g.z - f.z) * k);
+  a.bodyYaw = f.body + wrap(g.body - f.body) * k;
+  a.lookYaw = f.yaw + wrap(g.yaw - f.yaw) * k;
+  a.lookPitch = f.pitch + (g.pitch - f.pitch) * k;
+  a.sitAmt = f.sit + (g.sit - f.sit) * k;
+  a.applyPose();
+}
+
+// 다른 사람의 캐릭터를 받은 위치까지 부드럽게 옮기고, 움직인 만큼 팔다리를 흔든다
+function peersThink(dt) {
+  let active = false;
+  for (const peer of peers.values()) {
+    const a = peer.actor;
+    if (peer.t >= 1 && a.walkAmt < 0.002 && a.airAmt < 0.002) continue;
+    const ox = a.pos.x, oz = a.pos.z;
+    peer.t = Math.min(1, peer.t + dt / peer.span);
+    const sp = dt > 0 ? Math.hypot(peer.from.x + (peer.goal.x - peer.from.x) * peer.t - ox,
+      peer.from.z + (peer.goal.z - peer.from.z) * peer.t - oz) / dt : 0;
+    const moving = sp > 0.25 && a.sitAmt < 0.5;
+    a.walkAmt += ((moving ? 1 : 0) - a.walkAmt) * (1 - Math.exp(-10 * dt));
+    a.airAmt += ((a.pos.y > 0.03 ? 1 : 0) - a.airAmt) * (1 - Math.exp(-14 * dt));
+    if (moving) a.walkPhase += (7 + Math.min(sp, RUN) * 2.4) * dt;
+    placePeer(peer, peer.t);
+    active = true;
+  }
+  return active;
+}
+
+// 자리 주인 정하기. 한 자리에는 한 사람만 앉는다
+function setPeerSeat(peer, index, at) {
+  const seat = index >= 0 && index < seats.length ? seats[index] : null;
+  peer.at = at;
+  if (peer.seat === seat) return;
+  if (peer.seat && peer.seat.taken === peer.actor) peer.seat.taken = null;
+  peer.seat = null;
+  if (!seat) return;
+  const holder = seat.taken;
+  if (holder === player) {
+    // 둘이 거의 동시에 같은 자리를 골랐다 → 먼저 고른 쪽(같으면 id 가 앞서는 쪽)이 앉는다. 양쪽이 같은 계산을 하므로 결과가 엇갈리지 않는다
+    if (mySeatAt < at || (mySeatAt === at && myId < peer.id)) return;      // 내가 먼저: 상대가 물러난다
+    giveUpSeat();
+  } else if (holder) {
+    const other = [...peers.values()].find((p) => p.actor === holder);
+    if (!other) return;                                                    // 혼자 모드의 친구가 앉아 있는 경우
+    if (other.at < at || (other.at === at && other.id < peer.id)) return;  // 먼저 온 사람이 그대로 앉는다
+    other.seat = null;
+  }
+  seat.taken = peer.actor;
+  peer.seat = seat;
+}
+
+// 내가 고른 자리를 다른 사람이 먼저 차지했을 때
+function giveUpSeat() {
+  if (player.mode === 'path') player.cancel();
+  else if (player.mode === 'seated') player.stand();
+  else if (player.mode === 'sitting') { player.mode = 'standing'; player.t = 1 - player.t; }
+  toast('다른 사람이 먼저 앉은 자리예요');
+  dirty = true;
+}
+
+function dropPeer(id) {
+  const peer = peers.get(id);
+  if (!peer) return;
+  if (show.by === id) endShow(false);                // 발표하던 선생님이 나가면 스크린도 원래대로
+  if (show.pcs.has(id)) { show.pcs.get(id).close(); show.pcs.delete(id); }
+  if (peer.seat && peer.seat.taken === peer.actor) peer.seat.taken = null;
+  if (whisperPeer === id) closeWhisper();
+  if (peer.actor.bubble && peer.actor.bubble.material.map) peer.actor.bubble.material.map.dispose();
+  if (peer.actor.remote) peer.actor.remote.removeFromParent();       // 함께 쓰는 도형이라 따로 떼어 둔다
+  for (let i = gestures.length - 1; i >= 0; i--) if (gestures[i].actor === peer.actor) gestures.splice(i, 1);
+  peer.actor.model.dispose();
+  peers.delete(id);
+  dirty = true;
+}
+
+// 한동안 소식이 없는 사람은 나간 것으로 본다
+function sweepPeers() {
+  const now = Date.now(), goneMs = netPace().goneMs;
+  for (const peer of peers.values()) if (now - peer.last > goneMs) dropPeer(peer.id);
+}
+
+function showRoom() {
+  const text = online() ? `수업 코드 ${roomCode} · ${peers.size + 1}명 · ${linkState}` : '';
+  if (text === roomShown) return;
+  roomShown = text;
+  $('room').hidden = !text;
+  $('room').textContent = text;
+}
+
+// 통로 1: 같은 브라우저의 다른 탭끼리 (아무 설정 없이 바로 된다)
+function openLocal(topic) {
+  const bc = new BroadcastChannel(topic);
+  bc.onmessage = (e) => netReceive(e.data);
+  return { send: (m) => bc.postMessage(m), close: () => bc.close() };
+}
+
+// 통로 2: Supabase Realtime 의 Broadcast (다른 기기와 연결된다)
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = () => reject(new Error(`불러오지 못했어요: ${src}`));
+    document.head.append(s);
+  });
+}
+async function openSupabase(topic) {
+  if (!window.supabase) await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2');
+  const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const channel = client.channel(topic, { config: { broadcast: { self: false } } });
+  let ready = false;
+  const send = (m) => {
+    if (ready) Promise.resolve(channel.send({ type: 'broadcast', event: 'm', payload: m })).catch(() => {});
+  };
+  channel.on('broadcast', { event: 'm' }, (msg) => netReceive(msg && msg.payload));
+  channel.subscribe((status) => {
+    ready = status === 'SUBSCRIBED';
+    linkState = ready ? '온라인' : status === 'CLOSED' ? '연결 끊김' : '연결 문제 · 다시 시도 중';
+    if (ready) { lastSent = ''; lastSentAt = 0; send({ t: 'h', id: myId }); }
+    showRoom();
+  });
+  return { send, close: () => client.removeChannel(channel) };
+}
+
+async function netJoin() {
+  const ticket = ++joinTicket;       // 연결을 기다리는 사이에 나가 버린 경우를 가려낸다
+  const topic = 'classroom-' + [...roomCode].map((ch) => ch.codePointAt(0).toString(16)).join('-');
+  lastSent = '';
+  lastSentAt = 0;
+  try {
+    if (SUPABASE_URL && SUPABASE_KEY) {
+      linkState = '연결 중…';
+      showRoom();
+      const opened = await openSupabase(topic);
+      if (ticket !== joinTicket) { opened.close(); return; }
+      link = opened;
+    } else {
+      link = openLocal(topic);
+      linkState = '이 컴퓨터의 탭끼리';
+      link.send({ t: 'h', id: myId });
+    }
+    clearInterval(netTimer);
+    netTimer = setInterval(netTick, 100);
+  } catch (err) {
+    console.warn('함께 접속하기 연결 실패', err);
+    if (ticket === joinTicket) linkState = '연결 실패 · 혼자 보는 중';
+  }
+  showRoom();
+}
+
+function netLeave() {
+  joinTicket++;
+  clearInterval(netTimer);
+  if (link) {
+    try { link.send({ t: 'b', id: myId }); link.close(); } catch {}
+    link = null;
+  }
+  for (const id of [...peers.keys()]) dropPeer(id);
+  roomCode = linkState = '';
+  showRoom();
+}
+
+// 다른 탭을 보다가 돌아오면 서로의 상태를 다시 맞춘다
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden || !link) return;
+  lastSent = '';
+  link.send({ t: 'h', id: myId });
+});
+
+/* ───────────── 강의 자료: 선생님이 큰 스크린에 띄운다 ─────────────
+   · 슬라이드  PDF·이미지 파일. 지금 보이는 한 장을 그림으로 줄여 방 전체에 보낸다 (p 메시지)
+   · 화면 공유 선생님 화면을 WebRTC 로 한 사람씩 직접 보낸다. 연결을 맺는 대화만 방 통로를 쓴다 (rtc 메시지) */
+let isTeacher = false;
+const SHOW_W = 1280, SHOW_H = 720;
+const showCanvas = document.createElement('canvas');
+showCanvas.width = SHOW_W;
+showCanvas.height = SHOW_H;
+const showCtx = showCanvas.getContext('2d');
+const showTex = new THREE.CanvasTexture(showCanvas);
+showTex.colorSpace = THREE.SRGBColorSpace;
+showTex.anisotropy = screenTex.anisotropy;
+const show = {
+  mode: 'off',                       // off | slides | live
+  by: '',                            // 띄운 사람의 id
+  page: 0, total: 0, source: null, ticket: 0,
+  stream: null, pcs: new Map(), lastFrame: 0,
+  video: Object.assign(document.createElement('video'), { muted: true, playsInline: true }),
+};
+const presenting = () => show.mode !== 'off' && show.by === myId;
+
+function setShow(mode, by) {
+  show.mode = mode;
+  show.by = by;
+  screen.material.map = mode === 'off' ? screenTex : showTex;     // 끄면 원래 안내 화면으로
+  screen.material.needsUpdate = true;
+  showLed();
+  dirty = true;
+}
+
+// 리모컨의 작은 표시창: 지금 스크린 상태
+function showLed() {
+  const mine = presenting();
+  $('remoteLed').textContent = show.mode === 'off' ? '꺼짐'
+    : !mine ? '다른 선생님이 띄움'
+    : show.mode === 'slides' ? `${show.page + 1} / ${show.total}` : '화면 공유 중';
+  $('prevBtn').disabled = $('nextBtn').disabled = !(mine && show.mode === 'slides');
+}
+
+// 스크린(16:9)에 비율을 지켜 가며 그린다
+function drawFit(src, w, h) {
+  showCtx.fillStyle = '#0f1220';
+  showCtx.fillRect(0, 0, SHOW_W, SHOW_H);
+  if (src && w && h) {
+    const k = Math.min(SHOW_W / w, SHOW_H / h);
+    showCtx.drawImage(src, (SHOW_W - w * k) / 2, (SHOW_H - h * k) / 2, w * k, h * k);
+  }
+  showTex.needsUpdate = true;
+  dirty = true;
+}
+function showNote(text) {
+  drawFit();
+  showCtx.fillStyle = '#dbe6ff';
+  showCtx.font = `700 44px ${UI_FONT}`;
+  showCtx.textAlign = 'center';
+  showCtx.textBaseline = 'middle';
+  showCtx.fillText(text, SHOW_W / 2, SHOW_H / 2, SHOW_W - 160);
+}
+
+// 띄우던 것을 내린다. announce = 내가 띄운 것이면 다른 사람들에게도 알릴지
+function endShow(announce = true) {
+  const mine = presenting();
+  for (const pc of show.pcs.values()) pc.close();
+  show.pcs.clear();
+  if (mine && show.stream) for (const track of show.stream.getTracks()) track.stop();
+  show.video.pause();
+  show.video.srcObject = null;
+  show.stream = show.source = null;
+  show.ticket++;
+  if (mine && announce && link) link.send({ t: 'p', id: myId, k: 'off' });
+  setShow('off', '');
+}
+
+/* ── 슬라이드 (선생님 쪽) ── */
+const PDFJS = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/';
+async function loadPdf(file) {
+  if (!window.pdfjsLib) {
+    await loadScript(PDFJS + 'build/pdf.min.js');
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS + 'build/pdf.worker.min.js';
+  }
+  return window.pdfjsLib.getDocument({
+    data: await file.arrayBuffer(),
+    cMapUrl: PDFJS + 'cmaps/', cMapPacked: true,          // 한글 글꼴이 든 PDF 를 제대로 그리려면 필요하다
+    standardFontDataUrl: PDFJS + 'standard_fonts/',
+  }).promise;
+}
+function loadImage(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error(`그림을 열지 못했어요: ${file.name}`));
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+async function openFiles(files) {
+  const list = [...files];
+  if (!list.length) return;
+  if (list.some((f) => /\.pptx?$/i.test(f.name))) {
+    toast('PPT 파일은 PowerPoint에서 PDF로 저장한 뒤 열어 주세요. 화면 공유로 보여 줄 수도 있어요.', 7000);
+    return;
+  }
+  try {
+    let total, source;
+    const pdf = list.find((f) => f.type === 'application/pdf' || /\.pdf$/i.test(f.name));
+    if (pdf) {
+      toast('자료를 여는 중…', 20000);
+      const doc = await loadPdf(pdf);
+      total = doc.numPages;
+      source = async (n) => {                        // 필요한 쪽만 그때그때 그린다
+        const page = await doc.getPage(n + 1);
+        const base = page.getViewport({ scale: 1 });
+        const viewport = page.getViewport({ scale: Math.min(SHOW_W / base.width, SHOW_H / base.height) });
+        const c = document.createElement('canvas');
+        c.width = Math.round(viewport.width);
+        c.height = Math.round(viewport.height);
+        await page.render({ canvasContext: c.getContext('2d'), viewport }).promise;
+        return c;
+      };
+    } else {
+      const images = list.filter((f) => f.type.startsWith('image/'))
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+      if (!images.length) { toast('PDF나 이미지 파일을 골라 주세요'); return; }
+      const loaded = await Promise.all(images.map(loadImage));
+      total = loaded.length;
+      source = async (n) => loaded[n];
+    }
+    endShow(false);
+    show.source = source;
+    show.total = total;
+    show.page = 0;
+    setShow('slides', myId);
+    await gotoPage(0);
+    toast(`자료를 띄웠어요 · ${total}장 (리모컨 ◀ ▶ 또는 Q · E)`);
+  } catch (err) {
+    console.warn('강의 자료 열기 실패', err);
+    toast('자료를 열지 못했어요');
+  }
+}
+
+async function gotoPage(n) {
+  if (!presenting() || show.mode !== 'slides' || !show.source) return;
+  const ticket = ++show.ticket;                      // 빠르게 넘길 때 마지막으로 고른 쪽만 남긴다
+  show.page = clamp(n, 0, show.total - 1);
+  showLed();
+  const src = await show.source(show.page);
+  if (ticket !== show.ticket) return;
+  drawFit(src, src.width, src.height);
+  sendSlide();
+}
+
+// 지금 보이는 한 장을 작게 줄인 그림으로 보낸다 (Supabase 메시지 한 개는 256KB 까지)
+function sendSlide() {
+  if (!link || !presenting() || show.mode !== 'slides') return;
+  const c = document.createElement('canvas');
+  c.width = 960;
+  c.height = 540;
+  c.getContext('2d').drawImage(showCanvas, 0, 0, 960, 540);
+  let quality = 0.7, data = c.toDataURL('image/jpeg', quality);
+  while (data.length > 170000 && quality > 0.25) {
+    quality -= 0.15;
+    data = c.toDataURL('image/jpeg', quality);
+  }
+  link.send({ t: 'p', id: myId, k: 'img', n: show.page + 1, of: show.total, d: data });
+}
+
+function resendShow() {
+  if (!presenting()) return;
+  if (show.mode === 'slides') sendSlide();
+  else if (link) link.send({ t: 'p', id: myId, k: 'live' });
+}
+
+/* ── 화면 공유 (선생님 쪽) ── */
+function playLive(stream) {
+  show.video.srcObject = stream;
+  show.video.play().catch(() => {});
+}
+function startLive(stream) {
+  endShow(false);
+  show.stream = stream;
+  playLive(stream);
+  setShow('live', myId);
+  const track = stream.getVideoTracks()[0];
+  if (track) track.addEventListener('ended', () => { if (show.stream === stream) endShow(); });   // 브라우저의 "공유 중지"를 눌렀을 때
+  if (link) link.send({ t: 'p', id: myId, k: 'live' });
+}
+async function shareScreen() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+    toast('이 브라우저에서는 화면 공유를 쓸 수 없어요');
+    return;
+  }
+  const asked = performance.now();
+  try {
+    startLive(await navigator.mediaDevices.getDisplayMedia({
+      video: { frameRate: { max: 15 }, width: { max: 1920 } }, audio: false,
+    }));
+  } catch (err) {
+    console.warn('화면 공유 실패', err);
+    // 고르는 창이 뜨기도 전에 바로 거절되면 사용자가 취소한 게 아니라 브라우저나 운영체제가 막은 것이다
+    const blockedAtOnce = performance.now() - asked < 400;
+    if (err && err.name === 'NotAllowedError' && !blockedAtOnce) {
+      toast('화면 공유를 취소했어요');
+    } else {
+      toast('이 창에서는 화면 공유가 막혀 있어요. 크롬·엣지에서 열고, 맥이라면 시스템 설정 > 개인정보 보호 및 보안 > 화면 기록에서 브라우저를 허용해 주세요.', 12000);
+    }
+  }
+}
+
+/* ── 다른 사람이 띄운 자료 받기 ── */
+function onShow(m) {
+  if (peers.has(m.id)) pointRemote(peers.get(m.id).actor);         // 선생님이 리모컨으로 스크린을 가리킨다
+  if (m.k === 'off') {
+    if (show.by === m.id) endShow(false);
+    return;
+  }
+  if (m.k === 'img') {
+    if (typeof m.d !== 'string' || !m.d.startsWith('data:image/jpeg;base64,') || m.d.length > 400000) return;
+    if (presenting() || show.mode === 'live') endShow(false);      // 새로 띄운 쪽을 따른다
+    show.page = (m.n | 0) - 1;
+    show.total = m.of | 0;
+    setShow('slides', m.id);
+    const img = new Image();
+    img.onload = () => { if (show.by === m.id && show.mode === 'slides') drawFit(img, img.width, img.height); };
+    img.src = m.d;
+  } else if (m.k === 'live') {
+    if (show.mode === 'live' && show.by === m.id) return;          // 이미 받고 있다
+    endShow(false);
+    setShow('live', m.id);
+    showNote('화면 공유를 연결하는 중…');
+    rtcSend(m.id, { type: 'want' });                               // "나에게도 보내 주세요"
+  }
+}
+
+/* ── WebRTC 연결 맺기 ── */
+const RTC_CONFIG = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+const rtcSend = (to, d) => { if (link) link.send({ t: 'rtc', id: myId, to, d }); };
+
+function makePc(peerId) {
+  if (show.pcs.has(peerId)) show.pcs.get(peerId).close();
+  const pc = new RTCPeerConnection(RTC_CONFIG);
+  pc.queue = Promise.resolve();                      // 받은 순서대로 하나씩 처리하기 위한 줄
+  pc.onicecandidate = (e) => { if (e.candidate) rtcSend(peerId, { type: 'ice', c: e.candidate.toJSON() }); };
+  show.pcs.set(peerId, pc);
+  return pc;
+}
+
+function onRtc(m) {
+  const d = m.d, from = m.id;
+  if (!d || typeof d !== 'object') return;
+  if (d.type === 'want') {                           // (선생님) 보고 싶다는 사람에게 연결을 제안한다
+    if (!presenting() || show.mode !== 'live' || !show.stream) return;
+    const pc = makePc(from);
+    for (const track of show.stream.getTracks()) pc.addTrack(track, show.stream);
+    pc.queue = pc.createOffer()
+      .then((offer) => pc.setLocalDescription(offer))
+      .then(() => rtcSend(from, { type: 'offer', sdp: pc.localDescription.sdp }))
+      .catch((err) => console.warn('화면 공유 연결 실패', err));
+  } else if (d.type === 'offer') {                   // (보는 사람) 제안을 받아 답한다
+    if (show.mode !== 'live' || show.by !== from || typeof d.sdp !== 'string') return;
+    const pc = makePc(from);
+    pc.ontrack = (e) => playLive(e.streams[0] || new MediaStream([e.track]));
+    pc.onconnectionstatechange = () => {
+      if (pc.connectionState === 'failed' && show.pcs.get(from) === pc) showNote('화면 공유 연결에 실패했어요');
+    };
+    pc.queue = pc.setRemoteDescription({ type: 'offer', sdp: d.sdp })
+      .then(() => pc.createAnswer())
+      .then((answer) => pc.setLocalDescription(answer))
+      .then(() => rtcSend(from, { type: 'answer', sdp: pc.localDescription.sdp }))
+      .catch((err) => console.warn('화면 공유 연결 실패', err));
+  } else {
+    const pc = show.pcs.get(from);
+    if (!pc) return;
+    if (d.type === 'answer' && typeof d.sdp === 'string') {
+      pc.queue = pc.queue.then(() => pc.setRemoteDescription({ type: 'answer', sdp: d.sdp })).catch(() => {});
+    } else if (d.type === 'ice' && d.c) {
+      pc.queue = pc.queue.then(() => pc.addIceCandidate(d.c)).catch(() => {});
+    }
+  }
+}
+
+/* ── 리모컨: 선생님이 강의실 어디서든 큰 스크린을 조작한다 (R 키로 꺼내고 넣는다) ── */
+const remoteBody = new THREE.MeshLambertMaterial({ color: '#2b2e36' });
+const remoteDot = new THREE.MeshBasicMaterial({ color: '#ff5a4d' });
+function remoteMesh() {              // 작은 리모컨 모형: 몸통 + 빨간 전원 단추
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(box, remoteBody);
+  body.scale.set(0.05, 0.16, 0.025);
+  const dot = new THREE.Mesh(box, remoteDot);
+  dot.scale.set(0.018, 0.018, 0.01);
+  dot.position.set(0, 0.055, 0.014);
+  g.add(body, dot);
+  return g;
+}
+
+// 1인칭 화면 오른쪽 아래에 보이는, 내 손에 든 리모컨
+const held = remoteMesh();
+held.position.set(0.19, -0.15, -0.4);
+held.rotation.set(-0.7, -0.3, 0.12);
+held.scale.setScalar(0.62);
+held.visible = false;
+camera.add(held);
+scene.add(camera);
+
+let remoteOut = false;               // 리모컨을 꺼내 들었는지
+let heldKick = 0;                    // 단추를 누를 때 리모컨이 살짝 앞으로 나가는 정도
+const gestures = [];                 // 리모컨으로 스크린을 가리키는 동작들
+
+function setRemoteOut(on) {
+  remoteOut = on && isTeacher && entered;
+  $('remote').hidden = !remoteOut;
+  held.visible = remoteOut;
+  dirty = true;
+}
+
+// 리모컨을 든 팔을 앞으로 뻗어 스크린을 가리킨다 (다른 사람 눈에도 보인다)
+function pointRemote(actor) {
+  if (gestures.some((g) => g.actor === actor)) return;
+  actor.reachSide = 0;
+  actor.reachFwd = 2;
+  gestures.push({ actor, t: 0 });
+  dirty = true;
+}
+function gesturesThink(dt) {
+  for (let i = gestures.length - 1; i >= 0; i--) {
+    const g = gestures[i];
+    g.t += dt / 0.6;
+    g.actor.reachAmt = g.t >= 1 ? 0 : Math.sin(Math.PI * g.t);
+    g.actor.applyPose();
+    if (g.t >= 1) gestures.splice(i, 1);
+  }
+  if (heldKick > 0) {
+    heldKick = Math.max(0, heldKick - dt * 5);
+    held.position.z = -0.4 - 0.05 * Math.sin(Math.PI * heldKick);
+    return true;
+  }
+  return gestures.length > 0;
+}
+
+// 리모컨 단추를 눌렀을 때 공통으로 하는 일
+function press(action) {
+  heldKick = 1;
+  pointRemote(player);
+  action();
+  canvas.focus();
+}
+$('remoteBtn').addEventListener('click', () => { setRemoteOut(!remoteOut); canvas.focus(); });
+$('fileBtn').addEventListener('click', () => press(() => $('file').click()));
+$('file').addEventListener('change', () => {
+  const files = [...$('file').files];
+  $('file').value = '';
+  openFiles(files);
+});
+$('shareBtn').addEventListener('click', () => press(shareScreen));
+$('prevBtn').addEventListener('click', () => press(() => gotoPage(show.page - 1)));
+$('nextBtn').addEventListener('click', () => press(() => gotoPage(show.page + 1)));
+$('stopBtn').addEventListener('click', () => press(endShow));
+
+/* ───────────── 학생 메뉴: 앉아 있을 때 질문(Q) · 이해했어요(E) · 옆자리와 소곤거리기(X) ─────────────
+     q  질문. 모두에게 말풍선으로 보이고, 선생님 화면에는 알림도 뜬다
+     e  "이해했어요" 반응
+     w  옆자리 친구에게 보내는 쪽지. 글은 받는 사람 화면에만 보이고, 쪽지가 오가는 모습은 모두에게 보인다 */
+const whispers = new Map();          // 상대 id → 주고받은 쪽지 목록
+let whisperPeer = '';                // 지금 소곤거리기 창이 열려 있는 상대
+let lastOk = 0;
+
+function openAsk() {
+  $('ask').hidden = false;
+  $('askText').value = '';
+  $('askText').focus();
+}
+function closeAsk() {
+  $('ask').hidden = true;
+  canvas.focus();
+}
+$('ask').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const text = $('askText').value.trim().slice(0, 60);
+  closeAsk();
+  if (!text || player.mode !== 'seated') return;
+  if (link) link.send({ t: 'q', id: myId, x: text });
+  toast('질문을 올렸어요');
+});
+$('askText').addEventListener('keydown', (e) => { if (e.code === 'Escape') closeAsk(); });
+$('askBtn').addEventListener('click', openAsk);
+
+function sendOk() {
+  if (player.mode !== 'seated' || Date.now() - lastOk < 2000) return;
+  lastOk = Date.now();
+  if (link) link.send({ t: 'e', id: myId });
+  toast('"이해했어요"를 보냈어요');
+}
+$('okBtn').addEventListener('click', () => { sendOk(); canvas.focus(); });
+
+// 소곤거릴 상대: 함께 접속한 사람, 또는 혼자 입장했을 때의 친구('mate')
+function partner(id) {
+  if (id === 'mate') return online() ? null : { actor: mate, seat: mate.seat };
+  return peers.get(id) || null;
+}
+
+// 혼자 입장했을 때 친구가 보내는 답장
+const MATE_LINES = ['쉿, 수업 중이야!', '끝나고 얘기하자!', '나도 잘 모르겠어…', '선생님이 보셔!', '응응, 알겠어 :)'];
+function mateReply() {
+  if (online() || !entered || player.mode !== 'seated' || mate.mode !== 'seated' || !isNeighbor(player.seat, mate.seat)) return;
+  keepWhisper('mate', false, MATE_LINES[Math.random() * MATE_LINES.length | 0]);
+  if ($('whisper').hidden || whisperPeer === 'mate') openWhisper('mate', false);
+  passNote(mate, player);
+  toast(`${polite(mate.name)}의 쪽지가 왔어요`);
+}
+
+function openWhisper(id, focus = true) {
+  const peer = partner(id);
+  if (!peer) return;
+  whisperPeer = id;
+  $('whisperName').textContent = `${polite(peer.actor.name)}과 소곤소곤`;
+  $('whisperLog').replaceChildren(...(whispers.get(id) || []).slice(-30).map((w) => {
+    const line = document.createElement('div');
+    if (w.mine) line.className = 'me';
+    line.textContent = w.text;
+    return line;
+  }));
+  $('whisper').hidden = false;
+  $('whisperLog').scrollTop = $('whisperLog').scrollHeight;
+  if (focus) $('whisperText').focus();
+}
+function closeWhisper() {
+  whisperPeer = '';
+  $('whisper').hidden = true;
+  canvas.focus();
+}
+function keepWhisper(id, mine, text) {
+  if (!whispers.has(id)) whispers.set(id, []);
+  whispers.get(id).push({ mine, text });
+}
+$('whisperForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const text = $('whisperText').value.trim().slice(0, 60);
+  const peer = partner(whisperPeer);
+  if (!text || !peer || (whisperPeer !== 'mate' && !link)) return;
+  if (player.mode !== 'seated' || !isNeighbor(player.seat, peer.seat) || peer.actor.sitAmt < 0.9) {
+    toast('앞·뒤·옆자리에 함께 앉아 있을 때만 소곤거릴 수 있어요');
+    return;
+  }
+  $('whisperText').value = '';
+  if (whisperPeer === 'mate') setTimeout(mateReply, 1500);
+  else link.send({ t: 'w', id: myId, to: whisperPeer, x: text });
+  keepWhisper(whisperPeer, true, text);
+  openWhisper(whisperPeer);
+  passNote(player, peer.actor);
+});
+$('whisperText').addEventListener('keydown', (e) => { if (e.code === 'Escape') closeWhisper(); });
+$('whisperClose').addEventListener('click', closeWhisper);
+
+function onClassMsg(m) {
+  const peer = peers.get(m.id);
+  if (!peer) return;
+  const text = typeof m.x === 'string' ? m.x.slice(0, 60) : '';
+  if (m.t === 'q' && text) {
+    peer.actor.say(`질문: ${text}`, 12000);
+    if (isTeacher) toast(`질문 · ${peer.actor.name}: ${text}`, 9000);
+  } else if (m.t === 'e') {
+    peer.actor.say('이해했어요!', 4000, '#d9f5e3');
+  } else if (m.t === 'w') {
+    const to = m.to === myId ? player : peers.get(m.to) && peers.get(m.to).actor;
+    if (to) passNote(peer.actor, to);
+    if (m.to === myId && text) {
+      keepWhisper(m.id, false, text);
+      if ($('whisper').hidden || whisperPeer === m.id) openWhisper(m.id, false);
+      toast(`${polite(peer.actor.name)}의 쪽지가 왔어요`);
+    }
+  }
+  dirty = true;
+}
+
+/* ── 쪽지가 오가는 모습: 보내는 사람이 팔을 뻗고, 쪽지가 포물선으로 날아가고, 받는 사람도 팔을 뻗는다 ── */
+const notes = [];
+const noteMat = new THREE.MeshBasicMaterial({ color: '#fffdf2' });
+function passNote(from, to) {
+  const mesh = new THREE.Mesh(box, noteMat);
+  mesh.scale.set(0.14, 0.012, 0.1);
+  scene.add(mesh);
+  from.reachTo(to);
+  to.reachTo(from);
+  notes.push({ mesh, from, to, t: 0 });
+  dirty = true;
+}
+function notesThink(dt) {
+  for (let i = notes.length - 1; i >= 0; i--) {
+    const n = notes[i];
+    n.t = Math.min(1, n.t + dt / 0.9);
+    const a = n.from.pos, b = n.to.pos, k = n.t * n.t * (3 - 2 * n.t);
+    const h = 0.72 + (n.from.model.rig.position.y + n.to.model.rig.position.y) / 2;
+    n.mesh.position.set(a.x + (b.x - a.x) * (0.22 + 0.56 * k), h + Math.sin(Math.PI * k) * 0.2, a.z + (b.z - a.z) * (0.22 + 0.56 * k));
+    n.mesh.rotation.y += dt * 5;
+    n.from.reachAmt = Math.max(0, 1 - n.t * 1.6);       // 보내는 사람은 처음에, 받는 사람은 끝에 팔을 뻗는다
+    n.to.reachAmt = Math.max(0, n.t * 1.6 - 0.6);
+    if (n.t >= 1) {
+      n.from.reachAmt = n.to.reachAmt = 0;
+      scene.remove(n.mesh);
+      notes.splice(i, 1);
+    }
+    n.from.applyPose();
+    n.to.applyPose();
+  }
+  return notes.length > 0;
+}
+
+/* ───────────── 카메라: 언제나 1인칭 (내 캐릭터의 눈) ───────────── */
+function placeCamera() {
+  if (!entered) {                    // 입장 전: 두 캐릭터가 나란히 보이는 소개 구도
+    const side = camera.aspect < 1 ? 0 : 0.9;      // 가로 화면에서는 왼쪽 안내 카드를 피해 오른쪽에 세운다
+    camera.position.set(-side, 1.15, 7.6);
+    camera.lookAt(-side, 0.8, 4.4);
+  } else {
+    const sy = Math.sin(player.lookYaw), cy = Math.cos(player.lookYaw);
+    const cp = Math.cos(player.lookPitch), sp = Math.sin(player.lookPitch);
+    const eye = player.pos.y + player.model.rig.position.y + EYE_H;
+    const x = player.pos.x + sy * EYE_FWD, z = player.pos.z + cy * EYE_FWD;
+    camera.position.set(x, eye, z);
+    camera.lookAt(x + sy * cp, eye - sp, z + cy * cp);
+  }
+  camera.updateMatrixWorld();
+}
+
+/* ───────────── 입력: 키보드 · 마우스/터치 · 조이스틱 ───────────── */
+addEventListener('keydown', (e) => {
+  if (e.target instanceof HTMLInputElement) return;      // 질문·쪽지를 적는 동안에는 글자 입력으로만 쓴다
+  if (paused) {                        // 확인창이 떠 있을 땐 Esc = 계속 있기
+    if (e.code === 'Escape') stay();
+    return;
+  }
+  if (!entered) return;
+  if (e.code === 'KeyR' && !e.repeat && isTeacher) setRemoteOut(!remoteOut);     // 선생님: 리모컨 꺼내기 · 넣기
+  if (e.code === 'Space') { jumpQueued = true; e.preventDefault(); }
+  else if (e.code === 'KeyX' && !e.repeat) { act(); e.preventDefault(); }
+  else if ((e.code === 'KeyQ' || e.code === 'KeyE') && !e.repeat) {
+    const next = e.code === 'KeyE';
+    if (presenting() && show.mode === 'slides') gotoPage(show.page + (next ? 1 : -1));   // 선생님: 슬라이드 이전 · 다음
+    else if (player.mode === 'seated') { if (next) sendOk(); else openAsk(); }           // 학생: 질문 · 이해했어요
+    e.preventDefault();
+  }
+  else if (e.code.startsWith('Arrow')) e.preventDefault();
+  keys.add(e.code);       // e.code 는 한/영 상태와 상관없이 같은 값이라 한글 입력 중에도 동작
+});
+addEventListener('keyup', (e) => keys.delete(e.code));
+addEventListener('blur', () => keys.clear());
+
+// 마우스(손가락)는 끌어서 둘러보는 데만 쓴다. 눌러서 걸어가거나 앉는 기능은 없다
+let lookId = null, lookX = 0, lookY = 0;
+canvas.addEventListener('pointerdown', (e) => {
+  if (!entered || lookId !== null) return;
+  lookId = e.pointerId;
+  lookX = e.clientX;
+  lookY = e.clientY;
+  try { canvas.setPointerCapture(e.pointerId); } catch {}   // 창 밖으로 끌어도 계속 따라오게
+  canvas.classList.add('drag');
+});
+canvas.addEventListener('pointermove', (e) => {
+  if (e.pointerId !== lookId) return;
+  player.lookYaw -= (e.clientX - lookX) * 0.005;
+  player.lookPitch = clamp(player.lookPitch + (e.clientY - lookY) * 0.004, -1.3, 1.3);
+  if (player.mode !== 'free' && player.mode !== 'path') {            // 앉아 있을 땐 고개가 돌아가는 만큼만
+    player.lookYaw = FRONT + clamp(wrap(player.lookYaw - FRONT), -SEAT_LOOK, SEAT_LOOK);
+  }
+  lookX = e.clientX;
+  lookY = e.clientY;
+  dirty = true;
+});
+const lookEnd = (e) => {
+  if (e.pointerId !== lookId) return;
+  lookId = null;
+  canvas.classList.remove('drag');
+  dirty = true;
+};
+canvas.addEventListener('pointerup', lookEnd);
+canvas.addEventListener('pointercancel', lookEnd);
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+$('act').addEventListener('click', () => { act(); canvas.focus(); });
+$('jump').addEventListener('pointerdown', (e) => { e.preventDefault(); jumpQueued = true; });
+
+const stick = $('stick'), knob = stick.firstElementChild;
+let stickId = null;
+function stickMove(e) {
+  const r = stick.getBoundingClientRect();
+  let dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
+  const max = r.width * 0.36, len = Math.hypot(dx, dy);
+  if (len > max) { dx *= max / len; dy *= max / len; }
+  knob.style.transform = `translate(${dx}px, ${dy}px)`;
+  joy.x = dx / max;
+  joy.y = -dy / max;
+}
+stick.addEventListener('pointerdown', (e) => { stickId = e.pointerId; stick.setPointerCapture(e.pointerId); stickMove(e); });
+stick.addEventListener('pointermove', (e) => { if (e.pointerId === stickId) stickMove(e); });
+const stickEnd = (e) => {
+  if (e.pointerId !== stickId) return;
+  stickId = null;
+  joy.x = joy.y = 0;
+  knob.style.transform = '';
+};
+stick.addEventListener('pointerup', stickEnd);
+stick.addEventListener('pointercancel', stickEnd);
+
+/* ───────────── 캐릭터 고르기 · 입장 ───────────── */
+document.querySelectorAll('.pick button').forEach((b) => b.addEventListener('click', () => choose(b.dataset.who)));
+
+$('enterForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  if (entered) return;
+  player = actors[chosen];
+  mate = actors[chosen === 'roy' ? 'stella' : 'roy'];
+  myName = ($('nick').value.trim() || player.name).slice(0, 12);
+  roomCode = $('code').value.trim().toLowerCase().normalize('NFC').slice(0, 20);
+  isTeacher = $('teacher').checked;
+  saveProfile();
+  player.wave = mate.wave = 0;
+  player.setSelf(true);
+  if (online()) {                               // 여럿이 겹쳐 서지 않게 뒤쪽 빈 곳 아무 데서나 시작한다
+    player.pos.set(-4 + Math.random() * 7.5, 0, 3.7 + Math.random() * 3);
+  }
+  player.bodyYaw = player.lookYaw = FRONT;      // 스크린 쪽을 보고 시작
+  player.lookPitch = 0.05;
+  player.applyPose();
+  // 혼자 입장하면 친구가 둘째 줄 가운데 자리로 걸어가 앉는다. 함께 접속하면 친구 대신 진짜 사람들이 보인다
+  mate.model.root.visible = mate.model.blob.visible = !online();
+  mateNext = online() ? null : seats[DESK_COLS.length + (chosen === 'roy' ? 3 : 2)];
+  mateTimer = 25 + Math.random() * 20;
+  if (online()) netJoin();
+  entered = true;
+  attending = true;                   // 지금부터 출석 시간이 쌓인다
+  attTick = Date.now();
+  tickAttendance();
+  $('entry').hidden = true;
+  $('hud').hidden = false;
+  $('remoteBtn').hidden = !isTeacher;           // 선생님에게만 리모컨이 있다
+  player.setRemote(isTeacher);
+  setRemoteOut(isTeacher);
+  if (isTeacher) toast('리모컨으로 큰 스크린을 조작해요 · R 키로 꺼내고 넣기', 5000);
+  canvas.focus();
+  dirty = true;
+});
+
+/* ───────────── 화면 크기 ───────────── */
+function resize() {
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO));
+  renderer.setSize(window.innerWidth, window.innerHeight, false);
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.fov = camera.aspect < 1 ? 82 : 70;      // 세로 화면(휴대폰)에서는 조금 넓게
+  camera.updateProjectionMatrix();
+  dirty = true;
+}
+addEventListener('resize', resize);
+resize();
+
+/* ───────────── 메인 루프 ───────────── */
+let last = performance.now();
+let drawn = 0;
+const info = { calls: 0, triangles: 0 };
+
+// 계산만 한 걸음 진행 (그리기는 따로)
+function advance(dt) {
+  if (!entered || paused) return;
+  readInput();
+  if (autoLook(dt)) dirty = true;
+  if (player.update(dt)) dirty = true;
+  if (online() ? peersThink(dt) : mateThink(dt)) dirty = true;
+  if (notesThink(dt)) dirty = true;
+  if (gesturesThink(dt)) dirty = true;
+  const near = atDoor();              // 문 앞에 막 도착했으면 나갈지 묻는다
+  if (near && !doorAsked) askExit();
+  doorAsked = near;
+}
+
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min((now - last) / 1000, 0.05);
+  last = now;
+  advance(dt);
+  if (actors.roy.blink(now)) dirty = true;
+  if (actors.stella.blink(now)) dirty = true;
+  for (const peer of peers.values()) {
+    if (peer.actor.blink(now)) dirty = true;
+    if (peer.actor.tickBubble(now)) dirty = true;
+  }
+  // 화면 공유는 초당 12장 정도만 스크린에 옮겨 그린다
+  if (show.mode === 'live' && now - show.lastFrame > 80 && show.video.readyState >= 2 && show.video.videoWidth) {
+    show.lastFrame = now;
+    drawFit(show.video, show.video.videoWidth, show.video.videoHeight);
+  }
+  if (!dirty) return;                 // 바뀐 게 없으면 그리지 않는다 → 그래픽 카드가 쉰다
+  dirty = false;
+  placeCamera();
+  updateTarget();
+  renderer.render(scene, camera);
+  info.calls = renderer.info.render.calls;
+  info.triangles = renderer.info.render.triangles;
+  drawn++;
+}
+// 지난번에 고른 캐릭터·이름·수업 코드를 다시 채워 준다
+const PROFILE_KEY = 'classroom-profile-v1';
+function saveProfile() {
+  try {
+    localStorage.setItem(PROFILE_KEY, JSON.stringify({
+      who: chosen, name: nickTouched ? $('nick').value.trim() : '', code: $('code').value.trim(),
+      teacher: $('teacher').checked,
+    }));
+  } catch {}
+}
+let profile = {};
+try { profile = JSON.parse(localStorage.getItem(PROFILE_KEY)) || {}; } catch {}
+if (typeof profile.name === 'string' && profile.name) {
+  $('nick').value = profile.name.slice(0, 12);
+  nickTouched = true;
+}
+if (typeof profile.code === 'string') $('code').value = profile.code.slice(0, 20);
+$('teacher').checked = profile.teacher === true;
+$('nick').addEventListener('input', () => { nickTouched = $('nick').value.trim() !== ''; });
+if (!(SUPABASE_URL && SUPABASE_KEY)) {
+  $('netNote').textContent += ' 지금은 온라인 연결 전이라, 이 컴퓨터의 다른 탭끼리만 만나요.';
+}
+
+choose(profile.who === 'stella' ? 'stella' : 'roy');
+requestAnimationFrame(frame);
+
+// 0.5초마다: 부하 표시 갱신 + 벽시계 분침 맞추기
+setInterval(() => {
+  const fps = drawn * 2;
+  drawn = 0;
+  $('perf').textContent =
+    `${fps > 4 ? `그리는 중 ${fps}fps` : '쉬는 중'} · 그리기 호출 ${info.calls} · 삼각형 ${(info.triangles / 1000).toFixed(1)}k`;
+  tickAttendance();
+  sweepPeers();
+  showRoom();
+  if (new Date().getMinutes() !== clockMinute) {
+    clockMinute = drawClock(clockTex.image.getContext('2d'));
+    clockTex.needsUpdate = true;
+    dirty = true;
+  }
+}, 500);
+
+// 개발자 도구(F12) 콘솔에서 classroom.player 처럼 들여다볼 수 있게 열어 둔다
+window.classroom = {
+  actors, seats, scene, renderer, attendance, findPath, advance, act, updateTarget, placeCamera,
+  show, openFiles, gotoPage, startLive, endShow, showCanvas, notes, whispers,
+  net: { peers, myId, tick: netTick, receive: netReceive, pace: netPace, openSupabase,
+    get link() { return link; }, get state() { return linkState; }, get seatAt() { return mySeatAt; } },
+  get player() { return player; },
+  get mate() { return mate; },
+  get target() { return target; },
+  redraw() { dirty = true; },
+};
+</script>
+</body>
+</html>
