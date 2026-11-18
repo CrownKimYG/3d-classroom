@@ -40,7 +40,8 @@
     display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: .14em;
     background: var(--mint); border: 2px solid var(--ink); padding: 3px 8px;
   }
-  h1 { margin: 12px 0 4px; font-size: 36px; line-height: 1.1; letter-spacing: -.02em; }
+  h1 { margin: 0; font-size: 24px; line-height: 1.1; letter-spacing: -.02em; }
+  .note:empty { display: none; }
   .sub { margin: 0 0 14px; font-size: 14px; line-height: 1.55; opacity: .78; }
   /* 입장 순서: 한 항목을 정하면 다음 항목이 나타난다 */
   .step { margin-top: 14px; }
@@ -147,6 +148,7 @@
   #remote button:active { transform: translateY(2px); box-shadow: 0 1px 0 #14161b; }
   #remote button:disabled { opacity: .4; cursor: default; }
   #remote .power { background: #e0503c; }
+  #remote #laserBtn[aria-pressed="true"] { color: #2b0906; background: #ff6b5e; box-shadow: 0 3px 0 #14161b, 0 0 12px #ff3b30; }
   #remote .arrows { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   #remote .arrows button { padding: 0; font-size: 18px; border-radius: 50%; aspect-ratio: 1; }
   .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
@@ -168,8 +170,9 @@
   #acts kbd { margin-right: 8px; }
 
   /* ── 질문 입력 칸 · 소곤거리기 창 ── */
-  #ask { left: 50%; bottom: 116px; transform: translateX(-50%); padding: 6px; }
-  #ask input, #whisper input {
+  #ask, #say { left: 50%; bottom: 116px; transform: translateX(-50%); padding: 6px; }
+  #say input { width: min(420px, 82vw); }
+  #ask input, #say input, #whisper input {
     width: 100%; font: 600 14px var(--font); color: var(--ink); padding: 7px 9px;
     background: #fff; border: 2px solid var(--ink); border-radius: 0; outline: none;
     -webkit-user-select: text; user-select: text;
@@ -221,7 +224,6 @@
 
 <div id="entry">
   <form class="card" id="enterForm">
-    <span class="room-no">ROOM 101</span>
     <h1>3D 강의실</h1>
     <section class="step" id="stepCode">
       <label for="code">1. 수업 코드</label>
@@ -229,7 +231,7 @@
         <input id="code" maxlength="20" placeholder="예: 수학1반" autocomplete="off" autocapitalize="off" spellcheck="false">
         <button id="codeNext" class="mini" type="button">다음</button>
       </div>
-      <p class="note" id="netNote">같은 수업 코드로 들어온 사람끼리 같은 강의실에서 만나요.</p>
+      <p class="note" id="netNote"></p>
     </section>
     <section class="step" id="stepWho" hidden>
     <label>2. 캐릭터</label>
@@ -255,21 +257,6 @@
     </section>
     <section class="step" id="stepGo" hidden>
     <button class="go" type="submit">입장하기</button>
-    <ul class="keys">
-      <li><kbd>WASD</kbd><kbd>방향키</kbd> 이동</li>
-      <li>마우스 드래그 · 둘러보기</li>
-      <li>책상 바라보고 <kbd>X</kbd> 앉기</li>
-      <li>앉아서 <kbd>X</kbd> 일어나기</li>
-      <li><kbd>Shift</kbd> 달리기</li>
-      <li><kbd>Space</kbd> 점프</li>
-      <li>문으로 가기 · 나가기</li>
-    </ul>
-    <ul class="keys touch">
-      <li>왼쪽 스틱 · 이동</li>
-      <li>화면 드래그 · 둘러보기</li>
-      <li>책상 바라보고 앉기 버튼</li>
-      <li>문으로 가기 · 나가기</li>
-    </ul>
     </section>
   </form>
 </div>
@@ -284,8 +271,11 @@
   <div id="remote" hidden>
     <div id="remoteLed">꺼짐</div>
     <button id="stopBtn" class="power" type="button" title="큰 스크린 끄기">⏻ 끄기</button>
+    <button id="textBtn" type="button" title="적은 문구를 스크린 한가운데에 띄우기">문구 띄우기</button>
     <button id="fileBtn" type="button" title="PDF · 이미지 파일을 스크린에 띄우기">자료 열기</button>
     <button id="shareBtn" type="button" title="내 화면을 스크린에 띄우기">화면 공유</button>
+    <button id="laserBtn" type="button" aria-pressed="false" title="스크린을 바라보면 빨간 점이 찍혀요 (F)">레이저</button>
+    <button id="themeBtn" type="button" title="강의실 모습 바꾸기: 교실 → 강의실 → 강연장 → 공연장">테마</button>
     <div class="arrows">
       <button id="prevBtn" type="button" title="이전 장 (Q)">◀</button>
       <button id="nextBtn" type="button" title="다음 장 (E)">▶</button>
@@ -299,6 +289,9 @@
   </div>
   <form id="ask" class="chip" hidden>
     <input id="askText" maxlength="60" placeholder="질문을 적고 Enter (Esc 취소)" autocomplete="off" spellcheck="false">
+  </form>
+  <form id="say" class="chip" hidden>
+    <input id="sayText" maxlength="80" placeholder="스크린에 띄울 문구를 적고 Enter (Esc 취소)" autocomplete="off" spellcheck="false">
   </form>
   <div id="whisper" class="chip" hidden>
     <div id="whisperHead"><b id="whisperName"></b><button id="whisperClose" type="button" aria-label="닫기">×</button></div>
@@ -369,17 +362,6 @@ const CHARACTERS = {                                      // 캐릭터 옷·머�
     hair: '#4b2e39', hairLight: '#6d4656', longHair: true, pin: true,
   },
 };
-const SLIDE = {                                           // 큰 스크린에 띄울 내용
-  label: '오늘의 강의',
-  title: '3D 강의실에 오신 것을 환영합니다',
-  lines: [
-    'W A S D 또는 방향키로 걸어 다녀요',
-    '마우스를 끌어서 둘러봐요',
-    '책상을 바라보고 X 키를 누르면 자리에 앉아요',
-    '앉은 뒤 X 키를 누르면 일어나요',
-    '문으로 걸어가면 강의실에서 나갈 수 있어요',
-  ],
-};
 const DOOR = { z: 5.7, w: 1.3, h: 2.3 };                  // 나가는 문 (오른쪽 벽)
 const WALK = 2.4, RUN = 4.4, JUMP = 3.7, GRAVITY = 12;    // 걷기·달리기 속도, 점프 세기, 중력
 const MATE_WANDERS = true;                                // (혼자 입장했을 때) 친구가 가끔 자리를 옮길지
@@ -410,7 +392,8 @@ scene.background = new THREE.Color('#241c15');
 const camera = new THREE.PerspectiveCamera(70, 1, 0.05, 40);
 
 // 조명은 딱 두 개, 그림자 계산은 하지 않는다
-scene.add(new THREE.HemisphereLight('#fff8ec', '#d9c9b2', 2.7));
+const hemi = new THREE.HemisphereLight('#fff8ec', '#d9c9b2', 2.7);
+scene.add(hemi);
 const sun = new THREE.DirectionalLight('#fff1d6', 1.1);
 sun.position.set(-5, 8, 4);        // 창문(왼쪽) 쪽에서 들어오는 빛
 scene.add(sun);
@@ -700,45 +683,13 @@ function drawClock(g) {
 let clockMinute = -1;
 const clockTex = makeTex(64, 64, (g) => { clockMinute = drawClock(g); }, { smooth: true });
 
-const screenTex = makeTex(1024, 576, (g, w, h) => {
+// 큰 스크린의 처음 모습: 아무것도 띄우지 않은 빈 화면 (선생님이 문구나 자료를 띄우면 바뀐다)
+const screenTex = makeTex(64, 36, (g, w, h) => {
   const bg = g.createLinearGradient(0, 0, w, h);
   bg.addColorStop(0, '#24376a');
   bg.addColorStop(1, '#131b38');
   g.fillStyle = bg;
   g.fillRect(0, 0, w, h);
-  g.fillStyle = 'rgba(255, 255, 255, .04)';
-  for (let x = 0; x < w; x += 32) g.fillRect(x, 0, 1, h);
-  for (let y = 0; y < h; y += 32) g.fillRect(0, y, w, 1);
-
-  g.textBaseline = 'middle';
-  g.font = `800 24px ${UI_FONT}`;
-  const lw = g.measureText(SLIDE.label).width + 36;
-  g.fillStyle = '#ffc94a';
-  g.fillRect(64, 62, lw, 44);
-  g.fillStyle = '#1a2447';
-  g.fillText(SLIDE.label, 82, 85);
-
-  g.fillStyle = '#ffffff';
-  g.font = `800 56px ${UI_FONT}`;
-  g.fillText(SLIDE.title, 64, 176, w - 128);
-  g.fillStyle = '#ff8257';
-  g.fillRect(64, 226, 110, 7);
-
-  g.font = `600 31px ${UI_FONT}`;
-  const gap = Math.min(56, 224 / Math.max(1, SLIDE.lines.length - 1));   // 줄이 많으면 간격을 좁힌다
-  SLIDE.lines.forEach((line, i) => {
-    const y = 290 + i * gap;
-    g.fillStyle = '#8fcdb0';
-    g.fillRect(66, y - 7, 14, 14);
-    g.fillStyle = '#dbe6ff';
-    g.fillText(line, 100, y, w - 164);
-  });
-
-  g.font = `600 19px ${UI_FONT}`;
-  g.fillStyle = 'rgba(255, 255, 255, .45)';
-  g.fillText('ROOM 101', 64, h - 36);
-  g.textAlign = 'right';
-  g.fillText('1 / 1', w - 64, h - 36);
 }, { smooth: true });
 screenTex.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
 
@@ -827,18 +778,18 @@ wall(ROOM.d, -HW, 0, Math.PI / 2);      // 왼쪽 벽 (창문)
 wall(ROOM.d, HW, 0, -Math.PI / 2);      // 오른쪽 벽 (문)
 
 // 천장 조명판 6개 → 그리기 호출 1번
-instanced(quad, new THREE.MeshBasicMaterial({ color: '#fffbea' }),
+const ceilLights = instanced(quad, new THREE.MeshBasicMaterial({ color: '#fffbea' }),
   [-5, 0, 5].flatMap((z) => [-2.8, 2.8].map((x) => (
     { p: [x, ROOM.h - 0.01, z], r: [Math.PI / 2, 0, 0], s: [2.0, 0.6, 1] }
   ))));
 
 /* ───────────── 창문 3개 + 창턱 + 바닥 햇빛 ───────────── */
 const WINDOW_Z = [-4.5, 0, 4.5];
-instanced(quad, new THREE.MeshBasicMaterial({ map: windowTex }),
+const windowsMesh = instanced(quad, new THREE.MeshBasicMaterial({ map: windowTex }),
   WINDOW_Z.map((z) => ({ p: [-HW + 0.02, 2.45, z], r: [0, Math.PI / 2, 0], s: [2.6, 1.9, 1] })));
-instanced(box, new THREE.MeshLambertMaterial({ color: '#fdfaf0' }),
+const sillsMesh = instanced(box, new THREE.MeshLambertMaterial({ color: '#fdfaf0' }),
   WINDOW_Z.map((z) => ({ p: [-HW + 0.09, 1.47, z], s: [0.18, 0.07, 2.8] })));
-instanced(quad, new THREE.MeshBasicMaterial({
+const sunPatches = instanced(quad, new THREE.MeshBasicMaterial({
   map: sunTex, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false,
 }), WINDOW_Z.map((z) => ({ p: [-HW + 0.95, 0.01, z + 0.35], r: [-Math.PI / 2, 0, 0], s: [1.5, 2.3, 1] })));
 
@@ -909,14 +860,15 @@ const block = (x0, x1, z0, z1) => obstacles.push({ x0, x1, z0, z1 });
 block(LECTERN.x - 0.53, LECTERN.x + 0.53, LECTERN.z - 0.36, LECTERN.z + 0.36);
 
 const seats = [];                    // 앉을 수 있는 자리 목록
-const deskTops = [], chairParts = [], metalLegs = [], floorShadows = [];
+const deskTops = [], chairParts = [], metalLegs = [], deskLegs = [], floorShadows = [];
+const deskBlocks = [];              // 책상이 차지하는 영역 (책상이 없는 테마에서는 뺀다)
 for (const z of DESK_ROWS) {
   for (const x of DESK_COLS) {
     // 책상: 상판 + 서랍 + 다리 4개
     deskTops.push({ p: [x, 0.6, z], s: [1.0, 0.05, 0.58] });
     deskTops.push({ p: [x, 0.5, z - 0.03], s: [0.86, 0.13, 0.44] });
     for (const dx of [-0.45, 0.45]) for (const dz of [-0.24, 0.24]) {
-      metalLegs.push({ p: [x + dx, 0.29, z + dz], s: [0.05, 0.58, 0.05] });
+      deskLegs.push({ p: [x + dx, 0.29, z + dz], s: [0.05, 0.58, 0.05] });
     }
     // 의자: 앉는 판 + 등받이 + 다리 4개 (뒷다리는 등받이까지 이어진다)
     const cz = z + 0.62;
@@ -927,17 +879,17 @@ for (const z of DESK_ROWS) {
       metalLegs.push({ p: [x + dx, 0.4, cz + 0.2], s: [0.04, 0.8, 0.04] });
     }
     floorShadows.push({ p: [x, 0.012, z + 0.3], r: [-Math.PI / 2, 0, 0], s: [1.5, 1.7, 1] });
-    block(x - 0.5, x + 0.5, z - 0.29, z + 0.29);
+    deskBlocks.push({ x0: x - 0.5, x1: x + 0.5, z0: z - 0.29, z1: z + 0.29 });
     block(x - 0.21, x + 0.21, cz - 0.21, cz + 0.24);
 
     seats.push({
       kind: 'seat', x, z, cz,
       sit: { x, z: cz - 0.06 },                                    // 앉았을 때 몸의 위치
       sides: [{ x: x - 0.525, z: cz }, { x: x + 0.525, z: cz }],   // 의자 옆, 앉기 직전에 서는 곳
-      boxes: [                                                     // 책상 · 의자를 감싸는 상자 (바라보기 판정과 테두리에 쓴다)
-        new THREE.Box3(new THREE.Vector3(x - 0.5, 0, z - 0.29), new THREE.Vector3(x + 0.5, 0.625, z + 0.29)),
-        new THREE.Box3(new THREE.Vector3(x - 0.21, 0, cz - 0.21), new THREE.Vector3(x + 0.21, 0.81, cz + 0.225)),
-      ],
+      // 책상 · 의자를 감싸는 상자 (바라보기 판정과 테두리에 쓴다). boxes 는 테마에 따라 책상을 빼기도 한다
+      deskBox: new THREE.Box3(new THREE.Vector3(x - 0.5, 0, z - 0.29), new THREE.Vector3(x + 0.5, 0.625, z + 0.29)),
+      chairBox: new THREE.Box3(new THREE.Vector3(x - 0.21, 0, cz - 0.21), new THREE.Vector3(x + 0.21, 0.81, cz + 0.225)),
+      boxes: [],
       body: new THREE.Box3(                                        // 앉은 사람의 몸이 차지하는 자리 (친구를 바라봤는지 판정)
         new THREE.Vector3(x - 0.34, 0.3, cz - 0.4), new THREE.Vector3(x + 0.34, 1.5, cz + 0.28)),
       taken: null,                                                 // 지금 이 자리를 쓰는 캐릭터
@@ -948,9 +900,12 @@ floorShadows.push({ p: [LECTERN.x, 0.012, LECTERN.z], r: [-Math.PI / 2, 0, 0], s
 
 const shadowMat = new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, opacity: 0.5, depthWrite: false });
 instanced(quad, shadowMat, floorShadows);
-instanced(box, new THREE.MeshLambertMaterial({ map: deskTex }), deskTops);
-instanced(box, new THREE.MeshLambertMaterial({ map: chairTex }), chairParts);
-instanced(box, new THREE.MeshLambertMaterial({ color: '#8d949e' }), metalLegs);
+const deskMesh = instanced(box, new THREE.MeshLambertMaterial({ map: deskTex }), deskTops);
+const chairMesh = instanced(box, new THREE.MeshLambertMaterial({ map: chairTex }), chairParts);
+const metalMat = new THREE.MeshLambertMaterial({ color: '#8d949e' });
+instanced(box, metalMat, metalLegs);
+const deskLegMesh = instanced(box, metalMat, deskLegs);
+const fixedBlocks = obstacles.length;     // 여기까지는 언제나 있는 장애물 (교탁 · 의자)
 
 // 상호작용할 수 있는 것들: 자리 24개 + 문
 const doorObj = {
@@ -1019,14 +974,176 @@ const cellX = (i) => -HW + (i % NX + 0.5) * CELL;
 const cellZ = (i) => -HD + ((i / NX | 0) + 0.5) * CELL;
 const cellAt = (x, z) =>
   clamp(Math.floor((z + HD) / CELL), 0, NZ - 1) * NX + clamp(Math.floor((x + HW) / CELL), 0, NX - 1);
-for (let i = 0; i < NCELL; i++) {
-  const x = cellX(i), z = cellZ(i);
-  if (Math.abs(x) > HW - WALL_PAD || Math.abs(z) > HD - WALL_PAD) { blocked[i] = 1; continue; }
-  for (const o of obstacles) {
-    const dx = x - clamp(x, o.x0, o.x1), dz = z - clamp(z, o.z0, o.z1);
-    if (dx * dx + dz * dz < NAV_R * NAV_R) { blocked[i] = 1; break; }
+function buildNav() {                // 장애물이 바뀌면(테마에 따라 책상이 생기거나 없어지면) 다시 만든다
+  blocked.fill(0);
+  for (let i = 0; i < NCELL; i++) {
+    const x = cellX(i), z = cellZ(i);
+    if (Math.abs(x) > HW - WALL_PAD || Math.abs(z) > HD - WALL_PAD) { blocked[i] = 1; continue; }
+    for (const o of obstacles) {
+      const dx = x - clamp(x, o.x0, o.x1), dz = z - clamp(z, o.z0, o.z1);
+      if (dx * dx + dz * dz < NAV_R * NAV_R) { blocked[i] = 1; break; }
+    }
   }
 }
+
+/* ───────────── 테마: 교실 · 강의실 · 강연장 · 공연장 ─────────────
+   방의 크기와 자리 배치는 그대로 두고, 바닥·벽·의자의 무늬와 색, 조명, 무대·커튼, 책상 유무만 바꾼다. */
+function carpetTex(base, dark, light) {
+  const tex = makeTex(32, 32, (g) => {
+    const r = rng(31);
+    g.fillStyle = base;
+    g.fillRect(0, 0, 32, 32);
+    for (let i = 0; i < 170; i++) {
+      g.fillStyle = r() < 0.5 ? dark : light;
+      g.fillRect(r() * 32 | 0, r() * 32 | 0, 1, 1);
+    }
+  }, { repeat: true });
+  tex.repeat.set(ROOM.w, ROOM.d);
+  tex.anisotropy = floorTex.anisotropy;
+  return tex;
+}
+function wallTexOf(top, band, groove, shine, trim, base) {
+  return makeTex(64, 128, (g) => {
+    const r = rng(5);
+    g.fillStyle = top;
+    g.fillRect(0, 0, 64, 96);
+    g.fillStyle = 'rgba(0, 0, 0, .06)';
+    for (let i = 0; i < 70; i++) g.fillRect(r() * 64 | 0, r() * 92 | 0, 1, 1);
+    g.fillStyle = trim;
+    g.fillRect(0, 94, 64, 4);
+    g.fillStyle = band;
+    g.fillRect(0, 98, 64, 24);
+    g.fillStyle = groove;
+    for (let x = 0; x < 64; x += 16) g.fillRect(x, 98, 1, 24);
+    g.fillStyle = shine;
+    for (let x = 1; x < 64; x += 16) g.fillRect(x, 98, 1, 24);
+    g.fillStyle = base;
+    g.fillRect(0, 122, 64, 6);
+  }, { repeat: true });
+}
+// 색을 입혀 쓰는 밝은 회색 무늬 (의자 · 책상 · 커튼)
+const plainChairTex = makeTex(16, 16, (g) => {
+  g.fillStyle = '#e6e6e6';
+  g.fillRect(0, 0, 16, 16);
+  g.fillStyle = '#ffffff';
+  g.fillRect(1, 1, 14, 2);
+  g.fillStyle = '#bdbdbd';
+  g.fillRect(0, 14, 16, 2); g.fillRect(0, 0, 1, 16); g.fillRect(15, 0, 1, 16);
+});
+const plainDeskTex = makeTex(32, 32, (g) => {
+  g.fillStyle = '#f0f0f0';
+  g.fillRect(0, 0, 32, 32);
+  g.fillStyle = '#c9c9c9';
+  g.fillRect(0, 0, 32, 2); g.fillRect(0, 30, 32, 2); g.fillRect(0, 0, 2, 32); g.fillRect(30, 0, 2, 32);
+  g.fillStyle = '#ffffff';
+  g.fillRect(2, 2, 28, 1);
+});
+const curtainTex = makeTex(32, 8, (g) => {
+  ['#b5b5b5', '#d6d6d6', '#f2f2f2', '#ffffff', '#e2e2e2', '#c4c4c4', '#a6a6a6', '#8f8f8f'].forEach((c, i) => {
+    g.fillStyle = c;
+    g.fillRect(i * 4, 0, 4, 8);
+  });
+}, { repeat: true });
+
+// 무대(바닥 장식)와 커튼: 필요한 테마에서만 보인다
+const stageTex = floorTex.clone();
+stageTex.repeat.set(7, 2);
+const stageParts = [
+  new THREE.Mesh(quad, new THREE.MeshLambertMaterial({ map: stageTex })),
+  new THREE.Mesh(box, new THREE.MeshLambertMaterial({ color: '#5a3d28' })),
+];
+stageParts[0].scale.set(11.2, 2.9, 1);
+stageParts[0].rotation.x = -Math.PI / 2;
+stageParts[0].position.set(0, 0.013, -6.45);
+stageParts[1].scale.set(11.2, 0.05, 0.08);
+stageParts[1].position.set(0, 0.025, -5.0);
+const curtainMat = new THREE.MeshLambertMaterial({ map: curtainTex, color: '#a3122a' });
+const valanceTex = curtainTex.clone();
+valanceTex.repeat.set(14, 1);
+const curtainParts = [-1, 1].map((side) => {
+  const geo = new THREE.PlaneGeometry(2.75, ROOM.h);
+  const uv = geo.attributes.uv;
+  for (let i = 0; i < uv.count; i++) uv.setX(i, uv.getX(i) * 4);        // 주름 4번 반복
+  const m = new THREE.Mesh(geo, curtainMat);
+  m.position.set(side * 4.625, ROOM.h / 2, -HD + 0.025);
+  return m;
+});
+curtainParts.push(new THREE.Mesh(quad, new THREE.MeshLambertMaterial({ map: valanceTex, color: '#7d0c20' })));
+curtainParts[2].scale.set(ROOM.w, 0.8, 1);
+curtainParts[2].position.set(0, ROOM.h - 0.4, -HD + 0.035);
+for (const m of [...stageParts, ...curtainParts]) addStatic(m);
+
+const THEMES = {
+  classroom: {
+    name: '교실', floor: floorTex, wall: wallTex, ceil: '#ebe6dc', panels: '#fffbea',
+    chair: [chairTex, '#ffffff'], desk: [deskTex, '#ffffff'], metal: '#8d949e',
+    desks: true, windows: true, stage: false, curtains: false,
+    sky: '#fff8ec', ground: '#d9c9b2', hemi: 2.7, sun: 1.1, bg: '#241c15',
+  },
+  lecture: {
+    name: '강의실', floor: carpetTex('#6d7c90', '#5f6d80', '#7a899c'),
+    wall: wallTexOf('#f1f2f4', '#566170', '#48525f', '#63707f', '#dfe2e6', '#363d47'), ceil: '#eef0f2', panels: '#ffffff',
+    chair: [plainChairTex, '#3a414d'], desk: [plainDeskTex, '#f6f7f9'], metal: '#6b7280',
+    desks: true, windows: true, stage: false, curtains: false,
+    sky: '#f4f8ff', ground: '#c9d2dc', hemi: 2.7, sun: 0.8, bg: '#1b1f26',
+  },
+  hall: {
+    name: '강연장', floor: carpetTex('#2f3d63', '#283455', '#384873'),
+    wall: wallTexOf('#c9a077', '#9a6b43', '#84582f', '#ad7d52', '#e3c39b', '#4a3220'), ceil: '#d8cdbd', panels: '#fff3d6',
+    chair: [plainChairTex, '#a8323a'], desk: [deskTex, '#ffffff'], metal: '#4b4f58',
+    desks: false, windows: false, stage: true, curtains: false,
+    sky: '#fff1dc', ground: '#b89b7a', hemi: 2.25, sun: 0.6, bg: '#1c1510',
+  },
+  theater: {
+    name: '공연장', floor: carpetTex('#3a1a22', '#2e141b', '#48222c'),
+    wall: wallTexOf('#2a2030', '#1d1524', '#150f1b', '#2a1f33', '#43303f', '#100b14'), ceil: '#1f1a24', panels: '#ffcf8a',
+    chair: [plainChairTex, '#c21f3a'], desk: [deskTex, '#ffffff'], metal: '#2b2a30',
+    desks: false, windows: false, stage: true, curtains: true,
+    sky: '#ffd9b0', ground: '#4a3438', hemi: 1.45, sun: 0.3, bg: '#0e0a10',
+  },
+};
+const THEME_ORDER = ['classroom', 'lecture', 'hall', 'theater'];
+let ARM_SIT = -1.25;                 // 앉았을 때 팔 각도 (책상이 있으면 책상 위로, 없으면 무릎 위로)
+let themeKey = 'classroom';
+let themeAt = 0;                     // 테마를 바꾼 시각. 서로 다르면 가장 나중에 바꾼 것을 따른다
+
+// 책상을 두거나 치운다: 보이는 것, 부딪히는 영역, 길찾기 칸, 바라보기 판정을 함께 바꾼다
+function setDesks(on) {
+  deskMesh.visible = deskLegMesh.visible = on;
+  obstacles.length = fixedBlocks;
+  if (on) obstacles.push(...deskBlocks);
+  for (const s of seats) {
+    s.boxes = on ? [s.deskBox, s.chairBox] : [s.chairBox];
+    s.whisper = null;
+  }
+  ARM_SIT = on ? -1.25 : -0.45;
+  buildNav();
+}
+
+function applyTheme(key) {
+  const t = THEMES[key];
+  themeKey = key;
+  floor.material.map = t.floor;
+  wallMat.map = t.wall;
+  ceiling.material.color.set(t.ceil);
+  ceilLights.material.color.set(t.panels);
+  chairMesh.material.map = t.chair[0];
+  chairMesh.material.color.set(t.chair[1]);
+  deskMesh.material.map = t.desk[0];
+  deskMesh.material.color.set(t.desk[1]);
+  metalMat.color.set(t.metal);
+  hemi.color.set(t.sky);
+  hemi.groundColor.set(t.ground);
+  hemi.intensity = t.hemi;
+  sun.intensity = t.sun;
+  scene.background.set(t.bg);
+  windowsMesh.visible = sillsMesh.visible = sunPatches.visible = t.windows;
+  for (const m of stageParts) m.visible = t.stage;
+  for (const m of curtainParts) m.visible = t.curtains;
+  clock.visible = !t.curtains;       // 커튼 뒤에 가려지는 벽시계는 숨긴다
+  setDesks(t.desks);
+}
+applyTheme('classroom');
 
 // 막힌 칸을 골랐을 때 가장 가까운 빈 칸으로 바꿔 준다
 function nearestFree(x, z) {
@@ -1444,8 +1561,8 @@ class Actor {
     m.legR.rotation.x = -swing * 0.8 - 1.41 * sit;
     m.legL.rotation.y = 0.25 * sit;
     m.legR.rotation.y = -0.25 * sit;
-    let lx = (-swing * 0.9 - 1.25 * sit) * (1 - this.wave);     // 앉으면 두 팔을 책상 위로, 손을 들 땐 한 팔을 옆으로
-    let rx = swing * 0.9 - 1.25 * sit;
+    let lx = (-swing * 0.9 + ARM_SIT * sit) * (1 - this.wave);     // 앉으면 두 팔을 책상 위로, 손을 들 땐 한 팔을 옆으로
+    let rx = swing * 0.9 + ARM_SIT * sit;
     let lz = this.airAmt * 2.0 + this.wave * 1.9;               // 점프하면 두 팔을 든다
     let rz = -this.airAmt * 2.0;
     const reach = this.reachAmt;                                // 쪽지를 주고받을 때 상대 쪽으로 팔을 뻗는다
@@ -1608,9 +1725,41 @@ function lookedAt() {
   return found;
 }
 
+/* ── 큰 스크린 크게 보기: 앉아서 스크린을 바라보고 X 를 누르면 정면에서 화면 가득 본다 ── */
+const screenObj = {
+  kind: 'screen',
+  boxes: [new THREE.Box3(
+    new THREE.Vector3(-SCREEN.w / 2 - 0.15, SCREEN.y - SCREEN.h / 2 - 0.15, -HD),
+    new THREE.Vector3(SCREEN.w / 2 + 0.15, SCREEN.y + SCREEN.h / 2 + 0.14, -HD + 0.09))],
+};
+let zoomed = false;                  // 크게 보는 중인지
+let zoomAmt = 0;                     // 0 = 내 자리에서 보는 중, 1 = 스크린 정면
+
+function screenLooked() {            // 시선이 스크린에 닿으면 (거리에 상관없이) 스크린을 돌려준다
+  const cp = Math.cos(player.lookPitch);
+  viewRay.origin.copy(camera.position);
+  viewRay.direction.set(Math.sin(player.lookYaw) * cp, -Math.sin(player.lookPitch), Math.cos(player.lookYaw) * cp);
+  return viewRay.intersectBox(screenObj.boxes[0], _hit) ? screenObj : null;
+}
+function setZoom(on) {
+  zoomed = on && player.mode === 'seated';
+  $('aim').hidden = zoomed;
+  dirty = true;
+}
+function zoomThink(dt) {
+  if (zoomed && player.mode !== 'seated') setZoom(false);
+  const want = zoomed ? 1 : 0;
+  if (zoomAmt === want) return false;
+  zoomAmt += (want - zoomAmt) * (1 - Math.exp(-9 * dt));
+  if (Math.abs(want - zoomAmt) < 0.003) zoomAmt = want;
+  held.visible = remoteOut && zoomAmt < 0.5;         // 크게 볼 땐 손에 든 리모컨이 화면을 가리지 않게
+  return true;
+}
+
 // 앉아 있을 때: 앞·뒤·옆 한 칸에 앉은 친구의 자리를 바라보고 있으면 그 자리를 돌려준다
 let whisperNear = false;             // 소곤거릴 수 있는 친구가 앞·뒤·옆에 앉아 있는지
 let whisperHinted = false;           // 이번에 앉은 뒤로 안내를 띄웠는지
+let seatHinted = false;
 function whisperLooked() {
   whisperNear = false;
   const mine = player.seat;
@@ -1657,12 +1806,17 @@ function updateTarget() {
       }
     }
   } else if (entered && player.mode === 'seated') {
-    t = whisperLooked();               // 앉아 있을 땐 바라본 옆자리 친구와 소곤거릴 수 있다
+    // 앉아 있을 땐 바라본 옆자리 친구와 소곤거리거나, 큰 스크린을 정면에서 크게 볼 수 있다
+    t = zoomed ? null : whisperLooked() || screenLooked();
   }
   const seated = entered && player.mode === 'seated';
   if ($('askBtn').hidden === seated) $('askBtn').hidden = $('okBtn').hidden = !seated;     // 앉으면 학생 메뉴가 뜬다
-  if (!seated) whisperHinted = false;
-  else if (whisperNear && !whisperHinted) {            // 옆에 친구가 앉아 있으면 한 번 알려 준다
+  if (!seated) whisperHinted = seatHinted = false;
+  else if (!seatHinted) {                              // 앉으면 할 수 있는 일을 한 번 알려 준다
+    seatHinted = true;
+    whisperHinted = whisperNear;
+    toast(whisperNear ? '스크린을 보고 X: 크게 보기 · 옆 친구를 보고 X: 소곤거리기' : '스크린을 바라보고 X를 누르면 크게 볼 수 있어요', 6000);
+  } else if (whisperNear && !whisperHinted) {          // 나중에 옆에 친구가 앉으면 그때 알려 준다
     whisperHinted = true;
     toast('옆자리 친구를 바라보면 X 키로 소곤거릴 수 있어요', 5000);
   }
@@ -1673,7 +1827,7 @@ function updateTarget() {
   }
 
   const label = !entered ? ''
-    : player.mode === 'seated' ? (target ? '소곤거리기' : '일어나기')
+    : player.mode === 'seated' ? (zoomed ? '돌아가기' : !target ? '일어나기' : target.kind === 'screen' ? '크게 보기' : '소곤거리기')
     : player.mode === 'path' ? '그만두기'
     : !target ? ''
     : target.kind === 'door' ? '나가기' : '앉기';
@@ -1688,7 +1842,9 @@ function updateTarget() {
 function act() {
   if (!entered) return;
   if (player.mode === 'seated') {
-    if (target && target.kind === 'whisper') openWhisper(target.seat.taken.peerId || 'mate');
+    if (zoomed) setZoom(false);
+    else if (target && target.kind === 'whisper') openWhisper(target.seat.taken.peerId || 'mate');
+    else if (target && target.kind === 'screen') setZoom(true);
     else player.stand();
   } else if (player.mode === 'path') player.cancel();
   else if (player.mode === 'free' && target) {
@@ -1850,6 +2006,12 @@ function leave() {
   $('ask').hidden = $('whisper').hidden = true;
   endShow();                         // 띄워 둔 강의 자료를 내리고
   gestures.length = 0;
+  setZoom(false);
+  zoomAmt = 0;
+  themeAt = 0;                       // 다음에 들어갈 수업은 그 수업의 테마를 새로 받는다
+  applyTheme('classroom');
+  setLaser(false);
+  for (const id of [...lasers.keys()]) removeLaser(id);
   player.setRemote(false);
   player.reachAmt = 0;
   $('remoteBtn').hidden = true;
@@ -1899,7 +2061,7 @@ function netPace() {
 function snapshot() {
   const p = player, mine = !!p.seat && p.seat.taken === p;
   return {
-    t: 's', id: myId, n: myName, c: chosen, tc: isTeacher ? 1 : 0,
+    t: 's', id: myId, n: myName, c: chosen, tc: isTeacher ? 1 : 0, th: [themeKey, themeAt],
     p: [round2(p.pos.x), round2(p.pos.y), round2(p.pos.z)],
     r: [round2(wrap(p.bodyYaw)), round2(wrap(p.lookYaw)), round2(p.lookPitch)],
     s: round2(p.sitAmt),
@@ -1927,6 +2089,7 @@ function netReceive(m) {
   if (m.t === 'h') {                 // 새로 온 사람에게 곧바로 내 상태와 (발표 중이면) 강의 자료를 알린다
     lastSent = '';
     lastSentAt = 0;
+    laserSent = '';
     if (presenting()) setTimeout(resendShow, 400);
     return;
   }
@@ -1934,6 +2097,7 @@ function netReceive(m) {
   if (m.t === 'p') { onShow(m); return; }
   if (m.t === 'rtc') { if (m.to === myId) onRtc(m); return; }
   if (m.t === 'q' || m.t === 'e' || m.t === 'w') { onClassMsg(m); return; }
+  if (m.t === 'l') { onLaser(m); return; }
   if (m.t !== 's' || !Array.isArray(m.p) || !Array.isArray(m.r)) return;
 
   const num = (v, lo, hi) => (Number.isFinite(v) ? clamp(v, lo, hi) : 0);
@@ -1962,6 +2126,7 @@ function netReceive(m) {
     peer.last = now;
   }
   setPeerSeat(peer, Number.isInteger(m.k) ? m.k : -1, Number(m.a) || 0);
+  if (Array.isArray(m.th)) onTheme(m.th[0], Number(m.th[1]) || 0);
   dirty = true;
 }
 
@@ -2031,6 +2196,7 @@ function dropPeer(id) {
   const peer = peers.get(id);
   if (!peer) return;
   if (show.by === id) endShow(false);                // 발표하던 선생님이 나가면 스크린도 원래대로
+  removeLaser(id);
   if (show.pcs.has(id)) { show.pcs.get(id).close(); show.pcs.delete(id); }
   if (peer.seat && peer.seat.taken === peer.actor) peer.seat.taken = null;
   if (whisperPeer === id) closeWhisper();
@@ -2173,7 +2339,8 @@ function showLed() {
   const mine = presenting();
   $('remoteLed').textContent = show.mode === 'off' ? '꺼짐'
     : !mine ? '다른 선생님이 띄움'
-    : show.mode === 'slides' ? `${show.page + 1} / ${show.total}` : '화면 공유 중';
+    : show.mode === 'slides' ? `${show.page + 1} / ${show.total}`
+    : show.mode === 'text' ? '문구 표시 중' : '화면 공유 중';
   $('prevBtn').disabled = $('nextBtn').disabled = !(mine && show.mode === 'slides');
 }
 
@@ -2304,9 +2471,43 @@ function sendSlide() {
   link.send({ t: 'p', id: myId, k: 'img', n: show.page + 1, of: show.total, d: data });
 }
 
+/* ── 문구 (선생님 쪽): 적은 글을 스크린 한가운데에 띄운다 ── */
+function drawText(text) {
+  const bg = showCtx.createLinearGradient(0, 0, SHOW_W, SHOW_H);
+  bg.addColorStop(0, '#24376a');
+  bg.addColorStop(1, '#131b38');
+  showCtx.fillStyle = bg;
+  showCtx.fillRect(0, 0, SHOW_W, SHOW_H);
+  const size = text.length <= 10 ? 128 : text.length <= 22 ? 100 : text.length <= 44 ? 76 : 58;   // 짧을수록 크게
+  showCtx.font = `800 ${size}px ${UI_FONT}`;
+  showCtx.fillStyle = '#ffffff';
+  showCtx.textAlign = 'center';                    // 가운데 정렬
+  showCtx.textBaseline = 'middle';
+  const lines = [''];                              // 폭을 넘으면 줄을 바꾼다 (되도록 띄어쓴 곳에서)
+  for (const ch of text) {
+    const cur = lines[lines.length - 1];
+    if (showCtx.measureText(cur + ch).width <= SHOW_W - 160) { lines[lines.length - 1] = cur + ch; continue; }
+    const cut = cur.lastIndexOf(' ');
+    if (ch !== ' ' && cut > 0) { lines[lines.length - 1] = cur.slice(0, cut); lines.push(cur.slice(cut + 1) + ch); }
+    else lines.push(ch === ' ' ? '' : ch);
+  }
+  const gap = size * 1.32;
+  lines.forEach((line, i) => showCtx.fillText(line.trim(), SHOW_W / 2, SHOW_H / 2 + (i - (lines.length - 1) / 2) * gap));
+  showTex.needsUpdate = true;
+  dirty = true;
+}
+function showText(text) {
+  endShow(false);
+  show.text = text;
+  drawText(text);
+  setShow('text', myId);
+  resendShow();
+}
+
 function resendShow() {
   if (!presenting()) return;
-  if (show.mode === 'slides') sendSlide();
+  if (show.mode === 'text') { if (link) link.send({ t: 'p', id: myId, k: 'txt', x: show.text }); }
+  else if (show.mode === 'slides') sendSlide();
   else if (link) link.send({ t: 'p', id: myId, k: 'live' });
 }
 
@@ -2362,6 +2563,11 @@ function onShow(m) {
     const img = new Image();
     img.onload = () => { if (show.by === m.id && show.mode === 'slides') drawFit(img, img.width, img.height); };
     img.src = m.d;
+  } else if (m.k === 'txt' && typeof m.x === 'string') {
+    if (presenting() || show.mode === 'live') endShow(false);
+    show.text = m.x.slice(0, 80);
+    setShow('text', m.id);
+    drawText(show.text);
   } else if (m.k === 'live') {
     if (show.mode === 'live' && show.by === m.id) return;          // 이미 받고 있다
     endShow(false);
@@ -2447,6 +2653,8 @@ const gestures = [];                 // 리모컨으로 스크린을 가리키�
 
 function setRemoteOut(on) {
   remoteOut = on && isTeacher && entered;
+  if (!remoteOut && laserOn) setLaser(false);          // 리모컨을 넣으면 레이저도 꺼진다
+  if (!remoteOut) $('say').hidden = true;
   $('remote').hidden = !remoteOut;
   held.visible = remoteOut;
   dirty = true;
@@ -2464,7 +2672,8 @@ function gesturesThink(dt) {
   for (let i = gestures.length - 1; i >= 0; i--) {
     const g = gestures[i];
     g.t += dt / 0.6;
-    g.actor.reachAmt = g.t >= 1 ? 0 : Math.sin(Math.PI * g.t);
+    const aiming = [...lasers.values()].some((L) => L.actor === g.actor);     // 레이저를 쏘는 중이면 팔을 계속 들고 있는다
+    g.actor.reachAmt = aiming ? 1 : g.t >= 1 ? 0 : Math.sin(Math.PI * g.t);
     g.actor.applyPose();
     if (g.t >= 1) gestures.splice(i, 1);
   }
@@ -2494,6 +2703,166 @@ $('shareBtn').addEventListener('click', () => press(shareScreen));
 $('prevBtn').addEventListener('click', () => press(() => gotoPage(show.page - 1)));
 $('nextBtn').addEventListener('click', () => press(() => gotoPage(show.page + 1)));
 $('stopBtn').addEventListener('click', () => press(endShow));
+$('laserBtn').addEventListener('click', () => { setLaser(!laserOn); canvas.focus(); });
+
+// 테마 바꾸기: 누를 때마다 교실 → 강의실 → 강연장 → 공연장. 같은 수업의 모두에게 적용된다
+$('themeBtn').addEventListener('click', () => press(() => {
+  themeAt = Date.now();
+  applyTheme(THEME_ORDER[(THEME_ORDER.indexOf(themeKey) + 1) % THEME_ORDER.length]);
+  lastSent = '';
+  lastSentAt = 0;                    // 곧바로 모두에게 알린다
+  toast(`테마 · ${THEMES[themeKey].name}`);
+}));
+// 다른 사람이 알려 준 테마: 내가 아는 것보다 나중에 바뀐 것이면 따른다
+function onTheme(key, at) {
+  if (typeof key !== 'string' || !Object.hasOwn(THEMES, key) || at <= themeAt) return;
+  themeAt = at;
+  if (key === themeKey) return;
+  applyTheme(key);
+  collide(player.pos);               // 책상이 새로 생긴 자리에 서 있었다면 옆으로 비켜난다
+  toast(`테마 · ${THEMES[key].name}`);
+  dirty = true;
+}
+
+// 문구 띄우기: 리모컨 단추를 누르면 입력 칸이 열리고, Enter 를 누르면 스크린 한가운데에 뜬다
+$('textBtn').addEventListener('click', () => {
+  $('say').hidden = false;
+  $('sayText').value = presenting() && show.mode === 'text' ? show.text : '';
+  $('sayText').focus();
+});
+$('say').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const text = $('sayText').value.trim().slice(0, 80);
+  $('say').hidden = true;
+  if (text) press(() => showText(text));
+  else canvas.focus();
+});
+$('sayText').addEventListener('keydown', (e) => {
+  if (e.code === 'Escape') { $('say').hidden = true; canvas.focus(); }
+});
+
+/* ── 레이저 포인터: 리모컨으로 스크린을 가리키면 빨간 점이 찍히고, 모두에게 보인다 (l 메시지) ── */
+const laserDotMat = new THREE.MeshBasicMaterial({
+  transparent: true, depthWrite: false,
+  map: makeTex(32, 32, (g) => {
+    const grd = g.createRadialGradient(16, 16, 0, 16, 16, 16);
+    grd.addColorStop(0, 'rgba(255, 255, 255, 1)');
+    grd.addColorStop(0.25, 'rgba(255, 50, 40, 1)');
+    grd.addColorStop(0.55, 'rgba(255, 40, 30, .55)');
+    grd.addColorStop(1, 'rgba(255, 40, 30, 0)');
+    g.fillStyle = grd;
+    g.fillRect(0, 0, 32, 32);
+  }, { smooth: true }),
+});
+const laserBeamMat = new THREE.LineBasicMaterial({ color: '#ff3b30', transparent: true, opacity: 0.5 });
+const lasers = new Map();            // 쏘는 사람 id → { dot, beam, actor, u, v, tu, tv, last }
+let laserOn = false, laserSent = '', laserSentAt = 0;
+const _from = new THREE.Vector3();
+
+function laserFor(id, actor) {
+  let L = lasers.get(id);
+  if (L) return L;
+  const dot = new THREE.Mesh(quad, laserDotMat);
+  dot.scale.set(0.3, 0.3, 1);        // 교실 뒤에서도 보일 크기
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
+  const beam = new THREE.LineSegments(geo, laserBeamMat);
+  beam.frustumCulled = false;
+  scene.add(dot, beam);
+  L = { dot, beam, actor, u: 0.5, v: 0.5, tu: 0.5, tv: 0.5, last: 0 };
+  lasers.set(id, L);
+  return L;
+}
+function removeLaser(id) {
+  const L = lasers.get(id);
+  if (!L) return;
+  scene.remove(L.dot, L.beam);
+  L.beam.geometry.dispose();
+  lasers.delete(id);
+  if (L.actor !== player) { L.actor.reachAmt = 0; L.actor.applyPose(); }
+  dirty = true;
+}
+function setLaser(on) {
+  laserOn = on && remoteOut;
+  $('laserBtn').setAttribute('aria-pressed', String(laserOn));
+  if (!laserOn) {
+    removeLaser(myId);
+    player.reachAmt = 0;
+    if (link && laserSent && laserSent !== 'off') link.send({ t: 'l', id: myId, off: 1 });
+    laserSent = '';
+  }
+  dirty = true;
+}
+
+// 다른 선생님의 레이저 위치 받기
+function onLaser(m) {
+  const peer = peers.get(m.id);
+  if (!peer) return;
+  if (m.off || !Number.isFinite(m.u) || !Number.isFinite(m.v)) { removeLaser(m.id); return; }
+  const L = laserFor(m.id, peer.actor);
+  L.tu = clamp(m.u, 0, 1);
+  L.tv = clamp(m.v, 0, 1);
+  if (!L.last) { L.u = L.tu; L.v = L.tv; }
+  L.last = Date.now();
+  peer.actor.reachSide = 0;            // 리모컨 든 팔을 스크린 쪽으로 뻗고 있는다
+  peer.actor.reachFwd = 2;
+  peer.actor.reachAmt = 1;
+  peer.actor.applyPose();
+  dirty = true;
+}
+
+function laserThink(dt) {
+  let active = false;
+  const now = Date.now();
+  if (laserOn) {
+    // 내 시선이 스크린의 어디에 닿는지 (0~1, 왼쪽 아래가 0,0)
+    const cp = Math.cos(player.lookPitch);
+    const dx = Math.sin(player.lookYaw) * cp, dy = -Math.sin(player.lookPitch), dz = Math.cos(player.lookYaw) * cp;
+    let hit = null;
+    if (dz < -1e-4) {
+      const t = (-HD + 0.09 - camera.position.z) / dz;
+      const u = (camera.position.x + dx * t) / SCREEN.w + 0.5;
+      const v = (camera.position.y + dy * t - SCREEN.y) / SCREEN.h + 0.5;
+      if (u >= 0 && u <= 1 && v >= 0 && v <= 1) hit = [u, v];
+    }
+    player.reachSide = 0;
+    player.reachFwd = 2;
+    player.reachAmt = 1;
+    if (hit) {
+      const L = laserFor(myId, player);
+      L.u = hit[0];
+      L.v = hit[1];
+    } else {
+      removeLaser(myId);
+    }
+    // 달라졌을 때만, 너무 자주는 말고 보낸다
+    const body = hit ? `${hit[0].toFixed(3)},${hit[1].toFixed(3)}` : 'off';
+    const wait = body === laserSent ? 2000 : Math.max(120, netPace().sendMs * 0.6);
+    if (link && now - laserSentAt >= wait && !(body === 'off' && laserSent === 'off')) {
+      laserSent = body;
+      laserSentAt = now;
+      link.send(hit ? { t: 'l', id: myId, u: +hit[0].toFixed(3), v: +hit[1].toFixed(3) } : { t: 'l', id: myId, off: 1 });
+    }
+  }
+  for (const [id, L] of lasers) {
+    if (id !== myId) {
+      if (now - L.last > 6000) { removeLaser(id); continue; }       // 소식이 끊기면 지운다
+      const k = 1 - Math.exp(-18 * dt), du = L.tu - L.u, dv = L.tv - L.v;
+      L.u += du * k;
+      L.v += dv * k;
+      if (Math.abs(du) + Math.abs(dv) > 0.0005) active = true;
+    }
+    const x = (L.u - 0.5) * SCREEN.w, y = SCREEN.y + (L.v - 0.5) * SCREEN.h, z = -HD + 0.1;
+    L.dot.position.set(x, y, z);
+    if (id === myId) held.getWorldPosition(_from);                  // 빛줄기는 리모컨에서 나온다
+    else _from.set(L.actor.pos.x, L.actor.pos.y + L.actor.model.rig.position.y + 0.72, L.actor.pos.z);
+    const p = L.beam.geometry.attributes.position;
+    p.setXYZ(0, _from.x, _from.y, _from.z);
+    p.setXYZ(1, x, y, z);
+    p.needsUpdate = true;
+  }
+  return active;
+}
 
 /* ───────────── 학생 메뉴: 앉아 있을 때 질문(Q) · 이해했어요(E) · 옆자리와 소곤거리기(X) ─────────────
      q  질문. 모두에게 말풍선으로 보이고, 선생님 화면에는 알림도 뜬다
@@ -2655,8 +3024,18 @@ function placeCamera() {
     const cp = Math.cos(player.lookPitch), sp = Math.sin(player.lookPitch);
     const eye = player.pos.y + player.model.rig.position.y + EYE_H;
     const x = player.pos.x + sy * EYE_FWD, z = player.pos.z + cy * EYE_FWD;
-    camera.position.set(x, eye, z);
-    camera.lookAt(x + sy * cp, eye - sp, z + cy * cp);
+    if (zoomAmt > 0) {               // 스크린 크게 보기: 내 눈에서 스크린 정면으로 부드럽게 옮겨 간다
+      const k = zoomAmt * zoomAmt * (3 - 2 * zoomAmt);
+      const tan = Math.tan(camera.fov * Math.PI / 360);
+      const dist = Math.max(SCREEN.h / 2 / tan, SCREEN.w / 2 / (tan * camera.aspect)) * 1.05;
+      const zx = 0, zy = SCREEN.y, zz = -HD + 0.09 + dist;
+      camera.position.set(x + (zx - x) * k, eye + (zy - eye) * k, z + (zz - z) * k);
+      const ax = x + sy * cp * 5, ay = eye - sp * 5, az = z + cy * cp * 5;
+      camera.lookAt(ax + (0 - ax) * k, ay + (SCREEN.y - ay) * k, az + (-HD - az) * k);
+    } else {
+      camera.position.set(x, eye, z);
+      camera.lookAt(x + sy * cp, eye - sp, z + cy * cp);
+    }
   }
   camera.updateMatrixWorld();
 }
@@ -2669,7 +3048,9 @@ addEventListener('keydown', (e) => {
     return;
   }
   if (!entered) return;
+  if (e.code === 'Escape' && zoomed) setZoom(false);                             // 크게 보기에서 돌아오기
   if (e.code === 'KeyR' && !e.repeat && isTeacher) setRemoteOut(!remoteOut);     // 선생님: 리모컨 꺼내기 · 넣기
+  if (e.code === 'KeyF' && !e.repeat && isTeacher && remoteOut) setLaser(!laserOn);   // 레이저 켜기 · 끄기
   if (e.code === 'Space') { jumpQueued = true; e.preventDefault(); }
   else if (e.code === 'KeyX' && !e.repeat) { act(); e.preventDefault(); }
   else if ((e.code === 'KeyQ' || e.code === 'KeyE') && !e.repeat) {
@@ -2695,7 +3076,7 @@ canvas.addEventListener('pointerdown', (e) => {
   canvas.classList.add('drag');
 });
 canvas.addEventListener('pointermove', (e) => {
-  if (e.pointerId !== lookId) return;
+  if (e.pointerId !== lookId || zoomed) return;      // 크게 보는 동안에는 시선을 고정한다
   player.lookYaw -= (e.clientX - lookX) * 0.005;
   player.lookPitch = clamp(player.lookPitch + (e.clientY - lookY) * 0.004, -1.3, 1.3);
   if (player.mode !== 'free' && player.mode !== 'path') {            // 앉아 있을 땐 고개가 돌아가는 만큼만
@@ -2752,7 +3133,7 @@ function codeDone() {
     $('code').focus();
     return;
   }
-  if (!$('code').readOnly) $('netNote').textContent = '같은 수업 코드로 들어온 사람끼리 같은 강의실에서 만나요.';
+  if (!$('code').readOnly) $('netNote').textContent = '';
   showStep(1);
 }
 function nameDone() {
@@ -2849,6 +3230,8 @@ function advance(dt) {
   if (online() ? peersThink(dt) : mateThink(dt)) dirty = true;
   if (notesThink(dt)) dirty = true;
   if (gesturesThink(dt)) dirty = true;
+  if (laserThink(dt)) dirty = true;
+  if (zoomThink(dt)) dirty = true;
   const near = atDoor();              // 문 앞에 막 도착했으면 나갈지 묻는다
   if (near && !doorAsked) askExit();
   doorAsked = near;
@@ -2903,7 +3286,7 @@ if (invited) {
   $('code').value = invited;
   $('code').readOnly = true;
   $('codeNext').hidden = true;
-  $('netNote').textContent = '초대 링크에 들어 있는 수업 코드예요.';
+  $('netNote').textContent = '초대 링크로 받은 코드';
   showStep(1);
 }
 $('nick').addEventListener('input', () => { nickTouched = $('nick').value.trim() !== ''; });
@@ -2933,7 +3316,8 @@ setInterval(() => {
 // 개발자 도구(F12) 콘솔에서 classroom.player 처럼 들여다볼 수 있게 열어 둔다
 window.classroom = {
   actors, seats, scene, renderer, attendance, findPath, advance, act, updateTarget, placeCamera,
-  show, openFiles, gotoPage, startLive, endShow, showCanvas, notes, whispers,
+  show, openFiles, gotoPage, startLive, endShow, showCanvas, notes, whispers, lasers, showText,
+  get theme() { return themeKey; }, get zoom() { return [zoomed, zoomAmt]; }, get desksOn() { return deskMesh.visible; },
   net: { peers, myId, tick: netTick, receive: netReceive, pace: netPace, openSupabase,
     get link() { return link; }, get state() { return linkState; }, get seatAt() { return mySeatAt; } },
   get player() { return player; },
