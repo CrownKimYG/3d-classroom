@@ -42,16 +42,26 @@
   }
   h1 { margin: 12px 0 4px; font-size: 36px; line-height: 1.1; letter-spacing: -.02em; }
   .sub { margin: 0 0 14px; font-size: 14px; line-height: 1.55; opacity: .78; }
-  .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
-  .fields label { display: block; font-size: 12px; font-weight: 700; }
-  .fields input {
-    display: block; width: 100%; margin-top: 5px; padding: 8px 10px;
+  /* 입장 순서: 한 항목을 정하면 다음 항목이 나타난다 */
+  .step { margin-top: 14px; }
+  .step:not([hidden]) { animation: stepIn .25s ease-out; }
+  @keyframes stepIn { from { opacity: 0; transform: translateY(-6px); } }
+  @media (prefers-reduced-motion: reduce) { .step:not([hidden]) { animation: none; } }
+  .step > label { display: block; margin-bottom: 6px; font-size: 12px; font-weight: 800; }
+  .line { display: flex; gap: 8px; }
+  .mini {
+    flex: none; padding: 0 16px; font: 800 14px var(--font); color: #fff; background: var(--ink);
+    border: 3px solid var(--ink); border-radius: 0; cursor: pointer;
+  }
+  .line input[readonly] { background: #f3e9d2; }
+  .fields input, .line input {
+    display: block; width: 100%; padding: 8px 10px;
     font: inherit; font-size: 16px; font-weight: 700; color: var(--ink);
     background: #fff; border: 3px solid var(--ink); border-radius: 0;
     outline: none; -webkit-user-select: text; user-select: text;
   }
-  .fields input:focus { background: #f2fbf6; }
-  .fields input::placeholder { font-size: 13px; font-weight: 500; color: rgba(51, 36, 26, .45); }
+  .line input:focus { background: #f2fbf6; }
+  .line input::placeholder { font-size: 13px; font-weight: 500; color: rgba(51, 36, 26, .45); }
   .note { margin: 8px 0 0; font-size: 12px; line-height: 1.5; opacity: .75; }
   .pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .pick button {
@@ -101,7 +111,7 @@
   #aim::before { left: 7px; top: 0; width: 2px; height: 16px; }
   #aim::after { left: 0; top: 7px; width: 16px; height: 2px; }
 
-  #room { left: 12px; top: 48px; }
+  #room { left: 12px; top: 48px; cursor: pointer; border-radius: 0; }
   #toast {
     left: 50%; top: 18%; transform: translateX(-50%); max-width: min(560px, 90vw); text-align: center; line-height: 1.5;
     font-size: 14px; font-weight: 800; background: var(--paper); box-shadow: 0 4px 0 var(--ink);
@@ -213,17 +223,37 @@
   <form class="card" id="enterForm">
     <span class="room-no">ROOM 101</span>
     <h1>3D 강의실</h1>
-    <p class="sub">캐릭터와 이름을 정하고 수업 코드로 입장하세요.</p>
+    <section class="step" id="stepCode">
+      <label for="code">1. 수업 코드</label>
+      <div class="line">
+        <input id="code" maxlength="20" placeholder="예: 수학1반" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <button id="codeNext" class="mini" type="button">다음</button>
+      </div>
+      <p class="note" id="netNote">같은 수업 코드로 들어온 사람끼리 같은 강의실에서 만나요.</p>
+    </section>
+    <section class="step" id="stepWho" hidden>
+    <label>2. 캐릭터</label>
     <div class="pick" role="group" aria-label="캐릭터 고르기">
       <button type="button" data-who="roy" style="--c:#5fc46b" aria-pressed="true"><i></i><span>로이<small>초록 옷</small><small id="rec-roy">출석 00:00:00</small></span></button>
       <button type="button" data-who="stella" style="--c:#ff9cc2" aria-pressed="false"><i></i><span>스텔라<small>분홍 옷</small><small id="rec-stella">출석 00:00:00</small></span></button>
     </div>
-    <div class="fields">
-      <label>이름<input id="nick" maxlength="12" autocomplete="off" spellcheck="false"></label>
-      <label>수업 코드<input id="code" maxlength="20" placeholder="비우면 혼자 입장" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
-    </div>
-    <label class="check"><input type="checkbox" id="teacher">선생님으로 입장 (리모컨으로 큰 스크린을 조작해요)</label>
-    <p class="note" id="netNote">같은 수업 코드로 들어온 사람끼리 같은 강의실에서 만나요.</p>
+    </section>
+    <section class="step" id="stepName" hidden>
+      <label for="nick">3. 이름</label>
+      <div class="line">
+        <input id="nick" maxlength="12" autocomplete="off" spellcheck="false">
+        <button id="nameNext" class="mini" type="button">다음</button>
+      </div>
+    </section>
+    <section class="step" id="stepRole" hidden>
+      <label>4. 역할</label>
+      <div class="pick" role="group" aria-label="역할 고르기">
+        <button type="button" data-role="student" aria-pressed="false"><span>학생<small>자리에 앉아 수업 듣기</small></span></button>
+        <button type="button" data-role="teacher" aria-pressed="false"><span>선생님<small>리모컨으로 스크린 조작</small></span></button>
+      </div>
+      <input type="checkbox" id="teacher" hidden>
+    </section>
+    <section class="step" id="stepGo" hidden>
     <button class="go" type="submit">입장하기</button>
     <ul class="keys">
       <li><kbd>WASD</kbd><kbd>방향키</kbd> 이동</li>
@@ -240,13 +270,14 @@
       <li>책상 바라보고 앉기 버튼</li>
       <li>문으로 가기 · 나가기</li>
     </ul>
+    </section>
   </form>
 </div>
 
 <div id="hud" hidden>
   <div id="aim"></div>
   <div id="att" class="chip" title="강의실에 있는 동안 쌓이는 출석 시간">출석 00:00:00</div>
-  <div id="room" class="chip" hidden></div>
+  <button id="room" class="chip" type="button" title="수업 코드가 든 초대 링크를 복사해요" hidden></button>
   <div id="perf" class="chip" title="화면이 멈춰 있으면 그리기를 쉬어서 컴퓨터 부담을 줄여요">준비 중</div>
   <div id="toast" class="chip" hidden></div>
   <button id="remoteBtn" class="chip" type="button" hidden>리모컨 <kbd>R</kbd></button>
@@ -1543,7 +1574,7 @@ function choose(who) {
     a.pos.z = on ? 4.75 : 4.4;
     a.applyPose();
   }
-  document.querySelectorAll('.pick button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.who === who)));
+  document.querySelectorAll('.pick [data-who]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.who === who)));
   if (!nickTouched) $('nick').value = CHARACTERS[who].name;
   dirty = true;
 }
@@ -2018,7 +2049,7 @@ function sweepPeers() {
 }
 
 function showRoom() {
-  const text = online() ? `수업 코드 ${roomCode} · ${peers.size + 1}명 · ${linkState}` : '';
+  const text = online() ? `수업 코드 ${roomCode} · ${peers.size + 1}명 · ${linkState} · 링크 복사` : '';
   if (text === roomShown) return;
   roomShown = text;
   $('room').hidden = !text;
@@ -2710,15 +2741,59 @@ stick.addEventListener('pointerup', stickEnd);
 stick.addEventListener('pointercancel', stickEnd);
 
 /* ───────────── 캐릭터 고르기 · 입장 ───────────── */
-document.querySelectorAll('.pick button').forEach((b) => b.addEventListener('click', () => choose(b.dataset.who)));
+/* 입장 순서: 수업 코드 → 캐릭터 → 이름 → 역할 → 입장하기. 한 항목을 정하면 다음 항목이 나타난다 */
+const STEPS = ['stepCode', 'stepWho', 'stepName', 'stepRole', 'stepGo'];
+const showStep = (n) => STEPS.forEach((id, i) => { if (i <= n) $(id).hidden = false; });
+const codeValue = () => $('code').value.trim().toLowerCase().normalize('NFC').slice(0, 20);
+
+function codeDone() {
+  if (!codeValue()) {                           // 수업 코드는 꼭 있어야 한다
+    $('netNote').textContent = '수업 코드를 입력해 주세요. 선생님이 알려 준 코드를 그대로 적으면 돼요.';
+    $('code').focus();
+    return;
+  }
+  if (!$('code').readOnly) $('netNote').textContent = '같은 수업 코드로 들어온 사람끼리 같은 강의실에서 만나요.';
+  showStep(1);
+}
+function nameDone() {
+  if (!$('nick').value.trim()) $('nick').value = CHARACTERS[chosen].name;
+  showStep(2);
+  showStep(3);
+}
+$('codeNext').addEventListener('click', codeDone);
+$('nameNext').addEventListener('click', nameDone);
+$('code').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); codeDone(); } });
+$('nick').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); nameDone(); } });
+document.querySelectorAll('.pick [data-who]').forEach((b) => b.addEventListener('click', () => {
+  choose(b.dataset.who);
+  showStep(2);
+}));
+document.querySelectorAll('.pick [data-role]').forEach((b) => b.addEventListener('click', () => {
+  $('teacher').checked = b.dataset.role === 'teacher';
+  document.querySelectorAll('.pick [data-role]').forEach((o) => o.setAttribute('aria-pressed', String(o === b)));
+  showStep(4);
+}));
+
+// 수업 코드가 든 초대 링크 (주소 끝에 ?code=수업코드)
+const inviteLink = () => `${location.href.split(/[?#]/)[0]}?code=${encodeURIComponent(roomCode)}`;
+$('room').addEventListener('click', async () => {
+  const url = inviteLink();
+  try {
+    await navigator.clipboard.writeText(url);
+    toast('초대 링크를 복사했어요. 붙여 넣어 보내면 수업 코드가 채워진 채로 열려요.', 5000);
+  } catch {
+    window.prompt('이 링크를 복사해서 보내세요', url);
+  }
+  canvas.focus();
+});
 
 $('enterForm').addEventListener('submit', (e) => {
   e.preventDefault();
-  if (entered) return;
+  if (entered || $('stepGo').hidden || !codeValue()) return;      // 모든 항목을 정해야 들어갈 수 있다
   player = actors[chosen];
   mate = actors[chosen === 'roy' ? 'stella' : 'roy'];
   myName = ($('nick').value.trim() || player.name).slice(0, 12);
-  roomCode = $('code').value.trim().toLowerCase().normalize('NFC').slice(0, 20);
+  roomCode = codeValue();
   isTeacher = $('teacher').checked;
   saveProfile();
   player.wave = mate.wave = 0;
@@ -2821,7 +2896,16 @@ if (typeof profile.name === 'string' && profile.name) {
   nickTouched = true;
 }
 if (typeof profile.code === 'string') $('code').value = profile.code.slice(0, 20);
-$('teacher').checked = profile.teacher === true;
+
+// 초대 링크(?code=수업코드)로 들어왔으면 코드가 이미 정해져 있으니 바로 다음 항목부터 고른다
+const invited = (new URLSearchParams(location.search).get('code') || '').trim().slice(0, 20);
+if (invited) {
+  $('code').value = invited;
+  $('code').readOnly = true;
+  $('codeNext').hidden = true;
+  $('netNote').textContent = '초대 링크에 들어 있는 수업 코드예요.';
+  showStep(1);
+}
 $('nick').addEventListener('input', () => { nickTouched = $('nick').value.trim() !== ''; });
 if (!(SUPABASE_URL && SUPABASE_KEY)) {
   $('netNote').textContent += ' 지금은 온라인 연결 전이라, 이 컴퓨터의 다른 탭끼리만 만나요.';
