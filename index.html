@@ -397,7 +397,7 @@
     border: 2px solid rgba(20, 16, 12, .8); border-radius: 0; cursor: pointer;
   }
   #keysHint button[aria-pressed="true"] { color: var(--ink); background: #fff6e3; }
-  .mini {
+  .miniScr {
     position: relative; width: 100%; aspect-ratio: 16 / 10; overflow: hidden; container-type: inline-size;
     background: rgba(255, 255, 255, .07); border: 2px solid rgba(255, 246, 227, .55);
   }
@@ -6170,7 +6170,7 @@ function miniParts(board) {
 }
 function miniBuild() {
   const el = (tag, cls, text = '') => Object.assign(document.createElement(tag), { className: cls, textContent: text });
-  const mini = el('div', 'mini'), tips = el('p', '');
+  const mini = el('div', 'miniScr'), tips = el('p', '');
   tips.id = 'miniTip';
   const intro = el('span', 'sel');
   intro.dataset.tip = 'intro';
