@@ -344,6 +344,21 @@
 
   /* ── 질문 입력 칸 · 소곤거리기 창 ── */
   #ask, #say { left: 50%; bottom: 116px; transform: translateX(-50%); padding: 6px; }
+  /* 반응 고르기: 아이콘 세 개. 고르면 내 머리 위에 그 아이콘이 뜬다 (모두에게 보인다) */
+  #react { left: 50%; bottom: 172px; transform: translateX(-50%); display: flex; gap: 6px; padding: 6px; }      /* 주황색 X 단추 줄보다 위 */
+  #react[hidden], #reacts[hidden], #reacts [hidden] { display: none; }
+  #react button {
+    position: relative; display: grid; justify-items: center; gap: 2px; width: 76px; padding: 8px 2px 5px;
+    font: 800 11px var(--font); color: var(--ink); background: #fff; border: 2px solid var(--ink); border-radius: 0;
+    cursor: pointer; touch-action: manipulation; user-select: none; -webkit-user-select: none;
+  }
+  #react button:active { transform: translateY(2px); }
+  #react img { width: 48px; height: 48px; image-rendering: pixelated; pointer-events: none; }
+  #react kbd { position: absolute; left: 3px; top: 3px; padding: 0 4px; font: 800 10px var(--font); color: #fff6e3; background: var(--ink); }
+  /* 선생님 화면: 방금 온 반응을 종류별로 센 것 */
+  #reacts { left: 12px; top: 48px; display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 800; }
+  #reacts span { display: flex; align-items: center; gap: 3px; }
+  #reacts img { width: 24px; height: 24px; image-rendering: pixelated; }
   #say input { width: min(420px, 82vw); }
   #ask input, #say input, #whisper input {
     width: 100%; font: 600 14px var(--font); color: var(--ink); padding: 7px 9px;
@@ -456,7 +471,7 @@
     .touch #keyRows { grid-template-columns: 58% minmax(0, 1fr); align-items: start; }
     #miniTip { font-size: 12px; }
   }
-  /* 오른쪽 아래의 둥근 단추(점프 · 판서 뷰에서는 학생보기)가 중심이고, 그때그때 생기는 단추(X · 돌아가기 · 질문 · 이해했어요)는
+  /* 오른쪽 아래의 둥근 단추(점프 · 판서 뷰에서는 학생보기)가 중심이고, 그때그때 생기는 단추(X · 돌아가기 · 질문 · 반응)는
      그 둘레에 위쪽부터 반시계 방향으로 하나씩 붙는다. 자리는 스크립트(layoutActs)가 정한다 */
   .touch #acts, .touch body.zoom #acts { left: auto; right: 68px; bottom: 68px; width: 0; height: 0; display: block; transform: none; }
   .touch #acts .row { display: contents; }
@@ -465,6 +480,9 @@
     font-size: 12px; line-height: 1.2; white-space: normal; word-break: keep-all; box-shadow: 0 3px 0 var(--ink);
   }
   .touch #ask { bottom: 228px; }
+  .touch #react { left: auto; right: 12px; bottom: 228px; transform: none; }      /* 오른손 엄지가 닿는 곳, 둥근 단추들 위 */
+  .touch #react kbd { display: none; }
+  .touch #reacts { top: 92px; }
   .touch #whisper { bottom: 228px; }
   .touch #stick, .touch #jump { display: block; }
   .touch body.zoom #stick, .touch body.zoom #jump { display: none; }       /* 판서 뷰에서는 걷지 않는다 */
@@ -640,6 +658,8 @@
       <button type="button" class="slot" id="redoBtn" data-icon="redo" aria-label="앞으로 가기" title="앞으로 가기: 되돌린 것을 다시 해요 (Shift+Z)" disabled></button>
     </div>
   </div>
+  <div id="react" class="chip" hidden role="group" aria-label="반응 고르기"></div>
+  <div id="reacts" class="chip" hidden aria-live="polite" title="방금 학생들이 보낸 반응"></div>
   <div id="invite" class="chip" hidden>
     <span>학생들에게 보낼 초대 링크</span>
     <button id="inviteCopy" type="button">복사</button>
@@ -651,7 +671,7 @@
     </div>
     <div class="row">
       <button id="askBtn" type="button" hidden><kbd>Q</kbd>질문</button>
-      <button id="okBtn" type="button" hidden><kbd>E</kbd>이해했어요</button>
+      <button id="okBtn" type="button" hidden aria-haspopup="true" title="반응: 알겠어요 · 모르겠어요 · 잠깐만요 가운데 골라 보내요 (E)"><kbd>E</kbd>반응</button>
       <button id="glanceBtn" type="button" hidden title="학생보기: 누르고 있는 동안 학생들을 봐요"><kbd>G</kbd>학생보기</button>
       <button id="backBtn" type="button" hidden><kbd>Esc</kbd><span id="backText">일어나기</span></button>
     </div>
@@ -2915,6 +2935,7 @@ class Actor {
       this.bubble.scale.set(1.7, 0.53, 1);
       this.model.root.add(this.bubble);
     }
+    this.bubble.scale.set(1.7, 0.53, 1);         // (반응 아이콘을 띄웠던 뒤일 수 있으니 크기를 다시 맞춘다)
     const mat = this.bubble.material;
     if (mat.map) mat.map.dispose();
     mat.map = makeTex(512, 160, (g) => {
@@ -2937,6 +2958,29 @@ class Actor {
     this.bubble.visible = !this.isSelf;
     this.bubbleUntil = performance.now() + ms;
     this.wave = 1;
+    this.applyPose();
+  }
+
+  // 반응: 머리 위에 아이콘 하나를 잠깐 띄운다 (말풍선과 같은 자리를 쓴다)
+  react(kind, ms = 5000) {
+    const r = REACTS[kind] || REACTS[0];
+    if (!this.bubble) {
+      this.bubble = new THREE.Sprite(new THREE.SpriteMaterial({ depthWrite: false }));
+      this.model.root.add(this.bubble);
+    }
+    const mat = this.bubble.material;
+    if (mat.map) mat.map.dispose();
+    mat.map = makeTex(96, 96, (g) => {              // 네모난 딱지에 16 × 16 픽셀 그림을 다섯 배로
+      g.fillStyle = '#33241a';
+      g.fillRect(0, 0, 96, 96);
+      g.fillStyle = r.bg;
+      g.fillRect(6, 6, 84, 84);
+      drawIcon(g, r.icon, 8, 8, 5);
+    });
+    mat.needsUpdate = true;
+    this.bubble.scale.set(0.62, 0.62, 1);
+    this.bubble.visible = !this.isSelf;
+    this.bubbleUntil = performance.now() + ms;
     this.applyPose();
   }
 
@@ -3500,7 +3544,7 @@ function isNeighbor(a, b) {
             자리 · 교탁 · 문은 손이 닿을 만큼 가까이서, 칠판은 멀리서도 고를 수 있다
    Esc      한 단계 뒤로: 설정 창 닫기 → 칠판 보기에서 돌아가기 → 일어나기 · 교탁에서 내려오기 → 가던 길 멈추기
    ← →      이전 · 다음: 칠판 보기에서는 옆 영역, 자리나 교탁에 있는 선생님에게는 슬라이드
-   Q · E    학생 전용: 질문 · 이해했어요
+   Q · E    학생 전용: 질문 · 반응
    끌기     시야 움직이기. 칠판 보기에서 펜을 들고 있을 때만 쓰기가 된다 */
 function updateTarget() {
   let t = null;
@@ -3513,7 +3557,8 @@ function updateTarget() {
     t = whisperLooked() || screenLooked();         // 앉아서는 옆자리 친구와 소곤거리거나 칠판을 본다
   }
   const seated = entered && player.mode === 'seated' && !player.seat.stand;      // 교탁에 서 있는 것은 학생 메뉴와 상관없다
-  const menu = seated && !isTeacher;                 // 질문 · 이해했어요는 학생만 쓴다
+  const menu = seated && !isTeacher;                 // 질문 · 반응은 학생만 쓴다
+  if (!menu) closeReact();
   if ($('askBtn').hidden === menu) $('askBtn').hidden = $('okBtn').hidden = !menu;     // 앉으면 학생 메뉴가 뜬다
   if (!seated) whisperHinted = seatHinted = false;
   else if (!seatHinted) {                              // 앉으면 할 수 있는 일을 한 번 알려 준다
@@ -5514,7 +5559,7 @@ function sendInk(to) {
 /* 도구 그림: 16 × 16 픽셀 그림 (마인크래프트의 아이템처럼). 글자 하나가 점 하나, '.' 은 비어 있는 곳 */
 const ICON_INK = {
   k: '#1b1b1b', w: '#ffffff', g: '#c9ccd2', s: '#e6b08a', S: '#bf8560', b: '#3f76dd', B: '#27499c', l: '#86b0f5',
-  d: '#4b4f58', G: '#9aa0aa', p: '#f5a3bd', P: '#cf6788', r: '#dc4034', R: '#9a251d', i: '#26324f', y: '#ffd84a',
+  d: '#4b4f58', G: '#9aa0aa', p: '#f5a3bd', P: '#cf6788', r: '#dc4034', R: '#9a251d', i: '#26324f', y: '#ffd84a', n: '#43c463',
 };
 const ICONS = {
   hand: [                            // 이동: 손바닥
@@ -5578,6 +5623,37 @@ const ICONS = {
     'krrrrrrrrrrrrrrk', 'krrRrrrRrrrRrrrk', 'kRRRRRRRRRRRRRRk', 'kkkkkkkkkkkkkkkk',
   ],
 };
+ICONS.rOk = [                         // 반응 · 알겠어요: 초록 체크
+  '................', '................', '.............kk.', '............knnk',
+  '...........knnk.', '..........knnk..', '.kk......knnk...', 'knnk....knnk....',
+  '.knnk..knnk.....', '..knnkknnk......', '...knnnnk.......', '....knnk........',
+  '.....kk.........', '................', '................', '................',
+];
+ICONS.rAsk = [                        // 반응 · 모르겠어요: 물음표
+  '................', '.....kkkkkk.....', '....kyyyyyyk....', '...kyykkkkyyk...',
+  '...kyyk..kyyk...', '....kk...kyyk...', '........kyyk....', '.......kyyk.....',
+  '......kyyk......', '......kyyk......', '......kkkk......', '......kyyk......',
+  '......kyyk......', '......kkkk......', '................', '................',
+];
+ICONS.rWait = [                       // 반응 · 잠깐만요: 모래시계
+  '................', '..kkkkkkkkkkkk..', '..kSSSSSSSSSSk..', '..kkkkkkkkkkkk..',
+  '...kwwwwwwwwk...', '...kwyyyyyywk...', '....kwyyyywk....', '.....kwyywk.....',
+  '......kyyk......', '.....kwyywk.....', '....kwwyywwk....', '...kwwyyyywwk...',
+  '...kwyyyyyywk...', '..kkkkkkkkkkkk..', '..kSSSSSSSSSSk..', '..kkkkkkkkkkkk..',
+];
+// 반응 세 가지: [아이콘, 이름, 딱지 바탕색]
+const REACTS = [
+  { icon: 'rOk', name: '알겠어요', bg: '#d9f5e3' },
+  { icon: 'rAsk', name: '모르겠어요', bg: '#fff1b8' },
+  { icon: 'rWait', name: '잠깐만요', bg: '#ffe0d1' },
+];
+function drawIcon(g, name, x, y, px) {         // 픽셀 그림을 캔버스에 px 배로 그린다
+  ICONS[name].forEach((row, j) => [...row].forEach((ch, i) => {
+    if (ch === '.') return;
+    g.fillStyle = ICON_INK[ch];
+    g.fillRect(x + i * px, y + j * px, px, px);
+  }));
+}
 ICONS.lock = [                        // 잠금: 자물쇠
   '................', '.....kkkkkk.....', '....kggggggk....', '...kggkkkkggk...',
   '...kgk....kgk...', '...kgk....kgk...', '..kkkkkkkkkkkk..', '..kyyyyyyyyyyk..',
@@ -6042,9 +6118,9 @@ function laserThink(dt) {
   return active;
 }
 
-/* ───────────── 학생 메뉴: 앉아 있을 때 질문(Q) · 이해했어요(E) · 옆자리와 소곤거리기(X) ─────────────
+/* ───────────── 학생 메뉴: 앉아 있을 때 질문(Q) · 반응(E) · 옆자리와 소곤거리기(X) ─────────────
      q  질문. 모두에게 말풍선으로 보이고, 선생님 화면에는 알림도 뜬다
-     e  "이해했어요" 반응
+     e  반응 (k = 0 알겠어요 · 1 모르겠어요 · 2 잠깐만요). 머리 위에 아이콘으로 뜬다
      w  옆자리 친구에게 보내는 쪽지. 글은 받는 사람 화면에만 보이고, 쪽지가 오가는 모습은 모두에게 보인다 */
 const whispers = new Map();          // 상대 id → 주고받은 쪽지 목록
 let whisperPeer = '';                // 지금 소곤거리기 창이 열려 있는 상대
@@ -6070,13 +6146,50 @@ $('ask').addEventListener('submit', (e) => {
 $('askText').addEventListener('keydown', (e) => { if (e.code === 'Escape') closeAsk(); });
 $('askBtn').addEventListener('click', openAsk);
 
-function sendOk() {
-  if (player.mode !== 'seated' || Date.now() - lastOk < 2000) return;
-  lastOk = Date.now();
-  if (link) link.send({ t: 'e', id: myId });
-  toast('"이해했어요"를 보냈어요');
+/* 반응: 공부하다가 말 대신 보내는 세 가지. 고르면 내 머리 위에 아이콘이 뜨고, 선생님 화면에는 종류별로 몇 명인지도 나온다 */
+function closeReact() {
+  if ($('react').hidden) return false;
+  $('react').hidden = true;
+  return true;
 }
-$('okBtn').addEventListener('click', () => { sendOk(); canvas.focus(); });
+function toggleReact() {
+  if (!closeReact()) $('react').hidden = false;
+}
+function sendReact(kind) {
+  closeReact();
+  if (player.mode !== 'seated') return;
+  if (Date.now() - lastOk < 2000) { toast('조금 있다가 다시 보내 주세요'); return; }
+  lastOk = Date.now();
+  if (link) link.send({ t: 'e', id: myId, k: kind });
+  toast(`"${REACTS[kind].name}" 반응을 보냈어요 · 머리 위에 아이콘이 떠요`);
+}
+REACTS.forEach((r, i) => {
+  const b = Object.assign(document.createElement('button'), { type: 'button', title: `${r.name} (${i + 1})` });
+  b.append(Object.assign(document.createElement('kbd'), { textContent: i + 1 }), iconImg(r.icon), r.name);
+  b.addEventListener('click', () => { sendReact(i); canvas.focus(); });
+  $('react').append(b);
+  const tally = document.createElement('span');
+  tally.title = r.name;
+  tally.append(iconImg(r.icon), document.createElement('b'));
+  $('reacts').append(tally);
+});
+$('okBtn').addEventListener('click', () => { toggleReact(); canvas.focus(); });
+addEventListener('pointerdown', (e) => { if (!e.target.closest?.('#react, #okBtn')) closeReact(); }, true);       // 바깥을 누르면 닫힌다
+// 선생님 화면: 방금(8초 안에) 온 반응을 종류별로 센다
+const reactLog = [];
+function showReacts() {
+  const now = Date.now(), n = REACTS.map(() => 0);
+  while (reactLog.length && reactLog[0].until <= now) reactLog.shift();
+  for (const r of reactLog) n[r.kind]++;
+  $('reacts').hidden = !reactLog.length;
+  [...$('reacts').children].forEach((el, i) => { el.hidden = !n[i]; el.lastChild.textContent = n[i]; });
+}
+function noteReact(kind) {
+  if (!isTeacher) return;
+  reactLog.push({ kind, until: Date.now() + 8000 });
+  showReacts();
+  setTimeout(showReacts, 8100);
+}
 
 // 소곤거릴 상대: 함께 접속한 사람, 또는 혼자 입장했을 때의 친구('mate')
 function partner(id) {
@@ -6145,7 +6258,10 @@ function onClassMsg(m) {
     peer.actor.say(`질문: ${text}`, 12000);
     if (isTeacher) toast(`질문 · ${peer.actor.name}: ${text}`, 9000);
   } else if (m.t === 'e') {
-    peer.actor.say('이해했어요!', 4000, '#d9f5e3');
+    const kind = m.k === 1 || m.k === 2 ? m.k : 0;
+    peer.actor.react(kind);
+    noteReact(kind);
+    dirty = true;
   } else if (m.t === 'w') {
     const to = m.to === myId ? player : peers.get(m.to) && peers.get(m.to).actor;
     if (to) passNote(peer.actor, to);
@@ -6265,7 +6381,7 @@ function keyRows() {
     [gap(0.5),
       k('KeyQ', 'Q', T ? '' : '질문', '자리에 앉아 있을 때 선생님께 질문을 보내요.'),
       k('KeyW', 'W', '앞으로', '앞으로 걸어요.'),
-      k('KeyE', 'E', T ? '' : '이해했어요', '자리에 앉아 있을 때 "이해했어요"를 선생님께 알려요.'),
+      k('KeyE', 'E', T ? '' : '반응', '자리에 앉아 있을 때 반응을 골라 보내요: 알겠어요 · 모르겠어요 · 잠깐만요. 머리 위에 아이콘으로 떠요. E 를 누른 뒤 1 · 2 · 3 으로도 골라요.'),
       k('KeyR', 'R', T ? '리모컨' : '', '리모컨을 꺼내고 넣어요. 리모컨으로 자료를 띄우고, 넘기고, 잠시 감춰요.'),
       gap(1.4), k('Mouse', '마우스', '끌어서 보기', T ? '화면을 끌면 둘러봐요. 판서 화면에서는 펜을 들고 끌어서 쓰고, 손 모양을 들고 끌면 칠판이 옆으로 움직여요.' : '화면을 끌면 둘러봐요. 칠판 보기에서는 끌어서 칠판을 옆으로 옮겨요.', 1.8)],
     [gap(0.8),
@@ -6309,7 +6425,7 @@ function miniParts(board) {
     ...icons.map(([part, icon, title, about], i) => [part, 'icon', icon, title, about, { right: `${4.5 + 9.5 * i}%` }]),
     ...(T ? [['remote', 'remote', '리모컨', '리모컨', '◀ ▶ 장 넘기기 · 포인터(누르고 있는 동안 빨간 점) · 띄우기(문구 · 자료 · 화면 공유) · 감추기 · 더보기.']] : []),
   ];
-  const acts = T ? '교탁 서기 · 판서 · 앉기 · 돌아가기' : '앉기 · 일어나기 · 질문 · 이해했어요 · 돌아가기';
+  const acts = T ? '교탁 서기 · 판서 · 앉기 · 돌아가기' : '앉기 · 일어나기 · 질문 · 반응(알겠어요 · 모르겠어요 · 잠깐만요) · 돌아가기';
   if (!board) return [
     ['zoneBR', 'zone', '오른쪽 아래', '오른쪽 아래 · 오른손 엄지 자리', '큰 동그라미(점프)가 늘 가운데에 있고, 지금 할 수 있는 일이 그 둘레에 둥근 단추로 생겨요. 위쪽부터 반시계 방향으로, 많아야 세 개예요.'],
     ...corner,
@@ -6485,7 +6601,7 @@ addEventListener('keydown', (e) => {
   }
   if (!entered) return;
   if (e.code === 'Escape') {           // 한 단계 뒤로 (열려 있는 펜 메뉴 · 조작법이 있으면 그것부터 닫는다)
-    if (!e.repeat && !closePops() && !closeKeys()) back();
+    if (!e.repeat && !closeReact() && !closePops() && !closeKeys()) back();
     e.preventDefault();
     return;
   }
@@ -6507,6 +6623,12 @@ addEventListener('keydown', (e) => {
   if (step && zoomed && !glancing) {   // 칠판 보기: 옆 영역으로 (영역이 하나뿐이면 슬라이드). 학생보기 중에는 고개를 움직이는 데 쓴다
     if (areas.length > 1) { if (!e.repeat || pan.t >= 1) gotoArea(areaAt + step); }
     else if (slidesMine() && !e.repeat) gotoPage(show.page + step);
+    e.preventDefault();
+    return;
+  }
+  const pick = $('react').hidden ? null : /^(?:Digit|Numpad)([1-3])$/.exec(e.code);
+  if (pick) {                          // 반응 고르기가 열려 있으면 1 · 2 · 3 으로 고른다
+    if (!e.repeat) sendReact(Number(pick[1]) - 1);
     e.preventDefault();
     return;
   }
@@ -6532,8 +6654,8 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyB' && !e.repeat) setZoom(!zoomed);                          // 칠판 보기 (선생님은 판서)
   if (e.code === 'Space') { jumpQueued = true; e.preventDefault(); }
   else if (e.code === 'KeyX' && !e.repeat) { act(); e.preventDefault(); }
-  else if ((e.code === 'KeyQ' || e.code === 'KeyE') && !e.repeat) {              // 학생 전용: 질문 · 이해했어요
-    if (player.mode === 'seated' && !player.seat.stand) { if (e.code === 'KeyE') sendOk(); else openAsk(); }
+  else if ((e.code === 'KeyQ' || e.code === 'KeyE') && !e.repeat) {              // 학생 전용: 질문 · 반응
+    if (player.mode === 'seated' && !player.seat.stand && !isTeacher) { if (e.code === 'KeyE') toggleReact(); else openAsk(); }
     e.preventDefault();
   }
   else if (e.code.startsWith('Arrow')) e.preventDefault();
