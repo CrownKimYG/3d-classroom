@@ -229,6 +229,23 @@
   #panels > [hidden] { display: none; }
   @media (max-width: 640px) { #panels { flex-wrap: nowrap; overflow-y: auto; pointer-events: auto; } #panels:not(:has(> .chip:not([hidden]))) { display: none; } }      /* 좁은 화면: 한 줄로 쌓고 넘치면 굴린다 */
   #setup { width: 316px; max-width: 100%; padding: 10px 10px 12px; }
+  /* 채팅: 모두가 함께 보는 대화 창 (왼쪽 창 자리에 쌓인다) */
+  #chat { width: 280px; max-width: 100%; padding: 10px 12px; display: flex; flex-direction: column; }
+  #chat[hidden] { display: none; }
+  #chat .head { display: flex; justify-content: space-between; align-items: center; font-size: 14px; margin-bottom: 6px; }
+  #chat .head button { font: 800 16px var(--font); color: var(--ink); background: none; border: 0; cursor: pointer; }
+  #chatLog { display: grid; align-content: start; gap: 4px; height: 190px; max-height: 40vh; overflow-y: auto; margin-bottom: 6px; padding: 6px; font-size: 13px; line-height: 1.4; background: #fff; border: 2px solid var(--ink); user-select: text; -webkit-user-select: text; }
+  #chatLog div { overflow-wrap: anywhere; }
+  #chatLog b { margin-right: 5px; }
+  #chatLog .me b { color: #b4532f; }
+  #chatLog .teacher b { color: #2b6cb0; }
+  #chatLog p { margin: 0; font-size: 12px; opacity: .6; }
+  #chatForm { display: flex; gap: 6px; }
+  #chatForm input { flex: 1; min-width: 0; }
+  #chatForm button { padding: 0 10px; font: 800 13px var(--font); color: #fff; background: var(--coral); border: 2px solid var(--ink); border-radius: 0; cursor: pointer; }
+  #chatBadge { display: inline-block; min-width: 18px; margin-left: 6px; padding: 0 5px; font: 800 11px/18px var(--font); color: #fff; background: #e0503c; border-radius: 9px; text-align: center; }
+  #chatBadge[hidden] { display: none; }
+  .touch #acts #chatBadge { position: absolute; right: -2px; top: -2px; margin: 0; }
   /* 마이크 관리 (선생님): 강의실 설정과 같은 모양의 창 */
   #voices { width: 250px; max-width: 100%; padding: 10px 12px; }
   #voices[hidden] { display: none; }
@@ -372,7 +389,7 @@
   #acts kbd { margin-right: 8px; }
 
   /* ── 질문 입력 칸 · 소곤거리기 창 ── */
-  #ask, #say { left: 50%; bottom: 116px; transform: translateX(-50%); padding: 6px; }
+  #say { left: 50%; bottom: 116px; transform: translateX(-50%); padding: 6px; }
   /* 반응 고르기: 아이콘 세 개. 고르면 내 머리 위에 그 아이콘이 뜬다 (모두에게 보인다) */
   #react { left: 50%; bottom: 172px; transform: translateX(-50%); display: flex; gap: 6px; padding: 6px; }      /* 주황색 X 단추 줄보다 위 */
   #react[hidden], #reacts[hidden], #reacts [hidden] { display: none; }
@@ -389,12 +406,11 @@
   #reacts span { display: flex; align-items: center; gap: 3px; }
   #reacts img { width: 24px; height: 24px; image-rendering: pixelated; }
   #say input { width: min(420px, 82vw); }
-  #ask input, #say input, #whisper input {
+  #say input, #whisper input, #chat input {
     width: 100%; font: 600 14px var(--font); color: var(--ink); padding: 7px 9px;
     background: #fff; border: 2px solid var(--ink); border-radius: 0; outline: none;
     -webkit-user-select: text; user-select: text;
   }
-  #ask input { width: min(340px, 78vw); }
   #whisper { right: 12px; bottom: 58px; width: 250px; padding: 8px; }
   #whisperHead { display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
   #whisperHead button { font: 800 14px var(--font); color: var(--ink); background: none; border: 0; cursor: pointer; }
@@ -492,7 +508,7 @@
     .touch #keyRows { grid-template-columns: 58% minmax(0, 1fr); align-items: start; }
     #miniTip { font-size: 12px; }
   }
-  /* 오른쪽 아래의 둥근 단추(점프 · 판서 뷰에서는 학생보기)가 중심이고, 그때그때 생기는 단추(X · 돌아가기 · 질문 · 반응)는
+  /* 오른쪽 아래의 둥근 단추(점프 · 판서 뷰에서는 학생보기)가 중심이고, 그때그때 생기는 단추(X · 돌아가기 · 채팅 · 반응)는
      그 둘레에 위쪽부터 반시계 방향으로 하나씩 붙는다. 자리는 스크립트(layoutActs)가 정한다 */
   .touch #acts, .touch body.zoom #acts { left: auto; right: 68px; bottom: 68px; width: 0; height: 0; display: block; transform: none; }
   .touch #acts .row { display: contents; }
@@ -500,7 +516,6 @@
     position: absolute; width: 68px; height: 68px; padding: 0 4px; border-radius: 50%;
     font-size: 12px; line-height: 1.2; white-space: normal; word-break: keep-all; box-shadow: 0 3px 0 var(--ink);
   }
-  .touch #ask { bottom: 228px; }
   .touch #react { left: auto; right: 12px; bottom: 228px; transform: none; }      /* 오른손 엄지가 닿는 곳, 둥근 단추들 위 */
   .touch #react kbd { display: none; }
   .touch #reacts { top: 92px; }
@@ -668,6 +683,14 @@
       <button id="linkTeacher" type="button">선생님용<small>함께 가르칠 선생님만</small></button>
     </div>
   </div>
+  <div id="chat" class="chip" hidden>
+    <div class="head"><b>채팅</b><button id="chatClose" type="button" aria-label="닫기">×</button></div>
+    <div id="chatLog" aria-live="polite"></div>
+    <form id="chatForm">
+      <input id="chatText" maxlength="120" placeholder="메시지를 적고 Enter" autocomplete="off" spellcheck="false">
+      <button type="submit">보내기</button>
+    </form>
+  </div>
   <div id="voices" class="chip" hidden>
     <div class="head"><b>마이크</b><button id="voicesClose" type="button" aria-label="닫기">×</button></div>
     <label><input type="checkbox" id="voiceGlobal" checked> 내 목소리를 교실 전체에<small>끄면 가까이 있는 사람에게만 들려요</small></label>
@@ -731,15 +754,12 @@
       <button id="act" type="button" hidden><kbd>X</kbd><span id="actText">앉기</span></button>
     </div>
     <div class="row">
-      <button id="askBtn" type="button" hidden><kbd>Q</kbd>질문</button>
+      <button id="askBtn" type="button" hidden title="채팅 창 열기 · 닫기 (Q)"><kbd>Q</kbd>채팅<b id="chatBadge" hidden></b></button>
       <button id="okBtn" type="button" hidden aria-haspopup="true" title="반응: 알겠어요 · 모르겠어요 · 잠깐만요 가운데 골라 보내요 (E)"><kbd>E</kbd>반응</button>
       <button id="glanceBtn" type="button" hidden title="학생보기: 누르고 있는 동안 학생들을 봐요"><kbd>G</kbd>학생보기</button>
       <button id="backBtn" type="button" hidden><kbd>Esc</kbd><span id="backText">일어나기</span></button>
     </div>
   </div>
-  <form id="ask" class="chip" hidden>
-    <input id="askText" maxlength="60" placeholder="질문을 적고 Enter (Esc 취소)" autocomplete="off" spellcheck="false">
-  </form>
   <form id="say" class="chip" hidden>
     <input id="sayText" maxlength="80" placeholder="칠판에 띄울 문구를 적고 Enter (Esc 취소)" autocomplete="off" spellcheck="false">
   </form>
@@ -3701,7 +3721,8 @@ function updateTarget() {
   const seated = entered && player.mode === 'seated' && !player.seat.stand;      // 교탁에 서 있는 것은 학생 메뉴와 상관없다
   const menu = seated && !isTeacher;                 // 질문 · 반응은 학생만 쓴다
   if (!menu) closeReact();
-  if ($('askBtn').hidden === menu) $('askBtn').hidden = $('okBtn').hidden = !menu;     // 앉으면 학생 메뉴가 뜬다
+  if ($('okBtn').hidden === menu) $('okBtn').hidden = !menu;       // 앉으면 학생의 반응 단추가 뜬다
+  if ($('askBtn').hidden === entered) $('askBtn').hidden = !entered;       // 채팅 단추는 누구에게나 늘 있다
   if (!seated) whisperHinted = seatHinted = false;
   else if (!seatHinted) {                              // 앉으면 할 수 있는 일을 한 번 알려 준다
     seatHinted = true;
@@ -3712,7 +3733,7 @@ function updateTarget() {
     whisperHinted = true;
     toast('옆자리 친구를 바라보면 X 키로 소곤거릴 수 있어요', 5000);
   }
-  if (!seated && !($('ask').hidden && $('whisper').hidden)) { $('ask').hidden = $('whisper').hidden = true; }
+  if (!seated && !$('whisper').hidden) $('whisper').hidden = true;
   if (t !== target) {
     target = t;
     showOutline(t ? t.boxes : []);
@@ -3945,9 +3966,10 @@ function leave() {
   for (const n of notes.splice(0)) scene.remove(n.mesh);
   whispers.clear();
   whisperPeer = '';
-  $('ask').hidden = $('whisper').hidden = true;
+  $('whisper').hidden = true;
   endShow();                         // 띄워 둔 강의 자료를 내리고
   voiceReset();                      // 마이크를 끄고 목소리 연결을 모두 끊는다
+  chatReset();                       // 채팅 창을 닫고 대화를 비운다
   gestures.length = 0;
   setZoom(false);
   zoomAmt = 0;
@@ -4086,7 +4108,7 @@ function netReceive(m) {
   if (m.t === 'b') { dropPeer(m.id); return; }
   if (m.t === 'p') { onShow(m); return; }
   if (m.t === 'rtc') { if (m.to === myId) onRtc(m); return; }
-  if (m.t === 'q' || m.t === 'e' || m.t === 'w') { onClassMsg(m); return; }
+  if (m.t === 'c' || m.t === 'q' || m.t === 'e' || m.t === 'w') { onClassMsg(m); return; }
   if (m.t === 'l') { onLaser(m); return; }
   if (m.t === 'd') { onInk(m); return; }
   if (m.t === 'z') { onZap(m); return; }
@@ -6601,7 +6623,7 @@ function rebuild(moved, keep = false) {
   follow.fresh = false;
   setGhost(false);
   whisperPeer = '';
-  $('ask').hidden = $('whisper').hidden = true;
+  $('whisper').hidden = true;
   for (const n of notes.splice(0)) scene.remove(n.mesh);
   const who = [player, mate].map((a) => [a, seats.indexOf(a.seat)]);          // 누가 몇 번 자리에 있었는지
   const taken = seats.map((s) => s.taken);
@@ -6908,32 +6930,63 @@ function laserThink(dt) {
 }
 
 /* ───────────── 학생 메뉴: 앉아 있을 때 질문(Q) · 반응(E) · 옆자리와 소곤거리기(X) ─────────────
-     q  질문. 모두에게 말풍선으로 보이고, 선생님 화면에는 알림도 뜬다
+     c  채팅. 모두의 채팅 창에 쌓이고, 말한 사람 머리 위에 말풍선으로도 잠깐 뜬다 (q 는 예전의 '질문', 채팅과 똑같이 다룬다)
      e  반응 (k = 0 알겠어요 · 1 모르겠어요 · 2 잠깐만요). 머리 위에 아이콘으로 뜬다
      w  옆자리 친구에게 보내는 쪽지. 글은 받는 사람 화면에만 보이고, 쪽지가 오가는 모습은 모두에게 보인다 */
 const whispers = new Map();          // 상대 id → 주고받은 쪽지 목록
 let whisperPeer = '';                // 지금 소곤거리기 창이 열려 있는 상대
 let lastOk = 0;
 
-function openAsk() {
-  $('ask').hidden = false;
-  $('askText').value = '';
-  $('askText').focus();
+/* 채팅: 같은 수업의 모두가 함께 보는 대화 창 (c 메시지). 말한 사람의 머리 위에도 말풍선으로 잠깐 뜬다.
+   창을 닫아 둔 동안 온 말은 채팅 단추에 숫자로 쌓이고, 화면에 잠깐 알림으로도 보인다. 내가 들어온 뒤의 말만 남는다 */
+const chat = { unread: 0, sentAt: 0 };
+function chatAdd(name, text, kind = '') {            // kind: me · teacher · ''
+  const row = Object.assign(document.createElement('div'), { className: kind });
+  row.append(Object.assign(document.createElement('b'), { textContent: name }), text);
+  const log = $('chatLog'), stick = log.scrollTop + log.clientHeight >= log.scrollHeight - 30;
+  if (log.firstChild && log.firstChild.tagName === 'P') log.firstChild.remove();       // "아직 대화가 없어요"
+  log.append(row);
+  while (log.children.length > 200) log.firstChild.remove();
+  if (stick || kind === 'me') log.scrollTop = log.scrollHeight;
+  if ($('chat').hidden && kind !== 'me') { chat.unread++; showChatBadge(); }
 }
-function closeAsk() {
-  $('ask').hidden = true;
+function showChatBadge() {
+  $('chatBadge').hidden = !chat.unread;
+  $('chatBadge').textContent = chat.unread > 99 ? '99+' : chat.unread;
+}
+function openChat() {
+  if (!entered) return;
+  if (!$('chatLog').firstChild) $('chatLog').append(Object.assign(document.createElement('p'), { textContent: '아직 대화가 없어요. 메시지를 적어 보세요.' }));
+  $('chat').hidden = false;
+  chat.unread = 0;
+  showChatBadge();
+  $('chatLog').scrollTop = $('chatLog').scrollHeight;
+  $('chatText').focus();
+}
+function closeChat() {
+  $('chat').hidden = true;
   canvas.focus();
 }
-$('ask').addEventListener('submit', (e) => {
+function chatReset() {
+  $('chat').hidden = true;
+  $('chatLog').replaceChildren();
+  $('chatText').value = '';
+  chat.unread = 0;
+  showChatBadge();
+}
+$('chatForm').addEventListener('submit', (e) => {
   e.preventDefault();
-  const text = $('askText').value.trim().slice(0, 60);
-  closeAsk();
-  if (!text || player.mode !== 'seated') return;
-  if (link) link.send({ t: 'q', id: myId, x: text });
-  toast('질문을 올렸어요');
+  const text = $('chatText').value.trim().slice(0, 120);
+  if (!text || !entered) return;
+  if (Date.now() - chat.sentAt < 700) return;          // 너무 잇달아 보내지 않게
+  chat.sentAt = Date.now();
+  $('chatText').value = '';
+  if (link) link.send({ t: 'c', id: myId, x: text });
+  chatAdd(myName || (isTeacher ? '선생님' : '나'), text, 'me');
 });
-$('askText').addEventListener('keydown', (e) => { if (e.code === 'Escape') closeAsk(); });
-$('askBtn').addEventListener('click', openAsk);
+$('chatText').addEventListener('keydown', (e) => { if (e.code === 'Escape') closeChat(); });
+$('chatClose').addEventListener('click', closeChat);
+$('askBtn').addEventListener('click', () => { if ($('chat').hidden) openChat(); else closeChat(); });
 
 /* 반응: 공부하다가 말 대신 보내는 세 가지. 고르면 내 머리 위에 아이콘이 뜨고, 선생님 화면에는 종류별로 몇 명인지도 나온다 */
 function closeReact() {
@@ -7043,9 +7096,11 @@ function onClassMsg(m) {
   const peer = peers.get(m.id);
   if (!peer) return;
   const text = typeof m.x === 'string' ? m.x.slice(0, 60) : '';
-  if (m.t === 'q' && text) {
-    peer.actor.say(`질문: ${text}`, 12000);
-    if (isTeacher) toast(`질문 · ${peer.actor.name}: ${text}`, 9000);
+  if ((m.t === 'c' || m.t === 'q') && typeof m.x === 'string' && m.x.trim()) {       // 채팅 (q 는 예전의 '질문')
+    const said = m.x.trim().slice(0, 120), name = peer.actor.name || '학생';
+    chatAdd(name, said, peer.teacher ? 'teacher' : '');
+    peer.actor.say(said, 7000);                      // 머리 위 말풍선
+    if ($('chat').hidden) toast(`${name}: ${said}`, 5000);
   } else if (m.t === 'e') {
     const kind = m.k === 1 || m.k === 2 ? m.k : 0;
     peer.actor.react(kind);
@@ -7168,7 +7223,7 @@ function keyRows() {
       gap(0.5), k('F3', 'F3', '시스템 정보', '시스템 정보(fps · 그리기 호출 · 내 위치 등)를 켜고 꺼요. F3 이 안 되는 컴퓨터에서는 I 키나 ` 키로도 돼요.', 1.4)],
     '123456789'.split('').map((d) => k(`Digit${d}`, d, d === '1' ? '영역' : ' ', area)),
     [gap(0.5),
-      k('KeyQ', 'Q', T ? '' : '질문', '자리에 앉아 있을 때 선생님께 질문을 보내요.'),
+      k('KeyQ', 'Q', '채팅', '채팅 창을 열고 글을 적어요. Enter 로 보내면 모두에게 보이고, 내 머리 위에도 말풍선으로 잠깐 떠요. Esc 로 닫아요.'),
       k('KeyW', 'W', '앞으로', '앞으로 걸어요.'),
       k('KeyE', 'E', T ? '' : '반응', '자리에 앉아 있을 때 반응을 골라 보내요: 알겠어요 · 모르겠어요 · 잠깐만요. 머리 위에 아이콘으로 떠요. E 를 누른 뒤 1 · 2 · 3 으로도 골라요.'),
       k('KeyR', 'R', T ? '리모컨' : '', '리모컨을 꺼내고 넣어요. 리모컨으로 자료를 띄우고, 넘기고, 잠시 감춰요.'),
@@ -7214,7 +7269,7 @@ function miniParts(board) {
     ...icons.map(([part, icon, title, about], i) => [part, 'icon', icon, title, about, { right: `${4.5 + 9.5 * i}%` }]),
     ...(T ? [['remote', 'remote', '리모컨', '리모컨', '오른쪽 아래 단추들 바로 위에 있어서 오른손 엄지로 눌러요. ◀ ▶ 장 넘기기 · 포인터(누르고 있는 동안 빨간 점) · 띄우기(문구 · 자료 · 화면 공유) · 감추기 · 더보기.']] : []),
   ];
-  const acts = T ? '교탁 서기 · 판서 · 앉기 · 돌아가기' : '앉기 · 일어나기 · 질문 · 반응(알겠어요 · 모르겠어요 · 잠깐만요) · 돌아가기';
+  const acts = T ? '교탁 서기 · 판서 · 앉기 · 채팅 · 돌아가기' : '앉기 · 일어나기 · 채팅 · 반응(알겠어요 · 모르겠어요 · 잠깐만요) · 돌아가기';
   if (!board) return [
     ['zoneBR', 'zone', '오른쪽 아래', '오른쪽 아래 · 오른손 엄지 자리', '큰 동그라미(점프)가 늘 가운데에 있고, 지금 할 수 있는 일이 그 둘레에 둥근 단추로 생겨요. 위쪽부터 반시계 방향으로, 많아야 세 개예요.'],
     ...corner,
@@ -7449,8 +7504,9 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyB' && !e.repeat) setZoom(!zoomed);                          // 칠판 보기 (선생님은 판서)
   if (e.code === 'Space') { jumpQueued = true; e.preventDefault(); }
   else if (e.code === 'KeyX' && !e.repeat) { act(); e.preventDefault(); }
-  else if ((e.code === 'KeyQ' || e.code === 'KeyE') && !e.repeat) {              // 학생 전용: 질문 · 반응
-    if (player.mode === 'seated' && !player.seat.stand && !isTeacher) { if (e.code === 'KeyE') toggleReact(); else openAsk(); }
+  else if (e.code === 'KeyQ' && !e.repeat) { openChat(); e.preventDefault(); }       // 채팅 창을 열고 글을 적는다 (누구나, 언제나)
+  else if (e.code === 'KeyE' && !e.repeat) {                                      // 학생 전용: 반응
+    if (player.mode === 'seated' && !player.seat.stand && !isTeacher) toggleReact();
     e.preventDefault();
   }
   else if (e.code.startsWith('Arrow')) e.preventDefault();
@@ -8075,7 +8131,7 @@ window.classroom = {
   cfg, cfgAt, setConfig: (kind, key) => setConfig(kind, key, true), askConfig: setConfig, back, ink, pen, inviteLink, teacherKey,
   get role() { return [role, creator, isTeacher]; }, strokes, inkAdd, FORMS, BOARD, spawn, nearestFree, playBgm, gotoArea, boardCam,
   get areas() { return [areas, areaAt, zoomX]; },
-  get zoom() { return [zoomed, zoomAmt]; }, frame, zaps, zapAdd, liveTex, liveMesh, live, inkTex, showTex, startLive, endShow, inkClear, inkErase, get show() { return show; }, get lap() { return { ...lapShown, level: pixels.level, trial: !!pixels.trial, hold: Math.round(Math.max(0, pixels.hold - performance.now()) / 1000), mirrorMs, every: mirrorEvery() }; }, mirrorRT, get mirror() { return { n: mirrorN, sum: mirrorSum, ms: mirrorMs, rt: [mirrorRT.width, mirrorRT.height], on: mirrorGlass.visible, pos: mirrorGlass.position.toArray(), calls: mirrorCalls, all: info.calls, fade: mirrorMat.uniforms.fade.value }; }, get mySkin() { return mySkin; }, peerSkins, actors, get follow() { return { on: follow.on, can: canFollow(), x: zoomX, to: follow.to, area: areaAt }; }, setZoom, setHide, undo, redo, hist, stylus, joy, voice, setMic, VOICE, get zoomWrite() { return zoomWrite; }, nearBoard, get glance() { return [glancing, +glanceLook.yaw.toFixed(3), +glanceLook.pitch.toFixed(3)]; }, get bgm() { return bgmNow; }, get audio() { return ac; },
+  get zoom() { return [zoomed, zoomAmt]; }, frame, zaps, zapAdd, liveTex, liveMesh, live, inkTex, showTex, startLive, endShow, inkClear, inkErase, get show() { return show; }, get lap() { return { ...lapShown, level: pixels.level, trial: !!pixels.trial, hold: Math.round(Math.max(0, pixels.hold - performance.now()) / 1000), mirrorMs, every: mirrorEvery() }; }, mirrorRT, get mirror() { return { n: mirrorN, sum: mirrorSum, ms: mirrorMs, rt: [mirrorRT.width, mirrorRT.height], on: mirrorGlass.visible, pos: mirrorGlass.position.toArray(), calls: mirrorCalls, all: info.calls, fade: mirrorMat.uniforms.fade.value }; }, get mySkin() { return mySkin; }, peerSkins, actors, get follow() { return { on: follow.on, can: canFollow(), x: zoomX, to: follow.to, area: areaAt }; }, setZoom, setHide, undo, redo, hist, stylus, joy, voice, setMic, VOICE, openChat, chatAdd, chat, get zoomWrite() { return zoomWrite; }, nearBoard, get glance() { return [glancing, +glanceLook.yaw.toFixed(3), +glanceLook.pitch.toFixed(3)]; }, get bgm() { return bgmNow; }, get audio() { return ac; },
   get room() { return { ROOM, HW, HD, floorAt, obstacles, blocked, cellH, NX, NZ }; },
   net: { peers, myId, tick: netTick, receive: netReceive, pace: netPace, openSupabase,
     get link() { return link; }, get state() { return linkState; }, get seatAt() { return mySeatAt; } },
