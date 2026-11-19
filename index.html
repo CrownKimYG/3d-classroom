@@ -6938,7 +6938,7 @@ let whisperPeer = '';                // 지금 소곤거리기 창이 열려 있
 let lastOk = 0;
 
 /* 채팅: 같은 수업의 모두가 함께 보는 대화 창 (c 메시지). 말한 사람의 머리 위에도 말풍선으로 잠깐 뜬다.
-   창을 닫아 둔 동안 온 말은 채팅 단추에 숫자로 쌓이고, 화면에 잠깐 알림으로도 보인다. 내가 들어온 뒤의 말만 남는다 */
+   창을 닫아 둔 동안 온 말은 채팅 단추에 빨간 숫자로 쌓인다 (화면에 따로 알림을 띄우지는 않는다). 내가 들어온 뒤의 말만 남는다 */
 const chat = { unread: 0, sentAt: 0 };
 function chatAdd(name, text, kind = '') {            // kind: me · teacher · ''
   const row = Object.assign(document.createElement('div'), { className: kind });
@@ -7099,8 +7099,7 @@ function onClassMsg(m) {
   if ((m.t === 'c' || m.t === 'q') && typeof m.x === 'string' && m.x.trim()) {       // 채팅 (q 는 예전의 '질문')
     const said = m.x.trim().slice(0, 120), name = peer.actor.name || '학생';
     chatAdd(name, said, peer.teacher ? 'teacher' : '');
-    peer.actor.say(said, 7000);                      // 머리 위 말풍선
-    if ($('chat').hidden) toast(`${name}: ${said}`, 5000);
+    peer.actor.say(said, 7000);                      // 머리 위 말풍선 (창을 닫아 둔 동안 온 말은 채팅 단추의 빨간 숫자로만 알린다)
   } else if (m.t === 'e') {
     const kind = m.k === 1 || m.k === 2 ? m.k : 0;
     peer.actor.react(kind);
