@@ -270,7 +270,7 @@
     width: 24px; height: 24px; background: var(--c, #333); pointer-events: none;
     box-shadow: inset 3px 3px 0 rgba(255, 255, 255, .38), inset -3px -3px 0 rgba(0, 0, 0, .3), 0 0 0 2px #1b1b1b;
   }
-  #penSizes i { width: var(--d); height: var(--d); background: #fff; box-shadow: 0 0 0 2px #1b1b1b; pointer-events: none; }
+  #sizeBtn i, #penSizes i { width: var(--d); height: var(--d); background: #fff; box-shadow: 0 0 0 2px #1b1b1b; pointer-events: none; }
   /* 지우개를 들었을 때 포인터를 따라다니는 점선 동그라미: 이만큼이 지워진다 */
   #eraseRing {
     position: absolute; left: 0; top: 0; z-index: 2; pointer-events: none; border-radius: 50%;
@@ -386,14 +386,6 @@
     font: 800 15px var(--font); color: var(--ink);
     background: rgba(255, 246, 227, .85); border: 3px solid var(--ink);
   }
-  /* 학생보기 잠금: 단추 오른쪽 위에 작은 자물쇠가 붙는다 */
-  #jump.locked, #acts #glanceBtn.locked { background: #ffe9b8; }
-  #acts #glanceBtn.locked { position: relative; }
-  #jump.locked::after, #glanceBtn.locked::after {
-    content: ''; position: absolute; right: -6px; top: -8px; width: 24px; height: 24px;
-    background: var(--lockIcon) center / contain no-repeat; image-rendering: pixelated; pointer-events: none;
-  }
-  #jump.locked::after { right: 0; top: 0; width: 28px; height: 28px; }
   .keys.touch { display: none; }
   /* 판서 뷰: 칠판을 크게 보여 주려고 아래 단추들을 바닥 쪽으로 붙인다 */
   body.zoom #keysBtn { display: none; }
@@ -490,8 +482,16 @@
   /* 판서 뷰: 펜 도구는 가운데 아래 한 줄 (마인크래프트의 아이템 칸 자리), 영역 단추는 왼쪽 아래, 학생보기 · 돌아가기는 오른쪽 아래 */
   .touch body.zoom #pens { bottom: 12px; }
   .touch #pens .slot { width: 44px; height: 44px; }
-  @media (max-width: 900px) { .touch #pens .slot { width: 38px; height: 38px; } }      /* 휴대폰: 영역 단추와 둥근 단추 사이에 들어가게 */
-  .touch body.zoom.glance #jump { display: block; font-size: 13px; }       /* 판서 모드에서는 점프 단추가 '학생보기'가 된다 */
+  @media (max-width: 900px) {          /* 휴대폰: 영역 단추와 둥근 단추 사이에 들어가게 칸과 틈을 줄인다 */
+    .touch #pens { gap: 6px; padding: 6px 5px; }
+    .touch #pens .grp { gap: 3px; }
+    .touch #pens .slot { width: 34px; height: 34px; }
+    .touch #pens img { width: 28px; height: 28px; }
+  }
+  .touch body.zoom.glance #jump { display: block; font-size: 13px; }
+  /* 학생보기를 누르고 있는 동안: 왼쪽 아래에 조이스틱이 나와서 밀면 시야가 움직인다. 그 자리의 영역 단추와 펜 도구는 잠시 숨는다 */
+  .touch body.zoom.looking #stick { display: block; }
+  .touch body.zoom.looking #areas, .touch body.zoom.looking #pens { display: none !important; }       /* 판서 모드에서는 점프 단추가 '학생보기'가 된다 */
   .touch #glanceBtn { display: none; }                                      /* (터치 기기에서는 그 단추가 학생보기를 맡는다) */
   .touch body.zoom #areas { top: auto; bottom: 12px; left: 12px; transform: none; width: auto; max-width: none; flex-wrap: nowrap; }
   .touch #areas button { min-width: 38px; padding: 11px 6px; }
@@ -648,14 +648,20 @@
         <button type="button" class="slot" data-color="4" aria-pressed="false" aria-label="색 5"><i class="block"></i></button>
       </div>
     </div>
-    <div class="grp" id="penSizes">
-      <button type="button" class="slot" data-size="0" aria-pressed="false" aria-label="가늘게" title="가늘게"><i style="--d: 4px"></i></button>
-      <button type="button" class="slot" data-size="1" aria-pressed="true" aria-label="보통 굵기" title="보통"><i style="--d: 8px"></i></button>
-      <button type="button" class="slot" data-size="2" aria-pressed="false" aria-label="굵게" title="굵게"><i style="--d: 14px"></i></button>
+    <div class="grp menu">
+      <button type="button" class="slot more" id="sizeBtn" aria-haspopup="true" aria-expanded="false" aria-label="굵기 고르기" title="굵기: 누르면 다른 굵기를 고를 수 있어요"><i style="--d: 8px"></i></button>
+      <div class="pop" id="penSizes" hidden>
+        <button type="button" class="slot" data-size="0" aria-pressed="false" aria-label="가늘게" title="가늘게"><i style="--d: 4px"></i></button>
+        <button type="button" class="slot" data-size="1" aria-pressed="true" aria-label="보통 굵기" title="보통"><i style="--d: 8px"></i></button>
+        <button type="button" class="slot" data-size="2" aria-pressed="false" aria-label="굵게" title="굵게"><i style="--d: 14px"></i></button>
+      </div>
     </div>
     <div class="grp" id="penHist">
       <button type="button" class="slot" id="undoBtn" data-icon="undo" aria-label="되돌리기" title="되돌리기: 방금 쓰거나 지운 것을 되돌려요 (Z)" disabled></button>
       <button type="button" class="slot" id="redoBtn" data-icon="redo" aria-label="앞으로 가기" title="앞으로 가기: 되돌린 것을 다시 해요 (Shift+Z)" disabled></button>
+    </div>
+    <div class="grp" id="penPalm" hidden>
+      <button type="button" class="slot" id="palmBtn" aria-pressed="false" aria-label="펜만 쓰기"></button>
     </div>
   </div>
   <div id="react" class="chip" hidden role="group" aria-label="반응 고르기"></div>
@@ -3387,8 +3393,9 @@ function showAreas() {
   el.hidden = !on;
   if (!on) { areasShown = ''; $('followBtn').hidden = true; placePens(); return; }
   const n = areas.length, tail = canFollow();
-  const key = `${n}|${areaAt}|${tail}|${follow.on}`;
-  if (key === areasShown) return;
+  const narrow = COARSE && innerWidth < 760;       // 좁은 휴대폰: 지금 보는 영역 번호만 (◀ 3 ▶)
+  const key = `${n}|${areaAt}|${tail}|${follow.on}|${narrow}`;
+  if (key === areasShown) { placePens(); return; }
   areasShown = key;
   const make = (text, label, go, { pressed, disabled, id } = {}) => {
     const b = document.createElement('button');
@@ -3407,10 +3414,11 @@ function showAreas() {
     for (let i = areaAt - near; i <= areaAt + near; i++) if (i >= 0 && i < n) pick.add(i);
     list = [...pick].sort((a, b) => a - b);
   }
+  if (narrow) list = [areaAt];
   const kids = [make('◀', '왼쪽 영역', () => gotoArea(areaAt - 1), { disabled: areaAt === 0 })];
   let prev = -1;
   for (const i of list) {
-    if (i - prev > 1) kids.push(Object.assign(document.createElement('span'), { className: 'gap', textContent: '…' }));
+    if (i - prev > 1 && !narrow) kids.push(Object.assign(document.createElement('span'), { className: 'gap', textContent: '…' }));
     kids.push(make(String(i + 1), `${i + 1}번 영역`, () => gotoArea(i), { pressed: i === areaAt }));
     prev = i;
   }
@@ -3432,34 +3440,28 @@ function placePens() {
   if (edge > pens.getBoundingClientRect().left) {
     pens.style.left = `${edge}px`;
     pens.style.transform = 'none';
+    pens.style.transformOrigin = 'left bottom';
+    // 오른쪽의 둥근 단추(학생보기 · 돌아가기)에 닿으면 도구 줄을 통째로 조금 줄여서 그 앞에서 끝나게 한다
+    const stop = Math.min(innerWidth, ...['jump', 'backBtn'].map($).filter((b) => getComputedStyle(b).display !== 'none' && !b.hidden)
+      .map((b) => b.getBoundingClientRect()).filter((r) => r.width && r.bottom > innerHeight - 70).map((r) => r.left)) - 8;
+    const w = pens.getBoundingClientRect().width;
+    if (edge + w > stop && w > 0) pens.style.transform = `scale(${Math.max(0.6, (stop - edge) / w).toFixed(3)})`;
   }
 }
 
 /* ── 판서하는 모습: 칠판 앞에 선 선생님이 칠판을 보고, 오른팔을 쓰는 곳으로 뻗는다 (다른 사람 눈에도 보인다) ── */
 let glancing = false, glanceSide = 1;      // 판서하다가 학생들을 돌아보는 중인지 · 어느 쪽으로 돌아섰는지
-let glanceLock = false;               // 학생보기 잠금: 단추를 길게 누르면 잠겨서 손을 떼도 계속 본다. 다시 길게 누르면 풀린다
-let lockTimer = 0;
-function setGlanceLock(on, quiet) {
-  if (on === glanceLock) return;
-  glanceLock = on;
-  for (const id of ['jump', 'glanceBtn']) $(id).classList.toggle('locked', on);       // 단추에 작은 자물쇠가 붙는다
-  if (!quiet) {
-    toast(on ? '학생보기 잠금 · 손을 떼도 계속 봐요. 다시 길게 누르면 풀려요' : '학생보기 잠금을 풀었어요', 2600);
-    try { navigator.vibrate?.(15); } catch {}
-  }
-  dirty = true;
-}
-const lockArm = () => { clearTimeout(lockTimer); lockTimer = setTimeout(() => setGlanceLock(!glanceLock), 700); };      // 0.7초 누르고 있으면 잠금 ↔ 풀림
-const lockDisarm = () => clearTimeout(lockTimer);
 const glanceLook = { yaw: 0, pitch: 0 };   // 학생보기 중에 고개를 더 돌린 만큼 (화면 끌기 · 방향키로 조절한다)
 function writeThink(dt) {
   let active = false;
   const me = player;
   const atBoard = zoomed && isTeacher && canWrite() && me.mode !== 'seated' && Math.abs(me.pos.z - (BOARD.z + WRITE_Z)) < 0.35;
   // 돌아보기: 칠판 앞에서 G 를 누르고 있는 동안 옆으로 서서 고개를 돌려 학생들을 본다. 떼면 다시 칠판을 보고 판서를 잇는다
-  const glance = atBoard && me.mode === 'free' && (keys.has('KeyG') || keys.has('Space') || glanceLock);      // G · Space · (터치) 점프 자리의 단추
+  const glance = atBoard && me.mode === 'free' && (keys.has('KeyG') || keys.has('Space'));      // G · Space · (터치) 점프 자리의 단추
   if (glance !== glancing) {
     glancing = glance;
+    document.body.classList.toggle('looking', glance);       // (터치) 보는 동안에는 왼쪽 아래에 조이스틱이 나온다: 밀어서 시야를 움직인다
+    if (!glance) stickDrop();
     if (glance) {
       glanceLook.yaw = glanceLook.pitch = 0;           // 고개는 강의실 한가운데를 보는 데서 시작한다
       penUp();                                         // 긋던 획은 끝낸다
@@ -3470,9 +3472,10 @@ function writeThink(dt) {
   }
   me.writeOn = atBoard && !glancing && (me.mode === 'free' || pen.id !== null);
   if (atBoard && me.mode === 'free') {                 // 다 왔으면 칠판 쪽으로 돌아선다 (돌아보는 중에는 학생 쪽으로)
-    if (glancing) {                                    // 학생보기 중: 방향키 · WASD 로 고개를 좌우 · 위아래로 조금 더 움직인다
-      const turn = (keys.has('ArrowLeft') || keys.has('KeyA') ? 1 : 0) - (keys.has('ArrowRight') || keys.has('KeyD') ? 1 : 0);
-      const nod = (keys.has('ArrowDown') || keys.has('KeyS') ? 1 : 0) - (keys.has('ArrowUp') || keys.has('KeyW') ? 1 : 0);
+    if (glancing) {                                    // 학생보기 중: 방향키 · WASD · (터치) 조이스틱으로 고개를 좌우 · 위아래로 조금 더 움직인다
+      const turn = (keys.has('ArrowLeft') || keys.has('KeyA') ? 1 : 0) - (keys.has('ArrowRight') || keys.has('KeyD') ? 1 : 0) - joy.x;
+      const nod = (keys.has('ArrowDown') || keys.has('KeyS') ? 1 : 0) - (keys.has('ArrowUp') || keys.has('KeyW') ? 1 : 0) - joy.y;
+      if (turn || nod) active = true;
       glanceLook.yaw = clamp(glanceLook.yaw + turn * 1.2 * dt, -0.9, 0.9);
       glanceLook.pitch = clamp(glanceLook.pitch + nod * 0.8 * dt, -0.35, 0.5);
     }
@@ -3589,11 +3592,11 @@ function updateTarget() {
   }
   // Esc 단추: 한 단계 뒤로
   const canGlance = zoomed && isTeacher && canWrite() && player.mode !== 'seated';       // 판서하다가 학생 돌아보기 (누르고 있는 동안)
-  if (!canGlance && glanceLock) { lockDisarm(); setGlanceLock(false, true); }      // 판서 화면을 나가면 잠금도 풀린다
   if ($('glanceBtn').hidden === canGlance) {         // 판서 모드에서는 점프 단추가 '돌아보기'로 바뀐다 (판서 중에는 뛸 일이 없으므로)
     $('glanceBtn').hidden = !canGlance;
     $('jump').textContent = canGlance ? '학생보기' : '점프';
     document.body.classList.toggle('glance', canGlance);
+    placePens();                     // 둥근 단추가 생기거나 없어졌으니 펜 도구 줄의 자리도 다시 잡는다
   }
   const back = !entered ? ''
     : zoomed ? '돌아가기'
@@ -4702,7 +4705,7 @@ function holdButton(el, on, off) {
 }
 const pointerOn = () => { if (!remoteOut) setRemoteOut(true); setLaser(true); };       // 리모컨을 넣어 두었으면 꺼내면서 켠다
 holdButton($('laserBtn'), pointerOn, () => setLaser(false));
-holdButton($('glanceBtn'), () => { keys.add('KeyG'); lockArm(); dirty = true; }, () => { keys.delete('KeyG'); lockDisarm(); dirty = true; });
+holdButton($('glanceBtn'), () => { keys.add('KeyG'); dirty = true; }, () => { keys.delete('KeyG'); dirty = true; });
 
 /* ───────────── BGM: 음악 파일 없이 코드로 만들어 내는 배경 음악 (다섯 가지 분위기) ─────────────
    소리를 그때그때 합성하므로 내려받을 파일도, 저작권 걱정도 없다. 선생님이 고르면 모두에게 같은 분위기가 흐르고,
@@ -5654,12 +5657,6 @@ function drawIcon(g, name, x, y, px) {         // 픽셀 그림을 캔버스에 
     g.fillRect(x + i * px, y + j * px, px, px);
   }));
 }
-ICONS.lock = [                        // 잠금: 자물쇠
-  '................', '.....kkkkkk.....', '....kggggggk....', '...kggkkkkggk...',
-  '...kgk....kgk...', '...kgk....kgk...', '..kkkkkkkkkkkk..', '..kyyyyyyyyyyk..',
-  '..kyyyyyyyyyyk..', '..kyyyykkyyyyk..', '..kyyyykkyyyyk..', '..kyyyykkyyyyk..',
-  '..kyyyyyyyyyyk..', '..kyyyyyyyyyyk..', '..kkkkkkkkkkkk..', '................',
-];
 ICONS.undo = [                        // 되돌리기: 왼쪽으로 굽어 돌아가는 화살표
   '................', '................', '.....kk.........', '....kwk.........',
   '...kwwkkkkkk....', '..kwwwwwwwwwk...', '.kwwwwwwwwwwwk..', '..kwwwwwwwwwwwk.',
@@ -5667,6 +5664,14 @@ ICONS.undo = [                        // 되돌리기: 왼쪽으로 굽어 돌�
   '......kkkkkwwwk.', '......kwwwwwwk..', '......kwwwwwk...', '......kkkkkk....',
 ];
 ICONS.redo = ICONS.undo.map((row) => [...row].reverse().join(''));         // 앞으로 가기: 거울에 비친 모양
+ICONS.penHand = [                     // 펜만 쓰기 끔: 연필 + 손가락 (펜으로도 손으로도 써진다)
+  '.kkk............', 'kpppk....kk.....', 'kpppk...kssk....', 'kgggk...kssk....',
+  'kyyyk...kssk....', 'kyyyk..kksskkkk.', 'kyyyk..kssssssk.', 'kyyyk..kssssssk.',
+  'kyyyk..kssssssk.', 'kyyyk..kssssssk.', 'kyyyk...kssssk..', 'kSSSk....kkkk...',
+  'kSSSk...........', '.kSk............', '..k.............', '................',
+];
+// 펜만 쓰기 켬: 같은 그림에서 손가락 위에 빨간 빗금 (손으로는 안 써진다). 판서 도구의 '이동'(손바닥)과 헷갈리지 않게 연필을 같이 그렸다
+ICONS.penOnly = ICONS.penHand.map((row, y) => [...row].map((ch, x) => (x >= 6 && y <= 12 && (x - 5 - y === 0 || x - 5 - y === 1) ? 'r' : ch)).join(''));
 ICONS.mute = ICONS.note.map((row, y) => [...row].map((ch, x) => (15 - x - y === 0 || 15 - x - y === 1 ? 'r' : ch)).join(''));      // 소리 끔: 음표에 빨간 빗금
 const iconURL = {};
 for (const name in ICONS) {
@@ -5680,10 +5685,45 @@ for (const name in ICONS) {
   }));
   iconURL[name] = c.toDataURL();
 }
-document.documentElement.style.setProperty('--lockIcon', `url(${iconURL.lock})`);       // 잠근 단추에 붙는 작은 자물쇠 (CSS)
 const iconImg = (name) => Object.assign(new Image(), { src: iconURL[name], alt: '' });
 $('remoteBtn').append(iconImg('remote'));
 const soundImg = $('soundBtn').appendChild(iconImg('note'));
+/* 펜만 쓰기 (손바닥 막기): 켜 두면 손가락 · 손바닥으로는 써지지도 지워지지도 않고, 펜(애플 펜슬 · S펜 같은 스타일러스)으로만 써진다.
+   손 모양(이동) 도구로 칠판을 옮기는 것과 단추 누르기는 손으로 그대로 된다.
+   · 켜고 끄는 단추는 펜 도구 줄의 맨 끝에 있다 (연필 + 손가락 그림. 켜져 있으면 손가락에 빨간 빗금)
+   · 펜이 처음 닿으면(가까이 오면) 저절로 켜진다. 터치가 되는 기기에서만 단추가 보인다 */
+const stylus = { seen: false, only: false, at: 0, hinted: 0 };
+const palmImg = $('palmBtn').appendChild(iconImg('penHand'));
+function showPalm() {
+  $('penPalm').hidden = !(COARSE || navigator.maxTouchPoints > 0 || stylus.seen);
+  $('palmBtn').setAttribute('aria-pressed', String(stylus.only));
+  palmImg.src = iconURL[stylus.only ? 'penOnly' : 'penHand'];
+  $('palmBtn').title = stylus.only ? '펜만 쓰기 켬: 손 · 손바닥으로는 써지지 않아요 (누르면 손으로도 써져요)' : '손으로도 쓰기: 손가락으로도 써져요 (누르면 펜으로만 써져요)';
+}
+$('palmBtn').addEventListener('click', () => {
+  stylus.only = !stylus.only;
+  showPalm();
+  toast(stylus.only ? '펜만 쓰기 · 손과 손바닥으로는 써지지 않아요' : '손으로도 쓸 수 있어요');
+  canvas.focus();
+});
+for (const type of ['pointerdown', 'pointermove']) addEventListener(type, (e) => {      // 펜이 닿았거나(가까이 왔거나) 움직였다
+  if (e.pointerType !== 'pen') return;
+  stylus.at = performance.now();
+  if (stylus.seen) return;
+  stylus.seen = stylus.only = true;  // 펜을 쓰기 시작하면 저절로 '펜만 쓰기'
+  showPalm();
+  toast('펜을 쓰기 시작해서 손 · 손바닥으로는 써지지 않게 했어요 · 펜 도구 줄 끝의 연필 + 손 단추로 바꿀 수 있어요', 6000);
+}, true);
+// 이 손가락(손바닥)은 판서에서 빼야 하는지. 한동안 펜을 안 썼는데 손으로 쓰려고 하면 왜 안 써지는지 알려 준다
+function palmBlocked(e) {
+  if (!(stylus.only && e.pointerType === 'touch')) return false;
+  const now = performance.now();
+  if (e.type === 'pointerdown' && now - stylus.at > 8000 && now - stylus.hinted > 15000) {
+    stylus.hinted = now;
+    toast('펜만 쓰기가 켜져 있어요 · 손으로 쓰려면 펜 도구 줄 끝의 연필 + 손 단추를 눌러 주세요', 5000);
+  }
+  return true;
+}
 $('followBtn').append(iconImg('eye'));
 $('followBtn').addEventListener('click', () => { setFollow(!follow.on); canvas.focus(); });
 for (const b of document.querySelectorAll('#pens [data-icon]')) b.prepend(iconImg(b.dataset.icon));
@@ -5717,6 +5757,7 @@ function showPens() {
     player.setHold(myHold(), inkOf(myHold(), pen.color));       // 손에는 지금 쓰는 도구를 (펜은 고른 색으로) 든다
     showRing();                      // 지우개 범위 표시도 도구에 맞춘다
   }
+  showPalm();
   placePens();
   canvas.classList.toggle('pen', on && pen.tool !== 'hand');
   if (!on) { closePops(); return; }
@@ -5737,6 +5778,7 @@ function showPens() {
     b.setAttribute('aria-pressed', String(n === pen.color));
   }
   for (const b of $('penSizes').children) b.setAttribute('aria-pressed', String(Number(b.dataset.size) === pen.size));
+  $('sizeBtn').firstElementChild.style.setProperty('--d', ['4px', '8px', '14px'][pen.size]);       // 굵기 칸에는 지금 굵기가 보인다
 }
 function setTool(tool) {
   pen.tool = tool;
@@ -5772,8 +5814,10 @@ for (const b of $('colorPop').children) b.addEventListener('click', () => {
   showPens();
   canvas.focus();
 });
+$('sizeBtn').addEventListener('click', () => openPop($('penSizes').hidden ? 'penSizes' : ''));
 for (const b of $('penSizes').children) b.addEventListener('click', () => {
   pen.size = Number(b.dataset.size);
+  closePops();
   showPens();
   canvas.focus();
 });
@@ -6389,7 +6433,7 @@ function keyRows() {
       k('KeyS', 'S', '뒤로', '뒤로 걸어요.'),
       k('KeyD', 'D', '오른쪽', '오른쪽으로 움직여요. 칠판 보기에서는 오른쪽 영역으로 옮겨요.'),
       k('KeyF', 'F', T ? '포인터' : '따라가기', T ? '누르고 있는 동안 포인터(빨간 점)가 켜져요. 리모컨을 넣어 두었으면 꺼내면서 켜요. 판서 화면에서는 빨간 점이 마우스를 따라다녀요.' : '칠판 보기에서 "선생님 따라가기"를 켜고 꺼요. 켜 두면 선생님이 쓰는 곳으로 화면이 따라가요.'),
-      k('KeyG', 'G', T ? '학생보기' : '', '판서하는 동안 누르고 있으면 옆으로 서서 고개를 돌려 학생들을 봐요. 누른 채로 방향키나 마우스 끌기로 고개를 더 움직일 수 있어요. 떼면 다시 칠판을 보고 이어서 써요. 화면의 학생보기 단추를 길게 누르면 잠겨서 손을 떼도 계속 보고, 다시 길게 누르면 풀려요.'),
+      k('KeyG', 'G', T ? '학생보기' : '', '판서하는 동안 누르고 있으면 옆으로 서서 고개를 돌려 학생들을 봐요. 누른 채로 방향키나 마우스 끌기로 고개를 더 움직일 수 있어요. 떼면 다시 칠판을 보고 이어서 써요.'),
       k('KeyH', 'H', '조작법', '이 조작법을 열고 닫아요.')],
     [k('ShiftLeft', 'Shift', '달리기', '누른 채로 움직이면 달려요.', 1.6),
       k('KeyZ', 'Z', canWrite() ? '되돌리기' : '', '판서 화면에서 방금 쓰거나 지운 것을 되돌려요. Shift 와 함께 누르면 되돌린 것을 다시 해요(앞으로 가기). Ctrl(⌘)+Z 도 돼요.'),
@@ -6440,11 +6484,11 @@ function miniParts(board) {
   return [
     ['zoneBR', 'zone', '오른쪽 아래', '오른쪽 아래 · 오른손 엄지 자리', G ? '판서할 때는 큰 동그라미가 "학생보기"로 바뀌고, 그 위에 "돌아가기"가 생겨요.' : '칠판을 크게 볼 때는 "돌아가기"가 여기에 있어요.'],
     ...corner,
-    ['drag', 'write dash', W ? '여기에 쓰기' : '끌어서 옆으로', W ? '쓰기' : '칠판 옮기기', W ? '펜을 고르고 칠판에 바로 써요. 손 모양을 고르면 끌어서 칠판을 옆으로 옮겨요.' : '끌어서 칠판을 옆으로 옮겨요.'],
+    ['drag', 'write dash', W ? '여기에 쓰기' : '끌어서 옆으로', W ? '쓰기' : '칠판 옮기기', W ? '펜을 고르고 칠판에 바로 써요. 손 모양을 고르면 끌어서 칠판을 옆으로 옮겨요. 펜(애플 펜슬 같은)을 쓰면 그때부터 손 · 손바닥으로는 써지지 않아요(펜 도구 줄 끝의 연필 + 손 단추로 바꿀 수 있어요).' : '끌어서 칠판을 옆으로 옮겨요.'],
     ['areas', 'areas', '◀ 1 … 4 ▶', '왼쪽 아래 · 영역 단추', '◀ ▶ 로 옆 영역으로, 번호를 누르면 그 영역으로 바로 가요. 영역이 많으면 가운데는 … 으로 줄여서 늘 한 줄이에요.'],
-    ...(W ? [['pens', 'pens', '펜 · 지우개 · 색', '가운데 아래 · 펜 도구', '이동(손) · 볼펜 · 만년필 · 레이저 펜 · 지우개 · 색 · 굵기, 그리고 되돌리기 · 앞으로 가기(굽은 화살표). 지우개와 색은 누르면 고르는 칸이 위로 열려요.']] : []),
+    ...(W ? [['pens', 'pens', '펜 · 지우개 · 색', '가운데 아래 · 펜 도구', '이동(손) · 볼펜 · 만년필 · 레이저 펜 · 지우개 · 색 · 굵기, 되돌리기 · 앞으로 가기(굽은 화살표), 펜만 쓰기(연필 + 손). 지우개 · 색 · 굵기는 누르면 고르는 칸이 위로 열려요.']] : []),
     ...(G ? [
-      ['jump', 'jump round', '학생보기', '학생보기', '누르고 있는 동안 옆으로 서서 학생들을 봐요. 화면을 끌면 고개를 좌우 · 위아래로 더 움직여요. 길게 누르면 잠겨서(작은 자물쇠) 손을 떼도 계속 보고, 다시 길게 누르면 풀려요.'],
+      ['jump', 'jump round', '학생보기', '학생보기', '누르고 있는 동안 옆으로 서서 학생들을 봐요. 누르고 있으면 왼쪽 아래에 조이스틱이 나와서, 밀면 시야가 좌우 · 위아래로 움직여요. 떼면 다시 칠판을 봐요.'],
       ['act0', 'slot round', '뒤로', '돌아가기', '판서를 마치고 걸어 다니는 화면으로 돌아가요.', MINI_SLOT[0]],
     ] : [['jump', 'jump round', '돌아가기', '돌아가기', '칠판 크게 보기를 닫고 걸어 다니는 화면으로 돌아가요.']]),
   ];
@@ -6686,6 +6730,7 @@ let lookId = null, lookX = 0, lookY = 0;
 let slideId = null, slideX = 0, slideFrom = 0;       // 칠판 보기에서 끌어서 옆으로 옮기는 중
 canvas.addEventListener('pointerdown', (e) => {
   if (!entered || lookId !== null || slideId !== null) return;
+  if (zoomed && !glancing && !laserOn && pen.tool !== 'hand' && palmBlocked(e)) return;      // 펜만 쓰기: 손 · 손바닥은 쓰지 못한다
   hover.clientX = e.clientX;
   hover.clientY = e.clientY;
   hover.on = true;
@@ -6754,6 +6799,7 @@ function tapAt(clientX, clientY) {
   dirty = true;
 }
 canvas.addEventListener('pointermove', (e) => {
+  if (zoomed && !laserOn && pen.tool !== 'hand' && e.pointerId !== lookId && e.pointerId !== slideId && palmBlocked(e)) return;      // 손바닥이 움직여도 지우개 동그라미가 따라가지 않게
   hover.clientX = e.clientX;
   hover.clientY = e.clientY;
   hover.on = true;
@@ -6816,10 +6862,9 @@ $('jump').addEventListener('pointerdown', (e) => {
   if (!zoomed) { jumpQueued = true; return; }
   try { $('jump').setPointerCapture(e.pointerId); } catch {}
   keys.add('KeyG');
-  lockArm();                         // 길게 누르면 잠금 ↔ 풀림
   dirty = true;
 });
-for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) $('jump').addEventListener(type, () => { keys.delete('KeyG'); lockDisarm(); dirty = true; });
+for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) $('jump').addEventListener(type, () => { keys.delete('KeyG'); dirty = true; });
 $('jump').addEventListener('contextmenu', (e) => e.preventDefault());
 
 const stick = $('stick'), knob = stick.firstElementChild;
@@ -6841,6 +6886,11 @@ const stickEnd = (e) => {
   joy.x = joy.y = 0;
   knob.style.transform = '';
 };
+function stickDrop() {                // 조이스틱을 놓은 것으로 친다 (조이스틱이 화면에서 사라질 때)
+  stickId = null;
+  joy.x = joy.y = 0;
+  knob.style.transform = '';
+}
 stick.addEventListener('pointerup', stickEnd);
 stick.addEventListener('pointercancel', stickEnd);
 
@@ -7267,7 +7317,7 @@ window.classroom = {
   cfg, cfgAt, setConfig: (kind, key) => setConfig(kind, key, true), askConfig: setConfig, back, ink, pen, inviteLink, teacherKey,
   get role() { return [role, creator, isTeacher]; }, strokes, inkAdd, FORMS, BOARD, spawn, nearestFree, playBgm, gotoArea, boardCam,
   get areas() { return [areas, areaAt, zoomX]; },
-  get zoom() { return [zoomed, zoomAmt]; }, frame, zaps, zapAdd, liveTex, liveMesh, live, inkTex, showTex, startLive, endShow, inkClear, inkErase, get show() { return show; }, get lap() { return { ...lapShown, level: pixels.level, trial: !!pixels.trial, hold: Math.round(Math.max(0, pixels.hold - performance.now()) / 1000), mirrorMs, every: mirrorEvery() }; }, get mirror() { return { on: mirrorGlass.visible, pos: mirrorGlass.position.toArray(), calls: mirrorCalls, all: info.calls, fade: mirrorMat.uniforms.fade.value }; }, get mySkin() { return mySkin; }, peerSkins, actors, get follow() { return { on: follow.on, can: canFollow(), x: zoomX, to: follow.to, area: areaAt }; }, setZoom, setHide, undo, redo, hist, get glanceLock() { return glanceLock; }, get glance() { return [glancing, +glanceLook.yaw.toFixed(3), +glanceLook.pitch.toFixed(3)]; }, get bgm() { return bgmNow; }, get audio() { return ac; },
+  get zoom() { return [zoomed, zoomAmt]; }, frame, zaps, zapAdd, liveTex, liveMesh, live, inkTex, showTex, startLive, endShow, inkClear, inkErase, get show() { return show; }, get lap() { return { ...lapShown, level: pixels.level, trial: !!pixels.trial, hold: Math.round(Math.max(0, pixels.hold - performance.now()) / 1000), mirrorMs, every: mirrorEvery() }; }, get mirror() { return { on: mirrorGlass.visible, pos: mirrorGlass.position.toArray(), calls: mirrorCalls, all: info.calls, fade: mirrorMat.uniforms.fade.value }; }, get mySkin() { return mySkin; }, peerSkins, actors, get follow() { return { on: follow.on, can: canFollow(), x: zoomX, to: follow.to, area: areaAt }; }, setZoom, setHide, undo, redo, hist, stylus, joy, get glance() { return [glancing, +glanceLook.yaw.toFixed(3), +glanceLook.pitch.toFixed(3)]; }, get bgm() { return bgmNow; }, get audio() { return ac; },
   get room() { return { ROOM, HW, HD, floorAt, obstacles, blocked, cellH, NX, NZ }; },
   net: { peers, myId, tick: netTick, receive: netReceive, pace: netPace, openSupabase,
     get link() { return link; }, get state() { return linkState; }, get seatAt() { return mySeatAt; } },
