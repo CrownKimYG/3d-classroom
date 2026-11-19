@@ -1493,14 +1493,14 @@ const FORMS = {
     solo: { cols: [-3.2, -1.6, 0, 1.6, 3.2], rows: [-1.2, 0.6] },          // 개인 책상은 사이사이를 띄워 놓는다
   },
   mid: {
-    bgm: 'bright',                     // 기본 BGM — 보통 교실: 가볍고 활기찬 박자
+    bgm: 'cozy',                      // 기본 BGM — 보통 교실: 느긋한 박자 위의 포근한 화음
     name: '중형', note: '24명', look: 'classroom', w: 12, d: 16, h: 4.6, dais: 0.3,       // dais = 칠판 아래에 놓는 단상(교단)의 높이
     board: [6.0, 3.375, 1.25], doorZ: 5.7, win: [-4.5, 0, 4.5], cork: [-2.2, 2.4, 3.6, 1.8],
     spawn: [-4, 3.5, 3.7, 6.7], area: [-4.6, 4.6, -3.9, 3.3], cap: 24,
     solo: { cols: [-4.0, -2.4, -0.8, 0.8, 2.4, 4.0], rows: [-3.4, -1.6, 0.2, 2.0] },
   },
   large: {
-    bgm: 'focus',                     // 기본 BGM — 큰 강의실: 길게 깔리는 집중용 화음
+    bgm: 'waltz',                     // 기본 BGM — 큰 강의실: 차분한 3박자 피아노
     // 가로로 긴 방: 긴 벽(24m)에 칠판을 걸어서, 줄 수가 적고 맨 뒷자리도 칠판에서 가깝다
     name: '대형', note: '100명', look: 'lecture', w: 24, d: 18, h: 5.4, dais: 0.5,
     board: [16, 3.2, 1.45], doorZ: 7.8, win: [-5.2, -1.75, 1.75, 5.2], cork: [-3, 2.5, 4.4, 2.0],
@@ -1512,7 +1512,7 @@ const FORMS = {
     },
   },
   tier: {
-    bgm: 'rain',                     // 기본 BGM — 계단식 강의실: 창밖의 빗소리
+    bgm: 'study',                     // 기본 BGM — 계단식 강의실: 서재처럼 차분한 뜯는 소리
     name: '계단식', note: '96명', look: 'wood', w: 15, d: 16, h: 5.8,
     board: [7.2, 4.05, 1.2], doorZ: 7.3, spawn: [-5.5, 4.5, 6.95, 7.55], lectern: [5.2, -5.8],
     // 앞쪽 5m 는 평평하고, 그 뒤로 1.6m 마다 24cm 씩 여섯 단이 올라간다
@@ -1535,7 +1535,7 @@ const FORMS = {
     },
   },
   hall: {
-    bgm: 'dream',                     // 기본 BGM — 강당: 넓게 울리는 종소리
+    bgm: 'grand',                     // 기본 BGM — 강당: 넓고 웅장한 화음과 느린 가락
     name: '강당', note: '220명', look: 'theater', w: 20, d: 26, h: 8.6, curtains: true,
     board: [9.6, 5.4, 1.65], doorZ: -1.2, spawn: [-7, 7, 3.4, 5.6], lectern: [6, -10.6],
     floorAt(x, z) {
@@ -2741,6 +2741,7 @@ class Actor {
     this.yawFrom = 0;
     this.walkPhase = 0;
     this.walkAmt = 0; this.airAmt = 0; this.sitAmt = 0; this.wave = 0;
+    this.talking = false; this.talkAmt = 0; this.talkT = Math.random() * 10;      // 말하는 중인지 · 손짓의 세기 · 손짓이 흘러간 시간 (사람마다 박자가 다르게)
     this.isSelf = false;              // 내가 조종하는 캐릭터인지 (1인칭이라 내 머리는 숨긴다)
     this.reachAmt = 0; this.reachSide = 0; this.reachFwd = 0;   // 쪽지를 주고받을 때 팔을 뻗는 정도와 방향
     this.writeOn = false; this.writeAmt = 0;                    // 칠판 앞에서 판서하는 중인지 · 팔을 든 정도
@@ -2947,8 +2948,19 @@ class Actor {
     this.airAmt += ((air ? 1 : 0) - this.airAmt) * (1 - Math.exp(-14 * dt));
     if (moving) this.walkPhase += (7 + sp * 2.4) * dt;
 
+    const talk = this.talkTick(dt);
     this.applyPose();
-    return active || this.walkAmt > 0.002 || this.airAmt > 0.002 || Math.abs(this.bodyYaw - yaw0) > 1e-4;
+    return active || talk || this.walkAmt > 0.002 || this.airAmt > 0.002 || Math.abs(this.bodyYaw - yaw0) > 1e-4;
+  }
+
+  // 말하는 동안 손짓의 세기를 부드럽게 올리고 내린다. 손짓이 보이는 동안 true
+  talkTick(dt) {
+    const to = this.talking ? 1 : 0;
+    if (this.talkAmt === to && !to) return false;
+    this.talkAmt += (to - this.talkAmt) * (1 - Math.exp(-7 * dt));
+    if (Math.abs(to - this.talkAmt) < 0.004) this.talkAmt = to;
+    this.talkT += dt;
+    return true;
   }
 
   // 지금 상태를 3D 모델의 자세로 옮긴다
@@ -2979,6 +2991,26 @@ class Actor {
       rx += (Math.atan2(-az, -ay) - rx) * this.writeAmt;
       rz += (Math.asin(clamp(ax / (Math.hypot(ax, ay, az) || 1), -0.95, 0.95)) - rz) * this.writeAmt;
     }
+    /* 말할 때의 손짓: 말하는 동안 팔이 저절로 움직인다. 빠르기가 다른 물결 셋을 섞어서 되풀이처럼 보이지 않게 한다.
+       · 서 있을 때(학생을 바라볼 때): 빈손(왼팔)을 앞으로 들어 박자를 맞추듯 움직이고, 물건을 든 오른팔도 조금 따라 움직인다
+       · 앉아 있을 때: 책상 위의 손을 살짝살짝 든다 (작게)
+       · 판서 중일 때: 쓰는 오른팔은 그대로 두고 왼팔만 작게 움직인다
+       고개도 말에 맞춰 조금 끄덕인다 */
+    const talk = this.talkAmt;
+    let nod = 0, tilt = 0;
+    if (talk > 0.002) {
+      const T = this.talkT, a = Math.sin(T * 5.1), b = Math.sin(T * 3.3 + 1.3), c = Math.sin(T * 7.4 + 0.5);
+      const writing = this.writeAmt, busyL = Math.max(this.wave, reach > 0 && this.reachSide > 0 ? reach : 0);
+      const big = talk * up * (1 - writing * 0.45) * (1 - busyL);       // 서 있을 때의 큰 손짓
+      const small = talk * sit * (1 - busyL);                           // 앉아 있을 때의 작은 손짓
+      lx += (-0.72 + 0.3 * a + 0.12 * c) * big + (-0.3 + 0.22 * a) * small;
+      lz += (0.2 + 0.16 * b) * big + (0.1 + 0.1 * b) * small;
+      const freeR = (1 - writing) * (reach > 0 ? 1 - reach : 1);        // 오른팔이 판서 · 가리키기로 바쁘지 않을 때만
+      rx += ((-0.26 + 0.14 * c) * up + 0.12 * c * sit) * talk * freeR;
+      rz -= (0.06 + 0.06 * b) * up * talk * freeR;
+      nod = 0.05 * a * talk;
+      tilt = 0.035 * b * talk;
+    }
     m.armL.rotation.x = lx;
     m.armR.rotation.x = rx;
     m.armL.rotation.z = lz;
@@ -2987,8 +3019,8 @@ class Actor {
 
     // 고개는 시선을 따라간다 (몸통 기준 좌우 한계 안에서)
     m.head.rotation.y = clamp(wrap(this.lookYaw - this.bodyYaw), -HEAD_TURN, HEAD_TURN);
-    m.head.rotation.x = clamp(this.lookPitch, -0.9, 0.9) * 0.6;
-    m.head.rotation.z = swing * 0.05;
+    m.head.rotation.x = clamp(this.lookPitch, -0.9, 0.9) * 0.6 + nod;
+    m.head.rotation.z = swing * 0.05 + tilt;
 
     m.root.position.copy(this.pos);
     m.root.rotation.y = this.bodyYaw;
@@ -3114,7 +3146,7 @@ class Actor {
     if (kind) {
       this.remote = holdMesh(kind, ink || undefined);
       this.remote.position.set(0, -0.4, 0.07);
-      this.remote.rotation.x = -1.35;
+      this.remote.rotation.set(-1.35, 0, Math.PI);     // 끝(+y: 리모컨의 빛 나오는 곳 · 펜촉)이 손 앞으로 나오게 든다 (윗면은 그대로 위를 본다)
       this.model.armR.add(this.remote);
     }
     this.setBeam(this.beam);
@@ -3281,6 +3313,11 @@ document.documentElement.classList.toggle('touch', COARSE);
 // 칠판 보기는 누구나, 앉아서도 서서도 할 수 있다 (판서하러 걸어가는 중에도)
 const canZoom = () => player.mode === 'seated' || player.mode === 'free' || (player.mode === 'path' && !player.seat);
 const canWrite = () => cfg.board !== 'video' && (isTeacher || cfg.board === 'free');         // 화이트 · 그린은 선생님만, 자유 보드는 누구나
+// 쓰려면 칠판 가까이에 서서 칠판 보기를 시작해야 한다 (문처럼, 가까이에서만 상호작용). 멀리서나 자리에 앉아서(교탁에 서서)는 크게 보기만 한다
+const WRITE_NEAR = 3.5;              // 칠판 면에서 이 거리 안
+let zoomWrite = false;               // 이번 칠판 보기가 '쓰기'로 시작됐는지
+const nearBoard = () => player.mode !== 'seated' && Math.abs(player.pos.z - BOARD.z) <= WRITE_NEAR && Math.abs(player.pos.x - BOARD.x) <= BOARD.w / 2 + 1.5;
+const canInk = () => zoomed && zoomWrite && canWrite();      // 지금 칠판에 쓸 수 있는지
 // 자리에서 칠판을 보려면 고개를 어느 쪽으로 돌려야 하는지 (돌릴 수 있는 범위 안에서)
 const boardYaw = (s) => s.yaw + clamp(wrap(Math.atan2(BOARD.x - s.sit.x, BOARD.z - s.sit.z) - s.yaw), -SEAT_LOOK, SEAT_LOOK);
 
@@ -3374,7 +3411,7 @@ function gotoArea(i) {
 }
 // (선생님) 칠판 앞으로 걸어간다. x 를 주지 않으면 지금 영역의 가운데
 function goWrite(x) {
-  if (!zoomed || !isTeacher || !canWrite() || player.mode === 'seated') return;
+  if (!zoomed || !isTeacher || !canInk() || player.mode === 'seated') return;
   const lim = Math.min(BOARD.w / 2 - 0.2, HW - WALL_PAD - 0.05);
   const tx = clamp(x === undefined ? areas[areaAt] : x, -lim, lim);
   if (x === undefined) {             // 팔은 우선 손이 닿을 만한 높이의 칠판을 가리킨다
@@ -3388,6 +3425,8 @@ function goWrite(x) {
 function setZoom(on, hint) {
   const was = zoomed;
   zoomed = on && entered && canZoom();
+  if (zoomed && !was) zoomWrite = nearBoard();     // 가까이에 서서 시작했을 때만 쓸 수 있다
+  if (!zoomed) zoomWrite = false;
   $('aim').hidden = zoomed;
   document.body.classList.toggle('zoom', zoomed);       // 판서 뷰에서는 단추 배치가 달라진다 (CSS)
   if (COARSE && zoomed !== was && !$('keys').hidden) miniShow(zoomed);         // 조작법의 작은 화면도 같은 장으로
@@ -3406,8 +3445,11 @@ function setZoom(on, hint) {
     follow.fresh = false;
     goWrite();
     const move = areas.length > 1 ? ' · ← → 옆으로 이동' : '';
-    toast(COARSE ? (canWrite() ? `펜을 고르고 칠판에 써 보세요${isTeacher ? ' · "학생보기"를 누르고 있으면 학생들을 봐요' : ''}` : '끌어서 옆으로 옮겨요 · "돌아가기"로 나가요')
-      : canWrite() ? `펜을 들고 끌어서 써 보세요${move}${isTeacher ? ' · G(또는 Space)를 누르고 있으면 학생들을 봐요(학생보기)' : ''} · Esc로 돌아가기`
+    if (canWrite() && !zoomWrite) {              // 쓸 수 있는 사람인데 보기만 하게 된 까닭을 알려 준다 (기기마다 처음 한 번만)
+      if (player.mode === 'seated') hintOnce('seatView', '자리에서는 크게 보기만 해요 · 쓰려면 일어나서 칠판 가까이로 가세요', 5000);
+      else hintOnce('farView', '멀리서는 크게 보기만 해요 · 칠판 가까이 가서 누르면 쓸 수 있어요', 5000);
+    } else toast(COARSE ? (canInk() ? `펜을 고르고 칠판에 써 보세요${isTeacher ? ' · "학생보기"를 누르고 있으면 학생들을 봐요' : ''}` : '끌어서 옆으로 옮겨요 · "돌아가기"로 나가요')
+      : canInk() ? `펜을 들고 끌어서 써 보세요${move}${isTeacher ? ' · G(또는 Space)를 누르고 있으면 학생들을 봐요(학생보기)' : ''} · Esc로 돌아가기`
       : tail ? '선생님이 쓰는 곳을 따라가요 · ← → 로 직접 옮기기 · Esc로 돌아가기' : `Esc로 돌아가기${move}`, 5000);
   }
   if (!zoomed) {
@@ -3544,7 +3586,7 @@ const glanceLook = { yaw: 0, pitch: 0 };   // 학생보기 중에 고개를 더 
 function writeThink(dt) {
   let active = false;
   const me = player;
-  const atBoard = zoomed && isTeacher && canWrite() && me.mode !== 'seated' && Math.abs(me.pos.z - (BOARD.z + WRITE_Z)) < 0.35;
+  const atBoard = zoomed && isTeacher && canInk() && me.mode !== 'seated' && Math.abs(me.pos.z - (BOARD.z + WRITE_Z)) < 0.35;
   // 돌아보기: 칠판 앞에서 G 를 누르고 있는 동안 옆으로 서서 고개를 돌려 학생들을 본다. 떼면 다시 칠판을 보고 판서를 잇는다
   const glance = atBoard && me.mode === 'free' && (keys.has('KeyG') || keys.has('Space'));      // G · Space · (터치) 점프 자리의 단추
   if (glance !== glancing) {
@@ -3671,7 +3713,7 @@ function updateTarget() {
   // X 단추: 바라본 것에 하는 행동
   const label = !target ? ''
     : target.kind === 'door' ? '나가기'
-    : target.kind === 'screen' ? (canWrite() ? '칠판에 쓰기' : '칠판 보기')
+    : target.kind === 'screen' ? (canWrite() && nearBoard() ? '칠판에 쓰기' : '칠판 보기')
     : target.kind === 'whisper' ? '소곤거리기'
     : target.stand ? '교탁에 서기' : '앉기';
   if (label !== actLabel) {
@@ -3680,7 +3722,7 @@ function updateTarget() {
     $('actText').textContent = label;
   }
   // Esc 단추: 한 단계 뒤로
-  const canGlance = zoomed && isTeacher && canWrite() && player.mode !== 'seated';       // 판서하다가 학생 돌아보기 (누르고 있는 동안)
+  const canGlance = zoomed && isTeacher && canInk() && player.mode !== 'seated';       // 판서하다가 학생 돌아보기 (누르고 있는 동안)
   if ($('glanceBtn').hidden === canGlance) {         // 판서 모드에서는 점프 단추가 '돌아보기'로 바뀐다 (판서 중에는 뛸 일이 없으므로)
     $('glanceBtn').hidden = !canGlance;
     $('jump').textContent = canGlance ? '학생보기' : '점프';
@@ -3727,6 +3769,17 @@ function back() {
   return true;
 }
 
+// 처음 한 번만 띄우는 안내: 띄운 적이 있는지를 이 기기(브라우저)에 적어 둔다. 한 번 본 안내는 다시 뜨지 않는다
+const HINTS_KEY = 'classroom-hints-v1';
+let hintsSeen = [];
+try { hintsSeen = JSON.parse(localStorage.getItem(HINTS_KEY)) || []; } catch {}
+if (!Array.isArray(hintsSeen)) hintsSeen = [];
+function hintOnce(id, text, ms) {
+  if (hintsSeen.includes(id)) return;
+  hintsSeen.push(id);
+  try { localStorage.setItem(HINTS_KEY, JSON.stringify(hintsSeen)); } catch {}
+  toast(text, ms);
+}
 const polite = (name) => (name.endsWith('선생님') ? name : `${name} 님`);     // "지영 님", "김 선생님"
 let toastTimer = 0;
 function toast(text, ms = 2600) {
@@ -3960,6 +4013,7 @@ function snapshot() {
     h: HOLD.indexOf(p.hold || ''),               // 손에 든 것
     hc: pen.color,                               // 그 펜의 색 번호
     v: !voice.on ? 0 : isTeacher && voice.global ? 2 : 1,             // 마이크: 0 끔 · 1 켬(가까이에만) · 2 켬(선생님, 교실 전체에)
+    tk: player.talking ? 1 : 0,                  // 지금 말하는 중 (손짓을 한다)
     ...(isTeacher ? { vm: voice.muteAll ? 1 : 0, vx: [...voice.muted].slice(0, 120) } : {}),       // 선생님이 정한 전체 · 개별 음소거
   };
 }
@@ -4087,7 +4141,11 @@ function peersThink(dt) {
   let active = false;
   for (const peer of peers.values()) {
     const a = peer.actor;
-    if (peer.t >= 1 && a.walkAmt < 0.002 && a.airAmt < 0.002) continue;
+    const talk = a.talkTick(dt);     // 말하는 동안의 손짓
+    if (peer.t >= 1 && a.walkAmt < 0.002 && a.airAmt < 0.002) {
+      if (talk) { a.applyPose(); active = true; }
+      continue;
+    }
     const ox = a.pos.x, oz = a.pos.z;
     peer.t = Math.min(1, peer.t + dt / peer.span);
     const sp = dt > 0 ? Math.hypot(peer.from.x + (peer.goal.x - peer.from.x) * peer.t - ox,
@@ -4654,9 +4712,20 @@ async function setMic(on) {
     if (!entered || voiceBlocked()) { for (const track of stream.getTracks()) track.stop(); return; }
     voice.stream = stream;
     voice.on = true;
+    try {                            // 말하는 중인지 알려고 내 마이크 소리의 크기를 잰다 (스피커로는 내보내지 않는다)
+      if (!audioReady()) throw new Error('no audio');
+      voice.meterSrc = ac.createMediaStreamSource(stream);
+      voice.meter = ac.createAnalyser();
+      voice.meter.fftSize = 512;
+      voice.meterSrc.connect(voice.meter);
+      voice.meterBuf = new Float32Array(voice.meter.fftSize);
+    } catch (err) { voice.meter = null; }
     toast(isTeacher && voice.global ? '마이크를 켰어요 · 교실 전체에 들려요' : '마이크를 켰어요 · 가까이 있는 사람에게 들려요');
   } else {
     voice.on = false;
+    if (voice.meterSrc) voice.meterSrc.disconnect();
+    voice.meter = voice.meterSrc = null;
+    setTalking(false);
     if (voice.stream) for (const track of voice.stream.getTracks()) track.stop();
     voice.stream = null;
     for (const pc of voice.out.values()) pc.close();
@@ -4668,6 +4737,22 @@ async function setMic(on) {
   dirty = true;
 }
 $('micBtn').addEventListener('click', () => { setMic(!voice.on); canvas.focus(); });
+// 내가 말하는 중인지 (마이크 소리가 어느 크기를 넘으면 말하는 것으로 본다. 말이 잠깐 끊겨도 0.6초는 이어서 말하는 것으로 친다)
+const TALK_LEVEL = 0.025;
+let talkUntil = 0;
+function setTalking(on) {
+  if (!player || player.talking === on) return;
+  player.talking = on;
+  dirty = true;
+}
+function talkThink(now) {            // 화면을 한 장 그릴 때마다 부른다
+  if (!voice.on || !voice.meter) return;
+  voice.meter.getFloatTimeDomainData(voice.meterBuf);
+  let sum = 0;
+  for (const v of voice.meterBuf) sum += v * v;
+  if (Math.sqrt(sum / voice.meterBuf.length) > TALK_LEVEL) talkUntil = now + 600;
+  setTalking(now < talkUntil);
+}
 // 말하는 사람과의 연결을 끊는다. tell = 그 사람에게도 알려서 보내기를 멈추게 할지
 function voiceDrop(id, tell) {
   voice.asked.delete(id);
@@ -4793,6 +4878,8 @@ function onVoiceState(peer, m) {
       showMic();
     }
   }
+  const talking = !!v && !!m.tk;     // 말하는 중이면 손짓을 한다
+  if (talking !== peer.actor.talking) { peer.actor.talking = talking; dirty = true; }
   if (changed) showVoices();
 }
 // (선생님) 마이크 관리 창: 내 목소리 범위 · 학생 전체 음소거 · 학생별 음소거
@@ -4961,7 +5048,7 @@ function holdMesh(kind, ink = '#3f76dd') {       // ink = 지금 고른 펜 색 
 const inkOf = (kind, n) => (kind === 'ball' || kind === 'fount' ? BOARDS[cfg.board].pens[n] || '#3f76dd' : '');
 // 내가 지금 손에 들고 있어야 하는 것
 const myHold = () => {
-  const writing = zoomed && pen.tool !== 'hand' && (pen.tool === 'laser' ? canZap() : canWrite());
+  const writing = zoomed && pen.tool !== 'hand' && (pen.tool === 'laser' ? canZap() : canInk());
   return writing ? (pen.tool === 'wipe' ? 'rub' : pen.tool) : isTeacher ? 'remote' : '';
 };
 
@@ -5138,6 +5225,14 @@ const CALM = [[48, 60, 64, 67, 71], [45, 57, 60, 64, 67], [41, 57, 60, 65, 69], 
 const FOCUS = [[38, 50, 57, 60, 65], [34, 50, 53, 57, 62], [41, 53, 57, 60, 64], [36, 52, 55, 60, 64]];
 const BRIGHT = [[48, 60, 64, 67], [43, 59, 62, 67], [45, 57, 60, 64], [41, 57, 60, 65]];
 const pick = (list) => list[Math.random() * list.length | 0];
+// 새로 지은 강의실 음악들의 화음 [낮은 음, 화음 …] 과 가락
+const COZY = [[41, 57, 60, 64, 67], [40, 55, 59, 62, 67], [38, 53, 57, 60, 65], [36, 55, 59, 60, 64]];
+const COZY_TOP = [[72, 76, 79, 81], [71, 74, 76, 79], [72, 74, 77, 81], [72, 74, 76, 79]];
+const WALTZ = [[48, 64, 67], [45, 60, 64], [41, 60, 65], [43, 59, 62], [40, 59, 64], [45, 60, 64], [38, 57, 62], [43, 59, 65]];
+const WALTZ_TUNE = [[76, 0, 79], [81, 0, 79], [77, 0, 81], [79, 0, 0], [79, 0, 83], [84, 0, 81], [77, 0, 74], [74, 0, 71]];
+const STUDY = [[38, 62, 65, 69, 72], [34, 58, 62, 65, 69], [41, 57, 60, 64, 69], [36, 55, 60, 62, 67]];
+const GRAND = [[36, 60, 64, 67], [41, 60, 65, 69], [47, 62, 67, 71], [45, 60, 64, 69], [41, 60, 65, 69], [40, 60, 64, 67], [38, 62, 65, 69], [43, 62, 67, 71]];
+const GRAND_TUNE = [[67, 72], [72, 77], [74, 79], [76, 72], [77, 72], [76, 72], [74, 77], [74, 71]];
 
 /* step = 한 박의 길이(초) · echo = [메아리 간격, 되울림] · play(bus, i, t) = i 번째 박에 낼 소리를 t 시각에 예약 */
 const MOODS = {
@@ -5207,6 +5302,69 @@ const MOODS = {
         const n = [72, 74, 76, 79, 81, 84, 86, 88][this.at];
         tone(bus, n, t, 3.2, 0.055, 'sine', 0.01);
         tone(bus, n + 19, t, 1.2, 0.012, 'sine', 0.01);
+      }
+    },
+  },
+  /* 아래 넷은 강의실마다 그 방에 어울리게 새로 지은 음악이다 (가락과 화음 모두 이 프로젝트용) */
+  cozy: {                            // 중형 교실: 느긋한 박자 위의 포근한 화음 (전기 피아노 느낌)
+    name: '포근한', step: 0.4, echo: [0.3, 0.18],
+    play(bus, i, t0) {
+      const s = i & 7, bar = (i >> 3) % 4, ch = COZY[bar], t = t0 + (s & 1 ? 0.05 : 0);
+      if (s === 0) {                 // 마디 첫 박: 화음을 살짝 흩어서 누르고, 낮은 음을 깐다
+        for (let k = 1; k < 5; k++) {
+          tone(bus, ch[k], t + k * 0.014, 2.6, 0.04, 'triangle', 0.03);
+          tone(bus, ch[k], t + k * 0.014, 2.9, 0.028, 'sine', 0.03);
+        }
+        tone(bus, ch[0], t, 1.3, 0.17, 'sine', 0.02);
+      }
+      if (s === 3) tone(bus, ch[0] + 7, t, 0.5, 0.1, 'sine', 0.02);
+      if (s === 5) for (let k = 2; k < 5; k++) tone(bus, ch[k], t, 1.1, 0.026, 'triangle', 0.03);
+      if (s === 6) tone(bus, ch[0] + 12, t, 0.4, 0.07, 'sine', 0.02);
+      if (s & 1) hit(bus, t, 0.03, 0.012, 8000);                     // 아주 작은 박자
+      if (s === 4) hit(bus, t, 0.08, 0.02, 1700, 2, 'bandpass');
+      if (s !== 0 && Math.random() < 0.28) tone(bus, pick(COZY_TOP[bar]), t, 0.9, 0.04, 'sine', 0.01);       // 드문드문 얹히는 한 음
+    },
+  },
+  waltz: {                           // 대형 강의실: 차분한 3박자 피아노
+    name: '왈츠', step: 0.66, echo: [0.33, 0.2],
+    play(bus, i, t) {
+      const s = i % 3, bar = Math.floor(i / 3) % 8, ch = WALTZ[bar];
+      const piano = (n, dur, vol) => { tone(bus, n, t, dur, vol, 'triangle', 0.006); tone(bus, n, t, dur * 1.2, vol * 0.7, 'sine', 0.006); };
+      if (s === 0) piano(ch[0], 1.6, 0.13);                           // 쿵
+      else { piano(ch[1], 0.7, 0.038); piano(ch[2], 0.7, 0.038); }    // 짝 · 짝
+      if (WALTZ_TUNE[bar][s]) piano(WALTZ_TUNE[bar][s], 1.5, 0.075);
+    },
+  },
+  study: {                           // 계단식 강의실: 서재처럼 차분하게. 하프처럼 뜯는 소리가 오르내리고 화음이 길게 깔린다
+    name: '서재', step: 0.3, echo: [0.45, 0.28],
+    play(bus, i, t) {
+      const s = i % 12, ch = STUDY[Math.floor(i / 12) % 4];
+      if (s === 0) {
+        tone(bus, ch[0], t, 3.8, 0.13, 'sine', 0.3);
+        tone(bus, ch[1], t, 3.8, 0.04, 'sine', 0.9);
+        tone(bus, ch[3], t, 3.8, 0.035, 'sine', 1.2);
+      }
+      tone(bus, ch[[1, 2, 3, 4, 3, 2][s % 6]] + (s >= 6 ? 12 : 0), t, 0.9, s % 6 === 0 ? 0.06 : 0.042, 'triangle', 0.005);
+      if (s === 9 && Math.random() < 0.5) tone(bus, ch[4] + 24, t, 1.6, 0.02, 'sine', 0.01);
+    },
+  },
+  grand: {                           // 강당: 넓고 웅장하게. 오르간처럼 겹친 화음 + 느린 호른 같은 가락 + 드문 큰북
+    name: '웅장한', step: 1, echo: [0.6, 0.42],
+    play(bus, i, t) {
+      const s = i & 3, bar = (i >> 2) & 7, ch = GRAND[bar];
+      if (s === 0) {
+        tone(bus, ch[0], t, 4.6, 0.15, 'sine', 0.4);
+        tone(bus, ch[0] + 12, t, 4.6, 0.06, 'sine', 0.6);
+        for (let k = 1; k < 4; k++) tone(bus, ch[k], t, 4.6, 0.032, 'triangle', 0.9);
+        if (bar % 2 === 0) {         // 큰북
+          tone(bus, 36, t, 1.4, 0.2, 'sine', 0.005);
+          hit(bus, t, 0.25, 0.03, 120, 1, 'lowpass');
+        }
+      }
+      const m = GRAND_TUNE[bar][s >> 1];
+      if (!(s & 1) && m) {
+        tone(bus, m, t, 2.3, 0.07, 'triangle', 0.25);
+        tone(bus, m, t, 2.3, 0.04, 'sine', 0.25);
       }
     },
   },
@@ -5570,7 +5728,7 @@ function histRemove(keys) {
   return items;
 }
 function undo() {
-  if (!zoomed || !canWrite()) return;
+  if (!canInk()) return;
   penUp();
   for (let a = hist.undo.pop(); a; a = hist.undo.pop()) {
     if (a.kind === 'add') {
@@ -5584,7 +5742,7 @@ function undo() {
   histShow();
 }
 function redo() {
-  if (!zoomed || !canWrite()) return;
+  if (!canInk()) return;
   penUp();
   for (let a = hist.redo.pop(); a; a = hist.redo.pop()) {
     if (a.kind === 'add') histRestore(a.items);
@@ -5642,7 +5800,7 @@ const ZAP = {
   z: 0.012, max: 60,
 };
 const zaps = new Map();              // 획 이름 → { who, pts: [u, v, …], size, mesh, done: 끝난 시각(0 = 긋는 중), at: 마지막 점이 온 시각, fadeAt }
-const canZap = () => isTeacher || canWrite();
+const canZap = () => zoomed && zoomWrite && (isTeacher || canWrite());       // 레이저 펜도 가까이에서 쓰기를 시작했을 때만
 const zapMat = () => new THREE.ShaderMaterial({
   transparent: true, depthWrite: false, side: THREE.DoubleSide,
   uniforms: { opacity: { value: 1 }, grow: { value: 1 }, whiten: { value: 0.85 } },
@@ -5843,7 +6001,7 @@ function penAt(uv) {
 }
 function penDown(e) {
   const laser = pen.tool === 'laser';
-  if (pen.id !== null || zoomAmt < 0.97 || !(laser ? canZap() : canWrite())) return;
+  if (pen.id !== null || zoomAmt < 0.97 || !(laser ? canZap() : canInk())) return;
   const uv = boardUV(e);
   if (!uv) return;
   if (follow.on && canFollow()) setFollow(false, '직접 쓰기 시작해서 ');
@@ -6172,7 +6330,7 @@ for (const [btn, pop] of [['showBtn', 'showPop'], ['moreBtn', 'morePop']]) {
 $('inviteBtn').addEventListener('click', () => { copyLink(false); canvas.focus(); });
 
 function showPens() {
-  const full = canWrite(), on = zoomed && (full || isTeacher);       // 선생님은 영상 스크린에서도 레이저 펜을 쓸 수 있다
+  const full = canInk(), on = zoomed && zoomWrite && (full || isTeacher);       // 쓰기로 시작했을 때만 도구가 뜬다. 선생님은 영상 스크린에서도 레이저 펜을 쓸 수 있다
   $('pens').hidden = !on;
   if (on && !full && pen.tool !== 'laser') pen.tool = 'hand';        // 쓸 수 없는 칠판에서는 이동과 레이저 펜만
   if (entered) {
@@ -6869,9 +7027,9 @@ function keyRows() {
       k('KeyH', 'H', '조작법', '이 조작법을 열고 닫아요.')],
     [k('ShiftLeft', 'Shift', '달리기', '누른 채로 움직이면 달려요.', 1.6),
       k('KeyZ', 'Z', canWrite() ? '되돌리기' : '', '판서 화면에서 방금 쓰거나 지운 것을 되돌려요. Shift 와 함께 누르면 되돌린 것을 다시 해요(앞으로 가기). Ctrl(⌘)+Z 도 돼요.'),
-      k('KeyX', 'X', '고르기', T ? '바라보는 것을 골라요. 교탁을 보면 교탁에 서기, 칠판을 보면 판서, 자리를 보면 앉기, 문을 보면 나가기.' : '바라보는 것을 골라요. 자리를 보면 앉기, 칠판을 보면 크게 보기, 옆 친구를 보면 소곤거리기, 문을 보면 나가기.'),
+      k('KeyX', 'X', '고르기', T ? '바라보는 것을 골라요. 교탁을 보면 교탁에 서기, 칠판을 가까이에서 보면 판서(멀리서나 앉아서는 크게 보기만), 자리를 보면 앉기, 문을 보면 나가기.' : '바라보는 것을 골라요. 자리를 보면 앉기, 칠판을 보면 크게 보기, 옆 친구를 보면 소곤거리기, 문을 보면 나가기.'),
       k('KeyC', 'C'), k('KeyV', 'V', '마이크', T ? '마이크를 켜고 꺼요. 선생님 목소리는 교실 전체에 들려요(리모컨의 더보기 → 마이크에서 바꿀 수 있어요).' : '선생님이 허락하면 마이크를 켜고 끌 수 있어요. 목소리는 가까이 있는 사람에게 들리고, 멀수록 작게 들려요.'),
-      k('KeyB', 'B', T ? '판서' : '칠판 보기', T ? '판서 화면을 열고 닫아요. 펜 · 지우개 · 색을 골라 칠판에 써요.' : '칠판을 크게 봐요. 한 번 더 누르면 돌아와요.')],
+      k('KeyB', 'B', T ? '판서' : '칠판 보기', T ? '칠판 가까이에 서서 누르면 판서 화면이 열려요(펜 · 지우개 · 색). 멀리서나 앉아서 누르면 크게 보기만 해요.' : '칠판을 크게 봐요. 한 번 더 누르면 돌아와요.')],
     [gap(1.6), k('Space', 'Space', '점프', T ? '제자리에서 뛰어요. 판서 화면에서는 누르고 있는 동안 학생들을 돌아봐요.' : '제자리에서 뛰어요.', 3.6), gap(0.6),
       k('ArrowLeft', '←', T ? '왼쪽·이전' : '왼쪽', side('왼쪽', '이전')),
       k('ArrowUp', '↑', '앞으로', '앞으로 걸어요.'),
@@ -7095,7 +7253,7 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyH' && !e.repeat && !e.ctrlKey && !e.metaKey) { setKeys($('keys').hidden); return; }     // 조작법 열기 · 닫기
   if (e.code === 'KeyV' && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey) { setMic(!voice.on); e.preventDefault(); return; }       // 마이크 켜기 · 끄기
   // 판서 화면: Z = 되돌리기, Shift+Z = 앞으로 가기 (Ctrl · ⌘ 와 함께 눌러도 되고, Ctrl+Y 도 앞으로 가기)
-  if (zoomed && canWrite() && !e.altKey && (e.code === 'KeyZ' || (e.code === 'KeyY' && (e.ctrlKey || e.metaKey)))) {
+  if (canInk() && !e.altKey && (e.code === 'KeyZ' || (e.code === 'KeyY' && (e.ctrlKey || e.metaKey)))) {
     if (e.code === 'KeyY' || e.shiftKey) redo(); else undo();
     e.preventDefault();
     return;
@@ -7153,7 +7311,7 @@ const hover = { clientX: 0, clientY: 0, on: false };       // 포인터(마우�
 // 지우개 범위: 지우개를 들고 칠판 위에 있으면, 지워지는 크기만큼의 점선 동그라미가 포인터를 따라다닌다
 function showRing(on = true) {
   const ring = $('eraseRing');
-  const erasing = on && hover.on && zoomed && zoomAmt > 0.97 && canWrite() && !laserOn && (pen.tool === 'rub' || pen.tool === 'wipe');
+  const erasing = on && hover.on && zoomed && zoomAmt > 0.97 && canInk() && !laserOn && (pen.tool === 'rub' || pen.tool === 'wipe');
   ring.hidden = !erasing;
   if (!erasing) return;
   // 문지르는 지우개는 펜 굵기의 7배 폭, 획 지우개는 닿는 것으로 치는 거리(반지름)의 두 배
@@ -7183,7 +7341,7 @@ canvas.addEventListener('pointerdown', (e) => {
   }
   if (zoomed) {
     if (laserOn) { dirty = true; return; }     // 포인터를 켜고 있는 동안에는 쓰지 않고 가리키기만 한다
-    if (pen.tool !== 'hand' && (pen.tool === 'laser' ? canZap() : canWrite())) penDown(e);
+    if (pen.tool !== 'hand' && (pen.tool === 'laser' ? canZap() : canInk())) penDown(e);
     else if (zoomAmt > 0.97) {
       followOff();
       slideId = e.pointerId;
@@ -7633,6 +7791,7 @@ function frame(now) {
     if (peer.actor.tickBubble(now)) dirty = true;
   }
   if (show.mode === 'live') liveThink(now);       // 화면 공유: 새 장면만 그래픽 카드로 보낸다
+  talkThink(now);                     // 내가 말하는 중인지 (손짓)
   if (zaps.size && zapThink(performance.now())) dirty = true;     // 레이저 펜 자국을 서서히 지운다
   if (!dirty && mirrorStale && now - mirrorAt >= mirrorEvery()) dirty = true;     // 미뤄 둔 거울 그림을 마저 그린다
   if (!dirty) { lap.lastDraw = 0; return; }       // 바뀐 게 없으면 그리지 않는다 → 그래픽 카드가 쉰다
@@ -7760,7 +7919,7 @@ window.classroom = {
   cfg, cfgAt, setConfig: (kind, key) => setConfig(kind, key, true), askConfig: setConfig, back, ink, pen, inviteLink, teacherKey,
   get role() { return [role, creator, isTeacher]; }, strokes, inkAdd, FORMS, BOARD, spawn, nearestFree, playBgm, gotoArea, boardCam,
   get areas() { return [areas, areaAt, zoomX]; },
-  get zoom() { return [zoomed, zoomAmt]; }, frame, zaps, zapAdd, liveTex, liveMesh, live, inkTex, showTex, startLive, endShow, inkClear, inkErase, get show() { return show; }, get lap() { return { ...lapShown, level: pixels.level, trial: !!pixels.trial, hold: Math.round(Math.max(0, pixels.hold - performance.now()) / 1000), mirrorMs, every: mirrorEvery() }; }, mirrorRT, get mirror() { return { n: mirrorN, sum: mirrorSum, ms: mirrorMs, rt: [mirrorRT.width, mirrorRT.height], on: mirrorGlass.visible, pos: mirrorGlass.position.toArray(), calls: mirrorCalls, all: info.calls, fade: mirrorMat.uniforms.fade.value }; }, get mySkin() { return mySkin; }, peerSkins, actors, get follow() { return { on: follow.on, can: canFollow(), x: zoomX, to: follow.to, area: areaAt }; }, setZoom, setHide, undo, redo, hist, stylus, joy, voice, setMic, VOICE, get glance() { return [glancing, +glanceLook.yaw.toFixed(3), +glanceLook.pitch.toFixed(3)]; }, get bgm() { return bgmNow; }, get audio() { return ac; },
+  get zoom() { return [zoomed, zoomAmt]; }, frame, zaps, zapAdd, liveTex, liveMesh, live, inkTex, showTex, startLive, endShow, inkClear, inkErase, get show() { return show; }, get lap() { return { ...lapShown, level: pixels.level, trial: !!pixels.trial, hold: Math.round(Math.max(0, pixels.hold - performance.now()) / 1000), mirrorMs, every: mirrorEvery() }; }, mirrorRT, get mirror() { return { n: mirrorN, sum: mirrorSum, ms: mirrorMs, rt: [mirrorRT.width, mirrorRT.height], on: mirrorGlass.visible, pos: mirrorGlass.position.toArray(), calls: mirrorCalls, all: info.calls, fade: mirrorMat.uniforms.fade.value }; }, get mySkin() { return mySkin; }, peerSkins, actors, get follow() { return { on: follow.on, can: canFollow(), x: zoomX, to: follow.to, area: areaAt }; }, setZoom, setHide, undo, redo, hist, stylus, joy, voice, setMic, VOICE, get zoomWrite() { return zoomWrite; }, nearBoard, get glance() { return [glancing, +glanceLook.yaw.toFixed(3), +glanceLook.pitch.toFixed(3)]; }, get bgm() { return bgmNow; }, get audio() { return ac; },
   get room() { return { ROOM, HW, HD, floorAt, obstacles, blocked, cellH, NX, NZ }; },
   net: { peers, myId, tick: netTick, receive: netReceive, pace: netPace, openSupabase,
     get link() { return link; }, get state() { return linkState; }, get seatAt() { return mySeatAt; } },
