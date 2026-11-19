@@ -3052,6 +3052,16 @@ class Actor {
       this.remote.rotation.x = -1.35;
       this.model.armR.add(this.remote);
     }
+    this.setBeam(this.beam);
+    dirty = true;
+  }
+  // 포인터를 켜고 있는지: 손에 든 리모컨의 앞쪽 끝이 빛난다
+  setBeam(on) {
+    this.beam = !!on;
+    const tip = this.remote && this.remote.userData.tip;
+    if (!tip) return;
+    tip.material = this.beam ? remoteTipOn : remoteTipOff;
+    this.remote.userData.halo.visible = this.beam;
     dirty = true;
   }
 
@@ -4563,14 +4573,39 @@ function onRtc(m) {
 /* ── 리모컨: 선생님이 강의실 어디서든 큰 스크린을 조작한다 (R 키로 꺼내고 넣는다) ── */
 const remoteBody = new THREE.MeshLambertMaterial({ color: '#2b2e36' });
 const remoteDot = new THREE.MeshBasicMaterial({ color: '#ff5a4d' });
-function remoteMesh() {              // 작은 리모컨 모형: 몸통 + 빨간 전원 단추
+// 리모컨 앞쪽 끝의 빛 나오는 곳: 평소에는 어두운 유리, 포인터를 누르는 동안에는 빨갛게 빛나고 둘레에 빛무리가 생긴다
+const remoteTipOff = new THREE.MeshLambertMaterial({ color: '#4a1512' });
+const remoteTipOn = new THREE.MeshBasicMaterial({ color: '#ff2a1c' });
+const remoteHalo = new THREE.SpriteMaterial({     // (밝은 벽 앞에서도 보이게 빨간 빛을 그대로 얹는다. 가운데만 흰빛)
+  transparent: true, depthWrite: false,
+  map: makeTex(64, 64, (g) => {
+    const glow = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    glow.addColorStop(0, 'rgba(255, 255, 255, 1)');
+    glow.addColorStop(0.16, 'rgba(255, 190, 180, .95)');
+    glow.addColorStop(0.4, 'rgba(255, 59, 48, .6)');
+    glow.addColorStop(1, 'rgba(255, 59, 48, 0)');
+    g.fillStyle = glow;
+    g.fillRect(0, 0, 64, 64);
+  }, { smooth: true }),
+});
+function remoteMesh() {              // 작은 리모컨 모형: 몸통 + 빨간 전원 단추 + 앞쪽 끝의 빛 나오는 곳
   const g = new THREE.Group();
   const body = new THREE.Mesh(box, remoteBody);
   body.scale.set(0.05, 0.16, 0.025);
   const dot = new THREE.Mesh(box, remoteDot);
   dot.scale.set(0.018, 0.018, 0.01);
   dot.position.set(0, 0.055, 0.014);
-  g.add(body, dot);
+  const tip = new THREE.Mesh(box, remoteTipOff);
+  tip.scale.set(0.03, 0.012, 0.017);
+  tip.position.y = 0.085;
+  const halo = new THREE.Sprite(remoteHalo);
+  halo.scale.set(0.15, 0.15, 1);
+  halo.position.y = 0.094;
+  halo.renderOrder = 4;
+  halo.visible = false;
+  g.add(body, dot, tip, halo);
+  g.userData.tip = tip;
+  g.userData.halo = halo;
   return g;
 }
 
@@ -6088,11 +6123,14 @@ function removeLaser(id) {
   scene.remove(L.dot, L.beam);
   L.beam.geometry.dispose();
   lasers.delete(id);
-  if (L.actor !== player) { L.actor.reachAmt = 0; L.actor.applyPose(); }
+  if (L.actor !== player) { L.actor.reachAmt = 0; L.actor.setBeam(false); L.actor.applyPose(); }
   dirty = true;
 }
 function setLaser(on) {
   laserOn = on && remoteOut;
+  player.setBeam(laserOn);           // 누르고 있는 동안 리모컨 앞쪽 끝이 빛난다 (남이 보는 내 캐릭터의 리모컨)
+  held.userData.tip.material = laserOn ? remoteTipOn : remoteTipOff;       // 내 화면 오른쪽 아래의 리모컨도
+  held.userData.halo.visible = laserOn;
   $('laserBtn').setAttribute('aria-pressed', String(laserOn));
   if (!laserOn) {
     removeLaser(myId);
@@ -6116,6 +6154,7 @@ function onLaser(m) {
   peer.actor.reachSide = 0;            // 리모컨 든 팔을 스크린 쪽으로 뻗고 있는다
   peer.actor.reachFwd = 2;
   peer.actor.reachAmt = 1;
+  peer.actor.setBeam(true);
   peer.actor.applyPose();
   dirty = true;
 }
