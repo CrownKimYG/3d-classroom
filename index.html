@@ -3080,7 +3080,7 @@ function setZoom(on, hint) {
     follow.fresh = false;
     goWrite();
     const move = areas.length > 1 ? ' · ← → 옆으로 이동' : '';
-    toast(canWrite() ? `펜을 들고 끌어서 써 보세요${move} · Esc로 돌아가기`
+    toast(canWrite() ? `펜을 들고 끌어서 써 보세요${move}${isTeacher ? ' · G를 누르고 있으면 학생들을 돌아봐요' : ''} · Esc로 돌아가기`
       : tail ? '선생님이 쓰는 곳을 따라가요 · ← → 로 직접 옮기기 · Esc로 돌아가기' : `Esc로 돌아가기${move}`, 5000);
   }
   if (!zoomed) {
@@ -3136,7 +3136,7 @@ function zoomThink(dt) {
       active = true;
     }
   }
-  const want = zoomed ? 1 : 0;
+  const want = zoomed && !glancing ? 1 : 0;       // 돌아보는 동안에는 내 눈으로 강의실을 본다
   if (zoomAmt !== want) {
     zoomAmt += (want - zoomAmt) * (1 - Math.exp(-9 * dt));
     if (Math.abs(want - zoomAmt) < 0.003) zoomAmt = want;
@@ -3181,17 +3181,32 @@ function showAreas() {
 }
 
 /* ── 판서하는 모습: 칠판 앞에 선 선생님이 칠판을 보고, 오른팔을 쓰는 곳으로 뻗는다 (다른 사람 눈에도 보인다) ── */
+let glancing = false, glanceSide = 1;      // 판서하다가 학생들을 돌아보는 중인지 · 어느 쪽으로 돌아섰는지
 function writeThink(dt) {
   let active = false;
   const me = player;
   const atBoard = zoomed && isTeacher && canWrite() && me.mode !== 'seated' && Math.abs(me.pos.z - (BOARD.z + WRITE_Z)) < 0.35;
-  me.writeOn = atBoard && (me.mode === 'free' || pen.id !== null);
-  if (atBoard && me.mode === 'free') {                 // 다 왔으면 칠판 쪽으로 돌아선다
-    const k = 1 - Math.exp(-9 * dt), turn = wrap(FRONT - me.bodyYaw);
-    if (Math.abs(turn) > 0.004) {
+  // 돌아보기: 칠판 앞에서 G 를 누르고 있는 동안 옆으로 서서 고개를 돌려 학생들을 본다. 떼면 다시 칠판을 보고 판서를 잇는다
+  const glance = atBoard && me.mode === 'free' && keys.has('KeyG');
+  if (glance !== glancing) {
+    glancing = glance;
+    if (glance) {
+      penUp();                                         // 긋던 획은 끝낸다
+      closePops();
+      glanceSide = me.pos.x > 0.3 ? -1 : 1;            // 칠판 가운데 쪽으로 몸을 연다
+    }
+    dirty = true;
+  }
+  me.writeOn = atBoard && !glancing && (me.mode === 'free' || pen.id !== null);
+  if (atBoard && me.mode === 'free') {                 // 다 왔으면 칠판 쪽으로 돌아선다 (돌아보는 중에는 학생 쪽으로)
+    const lookTo = glancing ? Math.atan2(-me.pos.x * 0.7, HD * 0.9) : FRONT;       // 강의실 한가운데쯤
+    const bodyTo = glancing ? lookTo + glanceSide * 1.2 : FRONT;                   // 몸은 옆으로, 고개만 학생 쪽으로
+    const pitchTo = glancing ? 0.08 : -0.3;
+    const k = 1 - Math.exp(-9 * dt), turn = wrap(bodyTo - me.bodyYaw), head = wrap(lookTo - me.lookYaw), nod = pitchTo - me.lookPitch;
+    if (Math.abs(turn) > 0.004 || Math.abs(head) > 0.004 || Math.abs(nod) > 0.004) {
       me.bodyYaw += turn * k;
-      me.lookYaw += wrap(FRONT - me.lookYaw) * k;
-      me.lookPitch += (-0.3 - me.lookPitch) * k;
+      me.lookYaw += head * k;
+      me.lookPitch += nod * k;
       me.applyPose();
       active = true;
     }
@@ -4499,42 +4514,48 @@ const TOOL_NO = { ball: 0, fount: 1, rub: 2 };
 const round4 = (v) => Math.round(v * 10000) / 10000;
 const pen = { id: null, tool: 'ball', erase: 'rub', write: 'ball', color: 0, size: 1, key: '', n: 0, last: null, out: [], gone: [], sentAt: 0 };
 
-// 획에서 아직 그리지 않은 부분을 그린다 (from = 이미 그린 점의 수)
+/* 획에서 아직 그리지 않은 부분을 그린다 (from = 이미 그린 점의 수).
+   점과 점을 곧은 선으로 이으면 빨리 그은 획에서 꺾인 자국이 보인다. 그래서 꺾이는 점마다
+   "앞 가운데점 → (꺾이는 점 쪽으로 휘어서) → 뒤 가운데점" 으로 둥글게 잇는다. 점의 수도 그리는 횟수도 그대로라 부담은 같다.
+   조각 i 는 점 i+1 이 와야 그릴 수 있어서 펜 끝이 반 칸쯤 늦게 따라오고, 획을 끝낼 때 마지막 점을 한 번 더 받아 끝까지 닿는다 (penEnd) */
 function inkDraw(st, from) {
   const c = ink.ctx, W = ink.canvas.width, H = ink.canvas.height, p = st.pts, n = p.length / 2;
   const base = H * 0.009 * PEN_W[st.size];
   const X = (i) => p[i * 2] * W, Y = (i) => (1 - p[i * 2 + 1]) * H;
+  const MX = (i) => (X(i) + X(i + 1)) / 2, MY = (i) => (Y(i) + Y(i + 1)) / 2;        // 점 i 와 i+1 의 가운데
   c.lineCap = c.lineJoin = 'round';
   c.globalCompositeOperation = st.tool === 2 ? 'destination-out' : 'source-over';
   c.strokeStyle = st.tool === 2 ? '#000000' : BOARDS[cfg.board].pens[st.color] || BOARDS[cfg.board].text;
-  if (n === 1) {                     // 점 하나
+  if (from === 0) {                  // 첫 점: 점 하나를 찍는다
     c.lineWidth = st.tool === 2 ? base * 7 : st.tool === 1 ? base * 1.3 : base;
     c.beginPath();
     c.moveTo(X(0), Y(0));
     c.lineTo(X(0) + 0.01, Y(0));
     c.stroke();
-  } else if (st.tool === 1) {        // 만년필: 펜촉이 비스듬해서, 긋는 방향에 따라 획이 가늘어지고 굵어진다
-    for (let i = Math.max(1, from); i < n; i++) {
-      const want = base * 1.7 * (0.25 + 0.75 * Math.abs(Math.sin(Math.atan2(Y(i) - Y(i - 1), X(i) - X(i - 1)) + Math.PI / 4)));
+  }
+  const first = Math.max(0, from - 1), last = n - 2;         // 이번에 그릴 조각들
+  if (st.tool === 1) {               // 만년필: 펜촉이 비스듬해서, 긋는 방향에 따라 획이 가늘어지고 굵어진다
+    for (let i = first; i <= last; i++) {
+      const sx = i ? MX(i - 1) : X(0), sy = i ? MY(i - 1) : Y(0), ex = MX(i), ey = MY(i);
+      const want = base * 1.7 * (0.25 + 0.75 * Math.abs(Math.sin(Math.atan2(ey - sy, ex - sx) + Math.PI / 4)));
       st.w = st.w ? st.w * 0.6 + want * 0.4 : want;
       c.lineWidth = st.w;
       c.beginPath();
-      c.moveTo(X(i - 1), Y(i - 1));
-      c.lineTo(X(i), Y(i));
+      c.moveTo(sx, sy);
+      c.quadraticCurveTo(X(i), Y(i), ex, ey);
       c.stroke();
     }
-  } else {                           // 볼펜(굵기가 고르다) · 지우개(문지른 곳만 지운다)
+  } else if (first <= last) {        // 볼펜(굵기가 고르다) · 지우개(문지른 곳만 지운다)
     c.lineWidth = st.tool === 2 ? base * 7 : base;
     c.beginPath();
-    const i0 = Math.max(0, from - 1);
-    c.moveTo(X(i0), Y(i0));
-    for (let i = i0 + 1; i < n; i++) c.lineTo(X(i), Y(i));
+    c.moveTo(first ? MX(first - 1) : X(0), first ? MY(first - 1) : Y(0));
+    for (let i = first; i <= last; i++) c.quadraticCurveTo(X(i), Y(i), MX(i), MY(i));
     c.stroke();
   }
   // 방금 그린 곳을 감싸는 네모 (선 굵기의 절반 + 가장자리 번짐만큼 넉넉하게) → 그 조각들만 그래픽 카드로 다시 보낸다
   if (!ink.full) {
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-    for (let i = n === 1 ? 0 : Math.max(0, from - 1); i < n; i++) {
+    for (let i = Math.max(0, from - 2); i < n; i++) {
       const x = X(i), y = Y(i);
       if (x < x0) x0 = x;
       if (x > x1) x1 = x;
@@ -4709,9 +4730,16 @@ function penDown(e) {
   pen.key = `${myId}-${++pen.n}`;
   penAt(uv);
 }
+// 획을 끝낸다: 마지막 점을 한 번 더 적어서, 둥글게 이어 그리던 획이 마지막 점까지 닿게 한다
+function penEnd() {
+  if (!pen.last || pen.tool === 'wipe') return;
+  inkAdd(pen.key, TOOL_NO[pen.tool], pen.color, pen.size, pen.last);
+  pen.out.push(pen.last[0], pen.last[1]);
+}
 function penMove(e) {
   const uv = boardUV(e);
   if (!uv) {                         // 칠판 밖으로 나가면 획을 끊는다
+    penEnd();
     penFlush();
     pen.last = null;
     return;
@@ -4733,6 +4761,7 @@ function penFlush() {
 }
 function penUp() {
   if (pen.id === null) return;
+  penEnd();
   penFlush();
   pen.id = pen.last = null;
 }
@@ -5502,7 +5531,7 @@ function keyRows() {
       k('KeyS', 'S', '뒤로', '뒤로 걸어요.'),
       k('KeyD', 'D', '오른쪽', '오른쪽으로 움직여요. 칠판 보기에서는 오른쪽 영역으로 옮겨요.'),
       k('KeyF', 'F', T ? '레이저' : '따라가기', T ? '리모컨을 든 채 누르면 레이저를 켜고 꺼요. 판서 화면에서는 빨간 점이 마우스를 따라다녀요.' : '칠판 보기에서 "선생님 따라가기"를 켜고 꺼요. 켜 두면 선생님이 쓰는 곳으로 화면이 따라가요.'),
-      k('KeyG', 'G'),
+      k('KeyG', 'G', T ? '돌아보기' : '', '판서하는 동안 누르고 있으면 옆으로 서서 고개를 돌려 학생들을 봐요. 떼면 다시 칠판을 보고 이어서 써요.'),
       k('KeyH', 'H', '조작법', '이 조작법을 열고 닫아요.')],
     [k('ShiftLeft', 'Shift', '달리기', '누른 채로 움직이면 달려요.', 1.6),
       k('KeyZ', 'Z'),
