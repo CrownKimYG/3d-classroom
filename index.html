@@ -164,7 +164,16 @@
   /* ── 선생님: 입장 화면의 체크 칸, 큰 스크린을 조작하는 리모컨 ── */
   .check { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 13px; font-weight: 700; cursor: pointer; }
   .check input { width: 18px; height: 18px; margin: 0; accent-color: var(--coral); }
-  #remoteBtn { left: 12px; top: 84px; cursor: pointer; border-radius: 0; box-shadow: 0 3px 0 var(--ink); }
+  /* 오른쪽 위: 그때그때 생기는 아이콘 단추들 (선생님의 리모컨 꺼내기 · 넣기, 배경 음악이 있을 때의 소리 켜기 · 끄기) */
+  #corner { position: absolute; right: 12px; top: 12px; display: flex; flex-direction: row-reverse; gap: 6px; }
+  #corner button {
+    width: 40px; height: 40px; padding: 0; display: grid; place-items: center; cursor: pointer;
+    background: #8b8b8b; border: 2px solid var(--ink); border-radius: 0;
+    box-shadow: inset 2px 2px 0 #4a4a4a, inset -2px -2px 0 #d8d8d8;
+  }
+  #corner button[aria-pressed="true"] { background: #b9b9b9; border-color: var(--coral); box-shadow: inset 0 0 0 3px #fff; }
+  #corner img { width: 32px; height: 32px; image-rendering: pixelated; pointer-events: none; display: block; }
+  .touch #corner button { width: 46px; height: 46px; }
   #remote {
     position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 148px;
     display: grid; gap: 8px; padding: 14px 12px 20px; background: #2b2e36;
@@ -183,11 +192,11 @@
   #remote button:disabled { opacity: .4; cursor: default; }
   #remote .power { background: #e0503c; }
   #remote #laserBtn[aria-pressed="true"] { color: #2b0906; background: #ff6b5e; box-shadow: 0 3px 0 #14161b, 0 0 12px #ff3b30; }
-  /* 자주 쓰는 것이 위로: 장 넘기기 → 포인터 · 판서 → 띄우기(하위 메뉴) · 끄기 → 더보기(하위 메뉴) */
+  #remote #hideBtn[aria-pressed="true"] { color: #2b2106; background: #f0c24a; }
+  /* 자주 쓰는 것이 위로: 장 넘기기 → 포인터 → 띄우기(하위 메뉴) · 잠시 감추기 → 더보기(하위 메뉴) */
   #remote .arrows { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   #remote .arrows button { padding: 0; font-size: 20px; border-radius: 50%; aspect-ratio: 1; }
-  #remote .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-  #remote .pair button { display: grid; justify-items: center; gap: 3px; padding: 8px 2px 6px; }
+  #remote .wide { display: flex; align-items: center; justify-content: center; gap: 6px; }
   #remote kbd {
     padding: 0 5px; min-width: 0; font: 800 10px var(--font); color: #14161b; background: #c9ccd2;
     border: 0; border-radius: 3px; box-shadow: none;
@@ -205,7 +214,6 @@
   #remote .pop button { display: grid; gap: 1px; padding: 8px 10px; text-align: left; }
   #remote .pop small { font-size: 10.5px; font-weight: 600; opacity: .72; }
   /* ── 강의실 설정 창 · 소리 단추 · 펜 고르기 ── */
-  #soundBtn { right: 12px; top: 46px; cursor: pointer; border-radius: 0; }
   #setup {
     left: 12px; top: 120px; width: 316px; max-width: calc(100% - 24px); max-height: calc(100% - 136px);
     overflow-y: auto; padding: 10px 10px 12px; background: var(--paper); box-shadow: 0 4px 0 var(--ink);
@@ -261,14 +269,20 @@
     box-shadow: inset 3px 3px 0 rgba(255, 255, 255, .38), inset -3px -3px 0 rgba(0, 0, 0, .3), 0 0 0 2px #1b1b1b;
   }
   #penSizes i { width: var(--d); height: var(--d); background: #fff; box-shadow: 0 0 0 2px #1b1b1b; pointer-events: none; }
+  /* 지우개를 들었을 때 포인터를 따라다니는 점선 동그라미: 이만큼이 지워진다 */
+  #eraseRing {
+    position: absolute; left: 0; top: 0; z-index: 2; pointer-events: none; border-radius: 50%;
+    border: 2px dashed var(--ink); box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .75), inset 0 0 0 1.5px rgba(255, 255, 255, .75);
+    transform: translate(-50%, -50%);
+  }
   /* 판서 뷰의 영역 단추: ◀ 1 2 3 ▶ */
   #areas {
     left: 50%; top: 12px; transform: translateX(-50%); width: max-content; max-width: calc(100% - 24px);
     display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; padding: 5px 6px;
   }
   #areas button { min-width: 30px; padding: 5px 6px; }
-  #areas #followBtn { margin-left: 6px; padding: 5px 9px; }
   #areas button:disabled { opacity: .35; cursor: default; }
+  #areas .gap { align-self: center; padding: 0 3px; font-weight: 800; letter-spacing: 1px; }
   .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
   .row .go { font-size: 16px; }
   .go.ghost { color: var(--ink); background: #fff; }
@@ -321,7 +335,8 @@
     padding: 10px 16px; border: 3px solid var(--ink); border-radius: 0;
     box-shadow: 0 4px 0 var(--ink); cursor: pointer; white-space: nowrap;
   }
-  #acts #act { color: #fff; background: var(--coral); }
+  #acts #act, #acts .held { color: #fff; background: var(--coral); }
+  #acts button, #remote button, #corner button, #keysBtn { touch-action: manipulation; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
   #acts button:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
   #acts kbd { margin-right: 8px; }
 
@@ -355,20 +370,106 @@
     background: rgba(255, 246, 227, .85); border: 3px solid var(--ink);
   }
   .keys.touch { display: none; }
+  /* 판서 뷰: 칠판을 크게 보여 주려고 아래 단추들을 바닥 쪽으로 붙인다 */
+  body.zoom #keysBtn { display: none; }
+  body.zoom #acts { bottom: 14px; }
+  body.zoom #pens { bottom: 66px; }
+  /* 선생님 화면에는 출석 표시가 없다 */
+  #hud.teacher #room { top: 12px; }
+  #entry.teacher .pick small[id^="rec-"] { display: none; }
   @media (max-width: 640px) {
-    #soundBtn { top: 12px; }
     #areas { top: 122px; }
     #invite { top: 122px; }
   }
-  @media (pointer: coarse) {
-    .keys { display: none; }
-    .keys.touch { display: grid; }
-    #keys, #keysBtn, #acts kbd, #remote kbd { display: none; }
-    #acts { bottom: 170px; }
-    #ask { bottom: 228px; }
-    #whisper { bottom: 228px; }
-    #pens { bottom: 228px; }
-    #stick, #jump { display: block; }
+  /* 터치 기기(휴대폰 · 패드): 단추를 엄지가 닿는 아래 양옆에 둔다. 가운데 아래에는 두지 않는다.
+     왼손 = 조이스틱(판서 뷰에서는 영역 단추), 오른손 = 점프(판서 뷰에서는 학생보기) + 그 위의 X · 질문 · 돌아가기.
+     터치 기기인지는 스크립트가 알아내서 <html> 에 touch 를 붙인다 (시험할 때는 주소에 ?touch) */
+  .touch .keys { display: none; }
+  .touch .keys.touch { display: grid; }
+  .touch #acts kbd, .touch #remote kbd, .touch #keysBtn kbd, .touch .kbFoot kbd { display: none; }
+  .touch #keysBtn { left: 12px; top: 48px; bottom: auto; transform: none; }       /* 조작법 단추는 왼쪽 위에 (출석 · 수업 코드 표시 아래) */
+  /* 터치 기기의 조작 안내: 화면을 줄여 놓은 작은 화면에 조작 단추들이 그려져 있다 */
+  .touch .kb { width: min(440px, calc(100% - 24px)); max-width: none; }      /* 너비를 정해 둔다 (설명 글 길이에 따라 창이 커졌다 작아졌다 하지 않게) */
+  .touch #keyRows { gap: 10px; }
+  .touch #keysHint { display: flex; gap: 4px; margin-left: auto; opacity: 1; pointer-events: auto; }
+  #keysHint button {
+    padding: 4px 9px; font: 800 12px var(--font); color: #fff6e3; background: rgba(139, 139, 139, .4);
+    border: 2px solid rgba(20, 16, 12, .8); border-radius: 0; cursor: pointer;
+  }
+  #keysHint button[aria-pressed="true"] { color: var(--ink); background: #fff6e3; }
+  .mini {
+    position: relative; width: 100%; aspect-ratio: 16 / 10; overflow: hidden; container-type: inline-size;
+    background: rgba(255, 255, 255, .07); border: 2px solid rgba(255, 246, 227, .55);
+  }
+  .mLayer { position: absolute; inset: 0; font-size: 10px; font-size: max(8px, 2.4cqw); }
+  .mLayer[hidden] { display: none; }
+  .mPart, .mZone { position: absolute; pointer-events: auto; cursor: pointer; }
+  .mPart {
+    display: grid; place-items: center; font-weight: 800; letter-spacing: -.3px; white-space: nowrap; color: #fff6e3;
+    background: rgba(139, 139, 139, .6); border: 2px solid rgba(20, 16, 12, .8);
+  }
+  .mPart.done { border-color: #7ee08f; }
+  .mPart.sel, .mZone.sel { box-shadow: 0 0 0 2px #ffd84a; }
+  .mPart.on { color: var(--ink); background: #fff6e3; box-shadow: 0 0 0 3px var(--coral); }
+  .mPart.round { aspect-ratio: 1; border-radius: 50%; }
+  .mPart.dash { background: rgba(255, 246, 227, .05); border: 2px dashed rgba(255, 246, 227, .5); font-weight: 700; }
+  .mPart.empty { color: rgba(255, 246, 227, .6); background: none; border: 2px dashed rgba(255, 246, 227, .45); }
+  .mPart.coral { color: #fff; background: var(--coral); }
+  /* 점선 칸 = 화면의 '자리' (오른쪽 아래: 엄지 단추, 오른쪽 위: 그때그때 생기는 아이콘) */
+  .mZone { background: rgba(255, 246, 227, .07); border: 2px dashed rgba(255, 216, 74, .75); border-radius: 8px; }
+  .mZone em { position: absolute; left: 5%; top: 5%; font-style: normal; font-weight: 800; white-space: nowrap; color: #ffd84a; }
+  .m-zoneBR { right: 2%; bottom: 2%; width: 31%; height: 51%; }
+  .m-zoneTR { right: 2%; top: 3%; width: 37%; height: 21%; }
+  .m-zoneTR em { top: 50%; transform: translateY(-50%); }
+  .m-stick { left: 4%; bottom: 6%; width: 17%; }
+  .m-stick i {
+    width: 42%; aspect-ratio: 1; border-radius: 50%; background: #fff6e3; border: 2px solid var(--ink);
+    transform: translate(calc(var(--jx, 0) * 60%), calc(var(--jy, 0) * -60%));
+  }
+  .m-look { left: 27%; top: 12%; width: 32%; height: 26%; }
+  .m-tap { left: 38%; top: 50%; width: 11%; }
+  .m-jump { right: 4.5%; bottom: 5.2%; width: 12%; }
+  .m-slot { width: 8.5%; }
+  .m-icon { top: 7%; width: 8%; aspect-ratio: 1; background: #8b8b8b; }
+  .m-icon img { width: 80%; image-rendering: pixelated; pointer-events: none; }
+  .m-remote { right: 3%; top: 27%; width: 10%; height: 19%; background: rgba(43, 46, 54, .92); border-radius: 6px; }
+  .m-write { left: 4%; top: 8%; width: 55%; height: 60%; }
+  .m-areas { left: 4%; bottom: 6%; width: 25%; height: 11%; }
+  .m-pens { left: 32%; bottom: 6%; width: 32%; height: 11%; }
+  /* 설명 칸: 모든 설명을 같은 자리에 겹쳐 놓고 고른 것만 보인다 → 가장 긴 설명에 맞춘 높이로 늘 같다 */
+  #miniTip { display: grid; margin: 0; font-size: 13px; line-height: 1.5; }
+  #miniTip span { grid-area: 1 / 1; visibility: hidden; }
+  #miniTip span.sel { visibility: visible; }
+  #miniTip b { display: block; color: #ffd84a; }
+  @media (max-height: 560px) {       /* 눕힌 휴대폰: 작은 화면 옆에 설명 */
+    .touch .kb { width: clamp(300px, calc(100% - 340px), 520px); padding: 10px 12px; }      /* 양옆의 조이스틱 · 점프를 가리지 않는 너비 */
+    .touch #keyRows { grid-template-columns: 58% minmax(0, 1fr); align-items: start; }
+    #miniTip { font-size: 12px; }
+  }
+  /* 오른쪽 아래의 둥근 단추(점프 · 판서 뷰에서는 학생보기)가 중심이고, 그때그때 생기는 단추(X · 돌아가기 · 질문 · 이해했어요)는
+     그 둘레에 위쪽부터 반시계 방향으로 하나씩 붙는다. 자리는 스크립트(layoutActs)가 정한다 */
+  .touch #acts, .touch body.zoom #acts { left: auto; right: 68px; bottom: 68px; width: 0; height: 0; display: block; transform: none; }
+  .touch #acts .row { display: contents; }
+  .touch #acts button {
+    position: absolute; width: 68px; height: 68px; padding: 0 4px; border-radius: 50%;
+    font-size: 12px; line-height: 1.2; white-space: normal; word-break: keep-all; box-shadow: 0 3px 0 var(--ink);
+  }
+  .touch #ask { bottom: 228px; }
+  .touch #whisper { bottom: 228px; }
+  .touch #stick, .touch #jump { display: block; }
+  .touch body.zoom #stick, .touch body.zoom #jump { display: none; }       /* 판서 뷰에서는 걷지 않는다 */
+  .touch #remote { top: 68px; transform: none; }
+  /* 판서 뷰: 펜 도구는 가운데 아래 한 줄 (마인크래프트의 아이템 칸 자리), 영역 단추는 왼쪽 아래, 학생보기 · 돌아가기는 오른쪽 아래 */
+  .touch body.zoom #pens { bottom: 12px; }
+  .touch #pens .slot { width: 44px; height: 44px; }
+  @media (max-width: 900px) { .touch #pens .slot { width: 38px; height: 38px; } }      /* 휴대폰: 영역 단추와 둥근 단추 사이에 들어가게 */
+  .touch body.zoom.glance #jump { display: block; font-size: 13px; }       /* 판서 모드에서는 점프 단추가 '학생보기'가 된다 */
+  .touch #glanceBtn { display: none; }                                      /* (터치 기기에서는 그 단추가 학생보기를 맡는다) */
+  .touch body.zoom #areas { top: auto; bottom: 12px; left: 12px; transform: none; width: auto; max-width: none; flex-wrap: nowrap; }
+  .touch #areas button { min-width: 38px; padding: 11px 6px; }
+  @media (max-height: 560px) {                 /* 작은 화면(휴대폰 가로): 리모컨을 줄이고, 판서 뷰에서는 접어 둔다 */
+    .touch #remote { top: 64px; transform: scale(.72); transform-origin: top right; }
+    .touch body.zoom #remote { display: none; }
   }
 
   #fail {
@@ -442,37 +543,37 @@
   <button id="room" class="chip" type="button" title="수업 코드가 든 초대 링크를 복사해요" hidden></button>
   <div id="perf" hidden></div>
   <div id="toast" class="chip" hidden></div>
-  <button id="remoteBtn" class="chip" type="button" hidden>리모컨 <kbd>R</kbd></button>
+  <div id="corner">
+    <button id="remoteBtn" type="button" hidden aria-pressed="false" aria-label="리모컨" title="리모컨 꺼내기 · 넣기 (R)"></button>
+    <button id="soundBtn" type="button" hidden aria-pressed="true" aria-label="배경 음악"></button>
+    <button id="followBtn" type="button" hidden aria-pressed="true" aria-label="선생님 따라가기"></button>
+  </div>
   <div id="remote" hidden>
     <div id="remoteLed">꺼짐</div>
     <div class="arrows">
       <button id="prevBtn" type="button" title="이전 장 (PageUp · 교탁에서는 ←)" aria-label="이전 장">◀</button>
       <button id="nextBtn" type="button" title="다음 장 (PageDown · 교탁에서는 →)" aria-label="다음 장">▶</button>
     </div>
-    <div class="pair">
-      <button id="laserBtn" type="button" aria-pressed="false" title="포인터: 칠판을 바라보면 빨간 점이 찍혀요 (F)">포인터<kbd>F</kbd></button>
-      <button id="boardBtn" type="button" title="판서: 칠판을 정면에서 크게 보고 쓰기 (B)">판서<kbd>B</kbd></button>
-    </div>
+    <button id="laserBtn" class="wide" type="button" aria-pressed="false" title="포인터: 누르고 있는 동안 칠판에 빨간 점이 찍혀요 (F)">포인터<kbd>F</kbd></button>
     <div class="menu">
       <button id="showBtn" type="button" class="more" aria-haspopup="true" aria-expanded="false" title="칠판에 띄울 것 고르기">띄우기</button>
       <div class="pop" id="showPop" hidden>
         <button id="textBtn" type="button">문구<small>적은 글을 크게</small></button>
         <button id="fileBtn" type="button">자료<small>PDF · 이미지</small></button>
         <button id="shareBtn" type="button">화면 공유<small>내 화면을 그대로</small></button>
+        <button id="stopBtn" class="power" type="button" disabled>내리기<small>띄운 것을 완전히 끄기</small></button>
       </div>
     </div>
-    <button id="stopBtn" class="power" type="button" title="칠판에 띄운 것 내리기" disabled>⏻ 끄기</button>
+    <button id="hideBtn" type="button" aria-pressed="false" title="띄운 것을 잠시 감추기. 한 번 더 누르면 그대로 다시 보여요" disabled>감추기</button>
     <div class="menu">
-      <button id="moreBtn" type="button" class="more" aria-haspopup="true" aria-expanded="false" title="설정 · 초대 · 조작법">더보기</button>
+      <button id="moreBtn" type="button" class="more" aria-haspopup="true" aria-expanded="false" title="강의실 설정 · 초대 링크">더보기</button>
       <div class="pop" id="morePop" hidden>
         <button id="setupBtn" type="button">강의실 설정<small>강의실 · 자리 · 칠판 · BGM</small></button>
         <button id="inviteBtn" type="button">초대 링크 복사<small>학생에게 보낼 주소</small></button>
-        <button id="helpBtn" type="button">조작법<small>키보드 안내 (H)</small></button>
       </div>
     </div>
     <input id="file" type="file" accept=".pdf,application/pdf,image/*,.ppt,.pptx" multiple hidden>
   </div>
-  <button id="soundBtn" class="chip" type="button" title="배경 음악 소리 켜기 · 끄기 (내 기기에서만)" hidden></button>
   <div id="setup" class="chip" hidden>
     <div class="head"><b>강의실 설정</b><button id="setupClose" type="button" aria-label="닫기">×</button></div>
     <h3>강의실</h3>
@@ -493,6 +594,7 @@
     </div>
   </div>
   <div id="areas" class="chip" hidden></div>
+  <div id="eraseRing" hidden></div>
   <div id="pens" class="chip" hidden>
     <div class="grp" id="penTools">
       <button type="button" class="slot" data-tool="hand" data-icon="hand" aria-pressed="false" aria-label="이동" title="이동: 끌어서 칠판을 옆으로 옮기기"></button>
@@ -536,6 +638,7 @@
     <div class="row">
       <button id="askBtn" type="button" hidden><kbd>Q</kbd>질문</button>
       <button id="okBtn" type="button" hidden><kbd>E</kbd>이해했어요</button>
+      <button id="glanceBtn" type="button" hidden title="학생보기: 누르고 있는 동안 학생들을 봐요"><kbd>G</kbd>학생보기</button>
       <button id="backBtn" type="button" hidden><kbd>Esc</kbd><span id="backText">일어나기</span></button>
     </div>
   </div>
@@ -554,7 +657,7 @@
   </div>
   <div id="keys" hidden>
     <div class="kb">
-      <div class="kbTop"><b id="keysTitle">조작법</b><span>키를 눌러 보면 불이 들어와요. 키에 마우스를 올리면 설명이 나와요.</span></div>
+      <div class="kbTop"><b id="keysTitle">조작법</b><span id="keysHint">키를 눌러 보면 불이 들어와요. 키에 마우스를 올리면 설명이 나와요.</span></div>
       <div id="keyRows"></div>
       <div class="kbFoot">
         <label><input type="checkbox" id="keysSkip"> 다음부터 열지 않기</label>
@@ -581,7 +684,7 @@
 <div id="exit" hidden>
   <div class="card" role="dialog" aria-modal="true" aria-labelledby="exitTitle">
     <h2 id="exitTitle">강의실에서 나갈까요?</h2>
-    <p>지금까지 출석한 시간 <b id="exitTime">00:00:00</b> 은 그대로 남아요.<br>나가면 그 뒤로는 시간이 더 쌓이지 않아요.</p>
+    <p id="exitNote">지금까지 출석한 시간 <b id="exitTime">00:00:00</b> 은 그대로 남아요.<br>나가면 그 뒤로는 시간이 더 쌓이지 않아요.</p>
     <div class="row">
       <button id="stayBtn" class="go ghost" type="button">계속 있기</button>
       <button id="leaveBtn" class="go" type="button">나가기</button>
@@ -2857,14 +2960,21 @@ class Actor {
   }
 
   // 선생님은 오른손에 리모컨을 들고 있다
-  setRemote(on) {
-    if (on && !this.remote) {
-      this.remote = remoteMesh();
+  setRemote(on) { this.setHold(on ? 'remote' : ''); }
+  // 오른손에 든 것을 바꾼다 ('' = 빈손, remote · ball · fount · rub · laser)
+  setHold(kind, ink = '') {
+    if (kind === (this.hold || '') && ink === (this.holdInk || '')) return;
+    if (this.remote) this.remote.removeFromParent();       // 함께 쓰는 도형 · 재질이라 떼어 내기만 한다
+    this.remote = null;
+    this.hold = kind;
+    this.holdInk = ink;
+    if (kind) {
+      this.remote = holdMesh(kind, ink || undefined);
       this.remote.position.set(0, -0.4, 0.07);
       this.remote.rotation.x = -1.35;
       this.model.armR.add(this.remote);
     }
-    if (this.remote) this.remote.visible = on;
+    dirty = true;
   }
 
   // 쪽지를 주고받을 상대가 내 몸 기준으로 어느 쪽에 있는지 정해 둔다
@@ -3013,7 +3123,8 @@ let boardHitX = 0;                   // 방금 칠판의 어디를 바라봤는�
 let ghostOn = false;                 // 판서 뷰에서 내 캐릭터를 반투명하게 보여 주는 중인지
 const pan = { from: 0, to: 0, t: 1, span: 0.6 };      // 옆 영역으로 옮겨 가는 카메라 이동
 const WRITE_Z = 0.55;                // 판서할 때 칠판에서 떨어져 서는 거리
-const COARSE = matchMedia('(pointer: coarse)').matches;
+const COARSE = matchMedia('(pointer: coarse)').matches || new URLSearchParams(location.search).has('touch');     // 터치 기기 (시험용: ?touch)
+document.documentElement.classList.toggle('touch', COARSE);
 // 칠판 보기는 누구나, 앉아서도 서서도 할 수 있다 (판서하러 걸어가는 중에도)
 const canZoom = () => player.mode === 'seated' || player.mode === 'free' || (player.mode === 'path' && !player.seat);
 const canWrite = () => cfg.board !== 'video' && (isTeacher || cfg.board === 'free');         // 화이트 · 그린은 선생님만, 자유 보드는 누구나
@@ -3029,15 +3140,34 @@ function screenLooked() {            // 시선이 칠판에 닿으면 (거리에
   return screenObj;
 }
 
-// 판서 뷰의 카메라 자리: 칠판 높이가 (위아래 단추 자리를 뺀) 화면 높이에 꼭 맞는 거리와 높이, 그때 보이는 가로 폭
+// 판서 뷰에서 화면 오른쪽을 차지하는 단추들의 폭(px): 선생님의 리모컨, 터치 기기의 학생보기 · 돌아가기 단추. 칠판은 그 왼쪽의 빈 곳에 맞춘다
+const zoomInset = () => Math.max(remoteOut ? 172 : 0, COARSE ? 116 : 0);
+/* 판서 뷰의 카메라 자리: 칠판 높이가 (위아래 단추 자리를 뺀) 화면 높이에 꼭 맞는 거리와 높이.
+   vis = 단추에 가리지 않고 보이는 가로 폭(m), shift = 그 빈 곳의 가운데에 칠판이 오도록 카메라를 옆으로 옮길 만큼, per = 화면 1px 이 칠판에서 몇 m 인지.
+   터치 기기는 판서 뷰에서 조이스틱 · 점프를 숨기고 단추를 아래 양옆으로 보내서, 위아래를 조금만 남기고 칠판을 크게 보여 준다 */
 function boardCam() {
   const tan = Math.tan(camera.fov * Math.PI / 360);
-  const vh = Math.max(window.innerHeight, 320);                                // (창이 가려져 크기가 0 으로 나올 때를 대비)
-  const top = (window.innerWidth < 640 ? 170 : 58) / vh;                       // 화면 위쪽 단추들이 차지하는 몫
-  const under = (COARSE ? 350 : 176) / vh;                                     // 화면 아래쪽 단추들이 차지하는 몫
+  const vw = Math.max(window.innerWidth, 320), vh = Math.max(window.innerHeight, 320);       // (창이 가려져 크기가 0 으로 나올 때를 대비)
+  const top = (COARSE ? 12 : vw < 640 ? 170 : 58) / vh;                        // 화면 위쪽 단추들이 차지하는 몫
+  const under = (COARSE ? 84 : 122) / vh;                                      // 화면 아래쪽 단추들이 차지하는 몫 (터치 기기는 펜 도구 한 줄)
   const fill = clamp(1 - top - under, 0.4, 0.92);
   const half = BOARD.h / (2 * fill);                                           // 화면 높이의 절반이 칠판에서 몇 m 인지
-  return { dist: half / tan, y: BOARD.y + BOARD.h / 2 - half * (1 - 2 * top), vis: 2 * half * camera.aspect };
+  const full = 2 * half * camera.aspect, inset = Math.min(zoomInset(), vw * 0.45);
+  return {
+    dist: half / tan, y: BOARD.y + BOARD.h / 2 - half * (1 - 2 * top),
+    vis: full * (1 - inset / vw), shift: full * inset / vw / 2, per: full / vw,
+  };
+}
+// 화면 크기나 오른쪽 단추가 바뀌면 영역을 다시 나누고, 보던 곳에서 가장 가까운 영역에 맞춘다
+function relayoutZoom() {
+  if (!zoomed) return;
+  layoutAreas();
+  areaAt = nearestArea(zoomX);
+  zoomX = pan.from = pan.to = follow.to = areas[areaAt];
+  follow.vel = 0;
+  pan.t = 1;
+  showAreas();
+  dirty = true;
 }
 // 칠판을 화면 폭에 맞춰 영역으로 나눈다 (이웃한 영역은 조금씩 겹친다)
 function layoutAreas() {
@@ -3069,7 +3199,7 @@ function setFollow(on, why = '') {
   follow.fresh = on && followRecent();           // 켜면 선생님이 쓰고 있는 곳으로 바로 간다
   if (on) pan.t = 1;
   showAreas();
-  toast(on ? (follow.fresh ? '선생님이 쓰는 곳을 따라가요' : '선생님이 쓰기 시작하면 따라가요') : `${why}따라가기를 껐어요 · F 로 다시 켜기`, 2600);
+  toast(on ? (follow.fresh ? '선생님이 쓰는 곳을 따라가요' : '선생님이 쓰기 시작하면 따라가요') : `${why}따라가기를 껐어요 · ${COARSE ? '오른쪽 위 눈 단추' : 'F 나 오른쪽 위 눈 단추'}로 다시 켜기`, 2600);
   dirty = true;
 }
 const followOff = () => { if (follow.on && zoomed && canFollow()) setFollow(false, '직접 옮겨서 '); };
@@ -3106,6 +3236,8 @@ function setZoom(on, hint) {
   const was = zoomed;
   zoomed = on && entered && canZoom();
   $('aim').hidden = zoomed;
+  document.body.classList.toggle('zoom', zoomed);       // 판서 뷰에서는 단추 배치가 달라진다 (CSS)
+  if (COARSE && zoomed !== was && !$('keys').hidden) miniShow(zoomed);         // 조작법의 작은 화면도 같은 장으로
   if (zoomed && !was) {
     layoutAreas();
     areaAt = nearestArea(hint === undefined ? player.pos.x : hint);            // 바라보던 곳(없으면 서 있는 곳)에서 가장 가까운 영역
@@ -3121,7 +3253,8 @@ function setZoom(on, hint) {
     follow.fresh = false;
     goWrite();
     const move = areas.length > 1 ? ' · ← → 옆으로 이동' : '';
-    toast(canWrite() ? `펜을 들고 끌어서 써 보세요${move}${isTeacher ? ' · G를 누르고 있으면 학생들을 돌아봐요' : ''} · Esc로 돌아가기`
+    toast(COARSE ? (canWrite() ? `펜을 고르고 손가락으로 써 보세요${isTeacher ? ' · "학생보기"를 누르고 있으면 학생들을 봐요' : ''}` : '끌어서 옆으로 옮겨요 · "돌아가기"로 나가요')
+      : canWrite() ? `펜을 들고 끌어서 써 보세요${move}${isTeacher ? ' · G(또는 Space)를 누르고 있으면 학생들을 봐요(학생보기)' : ''} · Esc로 돌아가기`
       : tail ? '선생님이 쓰는 곳을 따라가요 · ← → 로 직접 옮기기 · Esc로 돌아가기' : `Esc로 돌아가기${move}`, 5000);
   }
   if (!zoomed) {
@@ -3188,50 +3321,75 @@ function zoomThink(dt) {
   return active;
 }
 
-// 영역 단추: ◀ 1 2 3 ▶ (영역이 둘 이상일 때만 보인다)
+/* 영역 단추: ◀ 1 2 3 ▶ (영역이 둘 이상일 때만 보인다).
+   영역이 많으면 처음 · 지금 보는 곳 · 끝만 번호로 보이고 사이는 … 으로 줄인다. 그래서 영역이 아무리 많아도 한 줄이고 길어지지 않는다 */
+let areasShown = '';
 function showAreas() {
   const on = zoomed && areas.length > 1, el = $('areas');
   el.hidden = !on;
-  if (!on) return;
-  if (el.children.length !== areas.length + 3) {
-    const make = (text, label, go) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.textContent = text;
-      b.setAttribute('aria-label', label);
-      b.addEventListener('click', () => { go(); canvas.focus(); });
-      return b;
-    };
-    el.replaceChildren(
-      make('◀', '왼쪽 영역', () => gotoArea(areaAt - 1)),
-      ...areas.map((_, i) => make(String(i + 1), `${i + 1}번 영역`, () => gotoArea(i))),
-      make('▶', '오른쪽 영역', () => gotoArea(areaAt + 1)),
-      make('선생님 따라가기', '선생님이 쓰는 곳을 따라가기', () => setFollow(!follow.on)),
-    );
-    el.lastChild.id = 'followBtn';
+  if (!on) { areasShown = ''; $('followBtn').hidden = true; placePens(); return; }
+  const n = areas.length, tail = canFollow();
+  const key = `${n}|${areaAt}|${tail}|${follow.on}`;
+  if (key === areasShown) return;
+  areasShown = key;
+  const make = (text, label, go, { pressed, disabled, id } = {}) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = text;
+    b.setAttribute('aria-label', label);
+    if (pressed !== undefined) b.setAttribute('aria-pressed', String(pressed));
+    if (disabled) b.disabled = true;
+    if (id) b.id = id;
+    b.addEventListener('click', () => { go(); canvas.focus(); });
+    return b;
+  };
+  let list = areas.map((_, i) => i);
+  if (n > (COARSE ? 3 : 7)) {          // 많으면: 처음, 지금 보는 곳(PC 는 그 양옆도), 끝
+    const near = COARSE ? 0 : 1, pick = new Set([0, n - 1]);
+    for (let i = areaAt - near; i <= areaAt + near; i++) if (i >= 0 && i < n) pick.add(i);
+    list = [...pick].sort((a, b) => a - b);
   }
-  [...el.children].forEach((b, i) => {
-    if (i === 0) b.disabled = areaAt === 0;
-    else if (i <= areas.length) b.setAttribute('aria-pressed', String(i - 1 === areaAt));
-    else if (i === areas.length + 1) b.disabled = areaAt === areas.length - 1;
-    else {                           // 선생님 따라가기 (학생에게만 보인다)
-      b.hidden = !canFollow();
-      b.setAttribute('aria-pressed', String(follow.on));
-    }
-  });
+  const kids = [make('◀', '왼쪽 영역', () => gotoArea(areaAt - 1), { disabled: areaAt === 0 })];
+  let prev = -1;
+  for (const i of list) {
+    if (i - prev > 1) kids.push(Object.assign(document.createElement('span'), { className: 'gap', textContent: '…' }));
+    kids.push(make(String(i + 1), `${i + 1}번 영역`, () => gotoArea(i), { pressed: i === areaAt }));
+    prev = i;
+  }
+  kids.push(make('▶', '오른쪽 영역', () => gotoArea(areaAt + 1), { disabled: areaAt === n - 1 }));
+  el.replaceChildren(...kids);
+  // 선생님 따라가기 켬 · 끔은 오른쪽 위의 아이콘 단추로 (학생의 칠판 보기에서만 생긴다)
+  $('followBtn').hidden = !tail;
+  $('followBtn').setAttribute('aria-pressed', String(follow.on));
+  $('followBtn').title = `선생님 따라가기 ${follow.on ? '켬 (누르면 꺼요)' : '끔 (누르면 켜요)'}: 선생님이 쓰는 곳으로 화면이 따라가요`;
+  placePens();
+}
+// (터치 기기) 가운데 아래의 펜 도구가 왼쪽 아래의 영역 단추와 겹치면 그 오른쪽으로 비켜 놓는다
+function placePens() {
+  if (!COARSE) return;
+  const pens = $('pens'), ar = $('areas');
+  pens.style.left = pens.style.transform = '';
+  if (pens.hidden || ar.hidden) return;
+  const edge = ar.getBoundingClientRect().right + 10;
+  if (edge > pens.getBoundingClientRect().left) {
+    pens.style.left = `${edge}px`;
+    pens.style.transform = 'none';
+  }
 }
 
 /* ── 판서하는 모습: 칠판 앞에 선 선생님이 칠판을 보고, 오른팔을 쓰는 곳으로 뻗는다 (다른 사람 눈에도 보인다) ── */
 let glancing = false, glanceSide = 1;      // 판서하다가 학생들을 돌아보는 중인지 · 어느 쪽으로 돌아섰는지
+const glanceLook = { yaw: 0, pitch: 0 };   // 학생보기 중에 고개를 더 돌린 만큼 (화면 끌기 · 방향키로 조절한다)
 function writeThink(dt) {
   let active = false;
   const me = player;
   const atBoard = zoomed && isTeacher && canWrite() && me.mode !== 'seated' && Math.abs(me.pos.z - (BOARD.z + WRITE_Z)) < 0.35;
   // 돌아보기: 칠판 앞에서 G 를 누르고 있는 동안 옆으로 서서 고개를 돌려 학생들을 본다. 떼면 다시 칠판을 보고 판서를 잇는다
-  const glance = atBoard && me.mode === 'free' && keys.has('KeyG');
+  const glance = atBoard && me.mode === 'free' && (keys.has('KeyG') || keys.has('Space'));      // G · Space · (터치) 점프 자리의 단추
   if (glance !== glancing) {
     glancing = glance;
     if (glance) {
+      glanceLook.yaw = glanceLook.pitch = 0;           // 고개는 강의실 한가운데를 보는 데서 시작한다
       penUp();                                         // 긋던 획은 끝낸다
       closePops();
       glanceSide = me.pos.x > 0.3 ? -1 : 1;            // 칠판 가운데 쪽으로 몸을 연다
@@ -3240,9 +3398,16 @@ function writeThink(dt) {
   }
   me.writeOn = atBoard && !glancing && (me.mode === 'free' || pen.id !== null);
   if (atBoard && me.mode === 'free') {                 // 다 왔으면 칠판 쪽으로 돌아선다 (돌아보는 중에는 학생 쪽으로)
-    const lookTo = glancing ? Math.atan2(-me.pos.x * 0.7, HD * 0.9) : FRONT;       // 강의실 한가운데쯤
-    const bodyTo = glancing ? lookTo + glanceSide * 1.2 : FRONT;                   // 몸은 옆으로, 고개만 학생 쪽으로
-    const pitchTo = glancing ? 0.08 : -0.3;
+    if (glancing) {                                    // 학생보기 중: 방향키 · WASD 로 고개를 좌우 · 위아래로 조금 더 움직인다
+      const turn = (keys.has('ArrowLeft') || keys.has('KeyA') ? 1 : 0) - (keys.has('ArrowRight') || keys.has('KeyD') ? 1 : 0);
+      const nod = (keys.has('ArrowDown') || keys.has('KeyS') ? 1 : 0) - (keys.has('ArrowUp') || keys.has('KeyW') ? 1 : 0);
+      glanceLook.yaw = clamp(glanceLook.yaw + turn * 1.2 * dt, -0.9, 0.9);
+      glanceLook.pitch = clamp(glanceLook.pitch + nod * 0.8 * dt, -0.35, 0.5);
+    }
+    const center = Math.atan2(-me.pos.x * 0.7, HD * 0.9);                          // 강의실 한가운데쯤
+    const lookTo = glancing ? center + glanceLook.yaw : FRONT;
+    const bodyTo = glancing ? center + glanceSide * 1.2 + glanceLook.yaw * 0.6 : FRONT;      // 몸은 옆으로, 고개만 학생 쪽으로 (많이 돌리면 몸도 조금 따라간다)
+    const pitchTo = glancing ? 0.08 + glanceLook.pitch : -0.3;
     const k = 1 - Math.exp(-9 * dt), turn = wrap(bodyTo - me.bodyYaw), head = wrap(lookTo - me.lookYaw), nod = pitchTo - me.lookPitch;
     if (Math.abs(turn) > 0.004 || Math.abs(head) > 0.004 || Math.abs(nod) > 0.004) {
       me.bodyYaw += turn * k;
@@ -3272,13 +3437,15 @@ function writeThink(dt) {
 let whisperNear = false;             // 소곤거릴 수 있는 친구가 앞·뒤·옆에 앉아 있는지
 let whisperHinted = false;           // 이번에 앉은 뒤로 안내를 띄웠는지
 let seatHinted = false;
-function whisperLooked() {
+function whisperLooked(tapped = false) {       // tapped = 화면을 톡 누른 곳으로 찾는다 (viewRay 가 이미 그쪽을 향해 있다)
   whisperNear = false;
   const mine = player.seat;
   if (!mine) return null;
-  const cp = Math.cos(player.lookPitch);
-  viewRay.origin.copy(camera.position);
-  viewRay.direction.set(Math.sin(player.lookYaw) * cp, -Math.sin(player.lookPitch), Math.cos(player.lookYaw) * cp);
+  if (!tapped) {
+    const cp = Math.cos(player.lookPitch);
+    viewRay.origin.copy(camera.position);
+    viewRay.direction.set(Math.sin(player.lookYaw) * cp, -Math.sin(player.lookPitch), Math.cos(player.lookYaw) * cp);
+  }
   let found = null, best = REACH * REACH;
   for (const s of seats) {
     const who = s.taken;
@@ -3318,12 +3485,14 @@ function updateTarget() {
     t = whisperLooked() || screenLooked();         // 앉아서는 옆자리 친구와 소곤거리거나 칠판을 본다
   }
   const seated = entered && player.mode === 'seated' && !player.seat.stand;      // 교탁에 서 있는 것은 학생 메뉴와 상관없다
-  if ($('askBtn').hidden === seated) $('askBtn').hidden = $('okBtn').hidden = !seated;     // 앉으면 학생 메뉴가 뜬다
+  const menu = seated && !isTeacher;                 // 질문 · 이해했어요는 학생만 쓴다
+  if ($('askBtn').hidden === menu) $('askBtn').hidden = $('okBtn').hidden = !menu;     // 앉으면 학생 메뉴가 뜬다
   if (!seated) whisperHinted = seatHinted = false;
   else if (!seatHinted) {                              // 앉으면 할 수 있는 일을 한 번 알려 준다
     seatHinted = true;
     whisperHinted = whisperNear;
-    toast(whisperNear ? '칠판을 보고 X: 칠판 보기 · 옆 친구를 보고 X: 소곤거리기 · Esc: 일어나기' : '칠판을 보고 X: 칠판 보기 · Esc: 일어나기', 6000);
+    toast(COARSE ? (whisperNear ? '칠판을 톡 누르면 크게 봐요 · 옆 친구를 톡 누르면 소곤거려요' : '칠판을 톡 누르면 크게 봐요')
+      : whisperNear ? '칠판을 보고 X: 칠판 보기 · 옆 친구를 보고 X: 소곤거리기 · Esc: 일어나기' : '칠판을 보고 X: 칠판 보기 · Esc: 일어나기', 6000);
   } else if (whisperNear && !whisperHinted) {          // 나중에 옆에 친구가 앉으면 그때 알려 준다
     whisperHinted = true;
     toast('옆자리 친구를 바라보면 X 키로 소곤거릴 수 있어요', 5000);
@@ -3346,6 +3515,12 @@ function updateTarget() {
     $('actText').textContent = label;
   }
   // Esc 단추: 한 단계 뒤로
+  const canGlance = zoomed && isTeacher && canWrite() && player.mode !== 'seated';       // 판서하다가 학생 돌아보기 (누르고 있는 동안)
+  if ($('glanceBtn').hidden === canGlance) {         // 판서 모드에서는 점프 단추가 '돌아보기'로 바뀐다 (판서 중에는 뛸 일이 없으므로)
+    $('glanceBtn').hidden = !canGlance;
+    $('jump').textContent = canGlance ? '학생보기' : '점프';
+    document.body.classList.toggle('glance', canGlance);
+  }
   const back = !entered ? ''
     : zoomed ? '돌아가기'
     : player.mode === 'seated' ? (player.seat.stand ? '내려오기' : '일어나기')
@@ -3355,6 +3530,7 @@ function updateTarget() {
     $('backBtn').hidden = !back;
     $('backText').textContent = back;
   }
+  layoutActs();
 }
 let backLabel = '';
 const slidesMine = () => presenting() && show.mode === 'slides';      // 내가 슬라이드를 띄워 둔 중인지
@@ -3409,7 +3585,7 @@ function readInput() {
   const il = Math.hypot(ix, iz);
   if (il > 1) { ix /= il; iz /= il; }
   if (il > 0.05 && player.mode === 'path') player.cancel();     // 직접 움직이면 자동 이동은 그만둔다
-  const speed = keys.has('ShiftLeft') || keys.has('ShiftRight') ? RUN : WALK;
+  const speed = keys.has('ShiftLeft') || keys.has('ShiftRight') || Math.hypot(joy.x, joy.y) > 0.92 ? RUN : WALK;     // Shift, 또는 조이스틱을 끝까지 밀면 달린다
   const s = Math.sin(player.lookYaw), c = Math.cos(player.lookYaw);
   player.input.x = (iz * s - ix * c) * speed;    // 보고 있는 쪽이 "앞"
   player.input.z = (iz * c + ix * s) * speed;
@@ -3612,6 +3788,8 @@ function snapshot() {
     k: mine ? seats.indexOf(p.seat) : -1,        // 앉았거나 앉으러 가는 자리 번호
     a: mine ? mySeatAt : 0,
     w: p.writeOn ? [round2(p.handTo.x), round2(p.handTo.y)] : 0,     // 판서하는 손이 가리키는 곳
+    h: HOLD.indexOf(p.hold || ''),               // 손에 든 것
+    hc: pen.color,                               // 그 펜의 색 번호
   };
 }
 
@@ -3651,7 +3829,7 @@ function netTick() {
     else if (skinTold) link.send({ t: 'k', id: myId, d: '', sl: 0 });
   }
   if (now - lastSentAt > pace.goneMs - 2000) mySeatAt = now;     // 오래 조용했으면(탭을 떠나 있었으면) 자리 순서를 새로 받는다
-  const msg = snapshot(), body = JSON.stringify([msg.p, msg.r, msg.s, msg.k, msg.w]);
+  const msg = snapshot(), body = JSON.stringify([msg.p, msg.r, msg.s, msg.k, msg.w, msg.h, msg.hc]);
   const wait = body === lastSent ? pace.beatMs : pace.sendMs;
   if (now - lastSentAt < wait) return;
   lastSent = body;
@@ -3696,7 +3874,7 @@ function netReceive(m) {
     const actor = new Actor(look, `${String(m.n || (m.tc ? '' : '학생')).slice(0, 12)}${m.tc ? ' 선생님' : ''}`.trim(), true);
     actor.peerId = m.id;
     if (peerSkins.get(m.id)?.skin) actor.setSkin(peerSkins.get(m.id).skin);
-    if (m.tc) actor.setRemote(true);
+
     peer = { id: m.id, actor, teacher: !!m.tc, from: goal, goal, t: 1, span: 0.2, last: now, seat: null, at: 0 };
     peers.set(m.id, peer);
     placePeer(peer, 1);
@@ -3708,6 +3886,8 @@ function netReceive(m) {
     peer.goal = goal;
     peer.last = now;
   }
+  const holding = Number.isInteger(m.h) && HOLD[m.h] !== undefined ? HOLD[m.h] : m.tc ? 'remote' : '';
+  peer.actor.setHold(holding, inkOf(holding, Number.isInteger(m.hc) ? m.hc : 0));      // 손에 든 것과 그 펜의 색
   peer.actor.writeOn = Array.isArray(m.w) && m.w.length === 2;      // 칠판 앞에서 판서하는 중
   if (peer.actor.writeOn) {
     peer.actor.handTo.x = num(m.w[0], -HW, HW);
@@ -3805,7 +3985,9 @@ function sweepPeers() {
 }
 
 function showRoom() {
-  const text = online() ? `수업 코드 ${roomCode} · ${peers.size + 1}명 · ${linkState} · 링크 복사` : '';
+  // 수업 코드 · 인원 · 초대 링크는 선생님에게만 보인다. 학생에게는 연결에 문제가 있을 때만 그 사실을 알린다
+  const text = !online() ? '' : isTeacher ? `수업 코드 ${roomCode} · ${peers.size + 1}명 · ${linkState} · 링크 복사`
+    : linkState.startsWith('연결') ? linkState : '';
   if (text === roomShown) return;
   roomShown = text;
   $('room').hidden = !text;
@@ -3910,10 +4092,25 @@ const show = {
 const presenting = () => show.mode !== 'off' && show.by === myId;
 
 function setShow(mode, by) {
+  if (mode !== show.mode || by !== show.by) show.hide = false;       // 새로 띄우면 보이는 채로 시작한다 (장만 넘길 때는 감춘 채로 둔다)
   show.mode = mode;
   show.by = by;
-  screen.visible = mode !== 'off';   // 끄면 칠판 바탕만 보인다
+  screen.visible = mode !== 'off' && !show.hide;      // 끄거나 잠시 감추면 칠판 바탕만 보인다
   if (mode !== 'live') liveMesh.visible = false;
+  showLed();
+  dirty = true;
+}
+
+// 잠시 감추기: 띄운 것은 그대로 둔 채(슬라이드 쪽수 · 화면 공유 연결도 그대로) 모두의 칠판에서 안 보이게만 한다.
+// announce = 내가 띄운 것이면 다른 사람들에게도 알릴지
+function setHide(on, announce = true) {
+  on = !!on && show.mode !== 'off';
+  if (on === !!show.hide) return;
+  show.hide = on;
+  screen.visible = show.mode !== 'off' && !on;
+  if (on) liveMesh.visible = false;
+  else live.fresh = true;            // 화면 공유: 다시 보일 때 지금 장면부터 바로 올린다
+  if (announce && presenting() && link) link.send({ t: 'p', id: myId, k: 'hide', v: on ? 1 : 0 });
   showLed();
   dirty = true;
 }
@@ -3921,7 +4118,11 @@ function setShow(mode, by) {
 // 리모컨의 작은 표시창: 지금 스크린 상태
 function showLed() {
   const mine = presenting();
+  $('hideBtn').disabled = !mine;                   // 내가 띄운 것만 감출 수 있다
+  $('hideBtn').setAttribute('aria-pressed', String(!!show.hide));
+  $('hideBtn').textContent = show.hide ? '다시 보이기' : '감추기';
   $('remoteLed').textContent = show.mode === 'off' ? '꺼짐'
+    : show.hide ? '잠시 감춤'
     : !mine ? '다른 선생님이 띄움'
     : show.mode === 'slides' ? `${show.page + 1} / ${show.total}`
     : show.mode === 'text' ? '문구 표시 중' : '화면 공유 중';
@@ -4105,6 +4306,7 @@ function resendShow() {
   if (show.mode === 'text') { if (link) link.send({ t: 'p', id: myId, k: 'txt', x: show.text }); }
   else if (show.mode === 'slides') sendSlide();
   else if (link) link.send({ t: 'p', id: myId, k: 'live' });
+  if (show.hide && link) link.send({ t: 'p', id: myId, k: 'hide', v: 1 });       // 감춰 둔 채라면 뒤늦게 들어온 사람에게도 감춘 채로
 }
 
 /* ── 화면 공유 (선생님 쪽) ── */
@@ -4122,6 +4324,7 @@ function playLive(stream) {
 }
 // 매 프레임: 새 장면이 왔고 칠판이 화면에 보이면 그래픽 카드로 보낸다
 function liveThink(now) {
+  if (show.hide) return;             // 잠시 감춘 동안에는 올리지 않는다
   const v = show.video;
   if (!(v.readyState >= 2 && v.videoWidth)) return;
   if (!live.rvfc && now - live.polled > 80) {  // 새 장면을 알려 주지 않는 브라우저에서는 전처럼 정해진 간격으로 올린다
@@ -4190,6 +4393,10 @@ function onShow(m) {
   if (peers.has(m.id)) pointRemote(peers.get(m.id).actor);         // 선생님이 리모컨으로 스크린을 가리킨다
   if (m.k === 'off') {
     if (show.by === m.id) endShow(false);
+    return;
+  }
+  if (m.k === 'hide') {
+    if (show.by === m.id) setHide(!!m.v, false);
     return;
   }
   if (m.k === 'img') {
@@ -4276,6 +4483,51 @@ function remoteMesh() {              // 작은 리모컨 모형: 몸통 + 빨간
   return g;
 }
 
+/* 손에 든 것: 지금 쓰는 도구의 모형. 평소 선생님은 리모컨을, 판서할 때는 고른 필기구(볼펜 · 만년필 · 레이저 펜 · 지우개)를 든다.
+   다른 사람 화면에도 같은 것을 든 모습으로 보인다 (상태 소식의 h). 모형은 상자 두세 개로 만든다. 위쪽(+y)이 끝(펜촉)이다 */
+const HOLD = ['', 'remote', 'ball', 'fount', 'rub', 'laser'];
+const holdMats = new Map();
+const holdMat = (color, glow = false) => {
+  const key = color + glow;
+  if (!holdMats.has(key)) holdMats.set(key, glow ? new THREE.MeshBasicMaterial({ color }) : new THREE.MeshLambertMaterial({ color }));
+  return holdMats.get(key);
+};
+function holdMesh(kind, ink = '#3f76dd') {       // ink = 지금 고른 펜 색 (볼펜은 뒤쪽 마개, 만년필은 깃 전체가 이 색이다)
+  if (kind === 'remote') return remoteMesh();
+  const g = new THREE.Group();
+  const part = (color, w, h, d, y, glow) => {
+    const m = new THREE.Mesh(box, holdMat(color, glow));
+    m.scale.set(w, h, d);
+    m.position.y = y;
+    g.add(m);
+  };
+  if (kind === 'ball') {               // 볼펜: 흰 몸통 · 뒤쪽에 펜 색 마개 · 은색 앞부분 · 검은 촉
+    part('#f4f4f0', 0.024, 0.09, 0.024, 0.01);
+    part(ink, 0.027, 0.045, 0.027, -0.055);
+    part('#c9ccd2', 0.02, 0.03, 0.02, 0.07);
+    part('#1b1b1b', 0.009, 0.014, 0.009, 0.092);
+  } else if (kind === 'fount') {       // 만년필: 펜 색의 납작한 깃 · 깃대 · 검은 촉
+    part(ink, 0.01, 0.13, 0.055, -0.03);
+    part('#c9ccd2', 0.012, 0.06, 0.012, 0.06);
+    part('#26324f', 0.008, 0.016, 0.008, 0.098);
+  } else if (kind === 'laser') {       // 레이저 펜: 붉은 몸통 · 빛나는 끝
+    part('#dc4034', 0.024, 0.13, 0.024, -0.01);
+    part('#c9ccd2', 0.02, 0.024, 0.02, 0.067);
+    part('#ff9a8c', 0.014, 0.02, 0.014, 0.088, true);
+  } else {                             // 지우개: 분홍 고무 · 파란 띠
+    part('#f5a3bd', 0.05, 0.05, 0.026, 0.035);
+    part('#3f76dd', 0.052, 0.045, 0.028, -0.01);
+  }
+  return g;
+}
+// 손에 든 펜의 색: 지금 칠판의 n번째 펜 색 (볼펜 · 만년필만)
+const inkOf = (kind, n) => (kind === 'ball' || kind === 'fount' ? BOARDS[cfg.board].pens[n] || '#3f76dd' : '');
+// 내가 지금 손에 들고 있어야 하는 것
+const myHold = () => {
+  const writing = zoomed && pen.tool !== 'hand' && (pen.tool === 'laser' ? canZap() : canWrite());
+  return writing ? (pen.tool === 'wipe' ? 'rub' : pen.tool) : isTeacher ? 'remote' : '';
+};
+
 // 1인칭 화면 오른쪽 아래에 보이는, 내 손에 든 리모컨
 const held = remoteMesh();
 held.position.set(0.19, -0.15, -0.4);
@@ -4294,7 +4546,9 @@ function setRemoteOut(on) {
   if (!remoteOut && laserOn) setLaser(false);          // 리모컨을 넣으면 레이저도 꺼진다
   if (!remoteOut) $('say').hidden = true;
   $('remote').hidden = !remoteOut;
+  $('remoteBtn').setAttribute('aria-pressed', String(remoteOut));
   held.visible = remoteOut;
+  relayoutZoom();                    // 리모컨이 차지하던 자리만큼 칠판이 보이는 폭이 달라진다
   dirty = true;
 }
 
@@ -4341,7 +4595,40 @@ $('shareBtn').addEventListener('click', () => press(shareScreen));
 $('prevBtn').addEventListener('click', () => press(() => gotoPage(show.page - 1)));
 $('nextBtn').addEventListener('click', () => press(() => gotoPage(show.page + 1)));
 $('stopBtn').addEventListener('click', () => press(endShow));
-$('laserBtn').addEventListener('click', () => { setLaser(!laserOn); canvas.focus(); });
+$('hideBtn').addEventListener('click', () => press(() => setHide(!show.hide)));
+// (터치 기기) 그때그때 보이는 단추들을 둥근 단추 둘레에 놓는다: 위쪽(12시)부터 반시계 방향으로 45°씩, 많아야 세 개.
+// 넷이 되면(앉아서 무언가를 바라볼 때) 주황색 X 를 뺀다. 그 일은 대상을 직접 톡 눌러서 할 수 있다.
+// 둥근 단추가 없을 때(판서 뷰의 학생 등)는 첫 단추가 그 자리를 맡는다
+function layoutActs() {
+  if (!COARSE) return;
+  let shown = ['act', 'backBtn', 'askBtn', 'okBtn'].map($).filter((b) => !b.hidden);
+  const main = getComputedStyle($('jump')).display !== 'none', room = main ? 3 : 4;
+  $('act').style.visibility = shown.length > room ? 'hidden' : '';
+  if (shown.length > room) shown = shown.filter((b) => b.id !== 'act');
+  let slot = main ? 0 : -1;
+  for (const b of shown) {
+    const a = (90 + slot * 45) * Math.PI / 180, r = slot < 0 ? 0 : 106;
+    b.style.left = `${Math.cos(a) * r - 34}px`;
+    b.style.top = `${-Math.sin(a) * r - 34}px`;
+    b.dataset.slot = slot;           // (조작법의 작은 화면에서 같은 자리에 불을 켜려고 적어 둔다)
+    slot++;
+  }
+}
+// 누르고 있는 동안만 켜지는 단추 (포인터 · 돌아보기). 손가락을 떼거나 단추 밖으로 나가면 꺼진다
+function holdButton(el, on, off) {
+  const up = () => { el.classList.remove('held'); off(); };
+  el.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    try { el.setPointerCapture(e.pointerId); } catch {}
+    el.classList.add('held');
+    on();
+  });
+  for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) el.addEventListener(type, up);
+  el.addEventListener('contextmenu', (e) => e.preventDefault());
+}
+const pointerOn = () => { if (!remoteOut) setRemoteOut(true); setLaser(true); };       // 리모컨을 넣어 두었으면 꺼내면서 켠다
+holdButton($('laserBtn'), pointerOn, () => setLaser(false));
+holdButton($('glanceBtn'), () => { keys.add('KeyG'); dirty = true; }, () => { keys.delete('KeyG'); dirty = true; });
 
 /* ───────────── BGM: 음악 파일 없이 코드로 만들어 내는 배경 음악 (다섯 가지 분위기) ─────────────
    소리를 그때그때 합성하므로 내려받을 파일도, 저작권 걱정도 없다. 선생님이 고르면 모두에게 같은 분위기가 흐르고,
@@ -4535,7 +4822,10 @@ function playBgm(key) {
 function showSound() {
   const on = entered && cfg.bgm !== 'off';
   $('soundBtn').hidden = !on;
-  if (on) $('soundBtn').textContent = `♪ ${MOODS[cfg.bgm].name} · 소리 ${soundOn ? '켬' : '끔'}`;
+  if (!on) return;
+  soundImg.src = iconURL[soundOn ? 'note' : 'mute'];
+  $('soundBtn').setAttribute('aria-pressed', String(soundOn));
+  $('soundBtn').title = `배경 음악 "${MOODS[cfg.bgm].name}" · 소리 ${soundOn ? '켬 (누르면 꺼요)' : '끔 (누르면 켜요)'} · 내 기기에서만`;
 }
 $('soundBtn').addEventListener('click', () => {
   soundOn = !soundOn;
@@ -5112,6 +5402,24 @@ const ICONS = {
     '.....kRrpk......', '..y.kGgwk.......', '...ykGgwk.......', '.yykrrgk........',
     '..kyrrk.y.......', '.yyrkky.........', '.y.y.y..........', 'y...............',
   ],
+  remote: [                          // 리모컨
+    '......kkkk......', '.....kddddk.....', '.....kdrrdk.....', '.....kdrrdk.....',
+    '.....kddddk.....', '.....kgddgk.....', '.....kddddk.....', '.....kgddgk.....',
+    '.....kddddk.....', '.....kgddgk.....', '.....kddddk.....', '.....kdggdk.....',
+    '.....kddddk.....', '.....kddddk.....', '......kkkk......', '................',
+  ],
+  eye: [                             // 선생님 따라가기: 눈
+    '................', '................', '................', '....kkkkkkkk....',
+    '..kkwwwwwwwwkk..', '.kwwwkkkkkkwwwk.', 'kwwwkbbbbbbkwwwk', 'kwwkbbkkkkbbkwwk',
+    'kwwkbbkkkkbbkwwk', 'kwwwkbbbbbbkwwwk', '.kwwwkkkkkkwwwk.', '..kkwwwwwwwwkk..',
+    '....kkkkkkkk....', '................', '................', '................',
+  ],
+  note: [                            // 배경 음악: 음표
+    '................', '.....kkkkkkkk...', '.....kwwwwwwk...', '.....kwkkkkwk...',
+    '.....kwk..kwk...', '.....kwk..kwk...', '.....kwk..kwk...', '.....kwk..kwk...',
+    '.....kwk..kwk...', '...kkkwk.kkkwk..', '..kwwwwkkwwwwk..', '..kwwwwkkwwwwk..',
+    '..kwwwkk.kwwwk..', '...kkk....kkk...', '................', '................',
+  ],
   tnt: [                             // 모두 지우기: TNT
     'kkkkkkkkkkkkkkkk', 'krrrrrrrrrrrrrrk', 'krrRrrrRrrrRrrrk', 'krrRrrrRrrrRrrrk',
     'kRRRRRRRRRRRRRRk', 'kwwwwwwwwwwwwwwk', 'kwkkkwkwwkwkkkwk', 'kwwkwwkkwkwwkwwk',
@@ -5119,6 +5427,7 @@ const ICONS = {
     'krrrrrrrrrrrrrrk', 'krrRrrrRrrrRrrrk', 'kRRRRRRRRRRRRRRk', 'kkkkkkkkkkkkkkkk',
   ],
 };
+ICONS.mute = ICONS.note.map((row, y) => [...row].map((ch, x) => (15 - x - y === 0 || 15 - x - y === 1 ? 'r' : ch)).join(''));      // 소리 끔: 음표에 빨간 빗금
 const iconURL = {};
 for (const name in ICONS) {
   const c = document.createElement('canvas');
@@ -5132,6 +5441,10 @@ for (const name in ICONS) {
   iconURL[name] = c.toDataURL();
 }
 const iconImg = (name) => Object.assign(new Image(), { src: iconURL[name], alt: '' });
+$('remoteBtn').append(iconImg('remote'));
+const soundImg = $('soundBtn').appendChild(iconImg('note'));
+$('followBtn').append(iconImg('eye'));
+$('followBtn').addEventListener('click', () => { setFollow(!follow.on); canvas.focus(); });
 for (const b of document.querySelectorAll('#pens [data-icon]')) b.prepend(iconImg(b.dataset.icon));
 const eraseImg = $('eraseBtn').appendChild(iconImg('rub'));
 
@@ -5148,18 +5461,22 @@ function openPop(id) {
 }
 const closePops = () => openPop('');
 addEventListener('pointerdown', (e) => { if (!e.target.closest?.('#pens .menu, #remote .menu')) closePops(); }, true);    // 바깥을 누르면 닫힌다
-// 리모컨의 하위 메뉴: 띄우기(문구 · 자료 · 화면 공유) · 더보기(강의실 설정 · 초대 링크 · 조작법)
+// 리모컨의 하위 메뉴: 띄우기(문구 · 자료 · 화면 공유) · 더보기(강의실 설정 · 초대 링크)
 for (const [btn, pop] of [['showBtn', 'showPop'], ['moreBtn', 'morePop']]) {
   $(btn).addEventListener('click', () => { openPop($(pop).hidden ? pop : ''); canvas.focus(); });
   for (const item of $(pop).children) item.addEventListener('click', () => closePops());       // 고르면 닫힌다
 }
 $('inviteBtn').addEventListener('click', () => { copyLink(false); canvas.focus(); });
-$('helpBtn').addEventListener('click', () => { setKeys(true); canvas.focus(); });
 
 function showPens() {
   const full = canWrite(), on = zoomed && (full || isTeacher);       // 선생님은 영상 스크린에서도 레이저 펜을 쓸 수 있다
   $('pens').hidden = !on;
   if (on && !full && pen.tool !== 'laser') pen.tool = 'hand';        // 쓸 수 없는 칠판에서는 이동과 레이저 펜만
+  if (entered) {
+    player.setHold(myHold(), inkOf(myHold(), pen.color));       // 손에는 지금 쓰는 도구를 (펜은 고른 색으로) 든다
+    showRing();                      // 지우개 범위 표시도 도구에 맞춘다
+  }
+  placePens();
   canvas.classList.toggle('pen', on && pen.tool !== 'hand');
   if (!on) { closePops(); return; }
   for (const b of document.querySelectorAll('#pens [data-tool="ball"], #pens [data-tool="fount"]')) b.hidden = !full;
@@ -5416,7 +5733,6 @@ function showSetup() {
 showSetup();
 $('setupBtn').addEventListener('click', () => { $('setup').hidden = !$('setup').hidden; canvas.focus(); });
 $('setupClose').addEventListener('click', () => { $('setup').hidden = true; canvas.focus(); });
-$('boardBtn').addEventListener('click', () => { setZoom(!zoomed); canvas.focus(); });
 
 // 문구 띄우기: 리모컨 단추를 누르면 입력 칸이 열리고, Enter 를 누르면 스크린 한가운데에 뜬다
 $('textBtn').addEventListener('click', () => {
@@ -5723,7 +6039,7 @@ function placeCamera() {
     const x = player.pos.x + sy * EYE_FWD, z = player.pos.z + cy * EYE_FWD;
     if (zoomAmt > 0) {               // 칠판 크게 보기: 내 눈에서 칠판 정면으로 부드럽게 옮겨 간다
       const k = zoomAmt * zoomAmt * (3 - 2 * zoomAmt);
-      const cam = boardCam(), zx = zoomX, zy = cam.y, zz = BOARD.z + cam.dist;       // 칠판 높이에 맞춘 정면 자리
+      const cam = boardCam(), zx = zoomX + cam.shift, zy = cam.y, zz = BOARD.z + cam.dist;       // 칠판 높이에 맞춘 정면 자리 (오른쪽 단추를 피해 살짝 옆으로)
       camera.position.set(x + (zx - x) * k, eye + (zy - eye) * k, z + (zz - z) * k);
       const ax = x + sy * cp * 5, ay = eye - sp * 5, az = z + cy * cp * 5;
       camera.lookAt(ax + (zx - ax) * k, ay + (zy - ay) * k, az + (BOARD.z - az) * k);
@@ -5785,30 +6101,172 @@ function keyRows() {
       k('KeyQ', 'Q', T ? '' : '질문', '자리에 앉아 있을 때 선생님께 질문을 보내요.'),
       k('KeyW', 'W', '앞으로', '앞으로 걸어요.'),
       k('KeyE', 'E', T ? '' : '이해했어요', '자리에 앉아 있을 때 "이해했어요"를 선생님께 알려요.'),
-      k('KeyR', 'R', T ? '리모컨' : '', '리모컨을 꺼내고 넣어요. 리모컨으로 자료를 띄우고, 넘기고, 판서를 시작해요.'),
+      k('KeyR', 'R', T ? '리모컨' : '', '리모컨을 꺼내고 넣어요. 리모컨으로 자료를 띄우고, 넘기고, 잠시 감춰요.'),
       gap(1.4), k('Mouse', '마우스', '끌어서 보기', T ? '화면을 끌면 둘러봐요. 판서 화면에서는 펜을 들고 끌어서 쓰고, 손 모양을 들고 끌면 칠판이 옆으로 움직여요.' : '화면을 끌면 둘러봐요. 칠판 보기에서는 끌어서 칠판을 옆으로 옮겨요.', 1.8)],
     [gap(0.8),
       k('KeyA', 'A', '왼쪽', '왼쪽으로 움직여요. 칠판 보기에서는 왼쪽 영역으로 옮겨요.'),
       k('KeyS', 'S', '뒤로', '뒤로 걸어요.'),
       k('KeyD', 'D', '오른쪽', '오른쪽으로 움직여요. 칠판 보기에서는 오른쪽 영역으로 옮겨요.'),
-      k('KeyF', 'F', T ? '포인터' : '따라가기', T ? '포인터(빨간 점)를 켜고 꺼요. 리모컨을 넣어 두었으면 꺼내면서 켜요. 판서 화면에서는 빨간 점이 마우스를 따라다녀요.' : '칠판 보기에서 "선생님 따라가기"를 켜고 꺼요. 켜 두면 선생님이 쓰는 곳으로 화면이 따라가요.'),
-      k('KeyG', 'G', T ? '돌아보기' : '', '판서하는 동안 누르고 있으면 옆으로 서서 고개를 돌려 학생들을 봐요. 떼면 다시 칠판을 보고 이어서 써요.'),
+      k('KeyF', 'F', T ? '포인터' : '따라가기', T ? '누르고 있는 동안 포인터(빨간 점)가 켜져요. 리모컨을 넣어 두었으면 꺼내면서 켜요. 판서 화면에서는 빨간 점이 마우스를 따라다녀요.' : '칠판 보기에서 "선생님 따라가기"를 켜고 꺼요. 켜 두면 선생님이 쓰는 곳으로 화면이 따라가요.'),
+      k('KeyG', 'G', T ? '학생보기' : '', '판서하는 동안 누르고 있으면 옆으로 서서 고개를 돌려 학생들을 봐요. 누른 채로 방향키나 마우스 끌기로 고개를 더 움직일 수 있어요. 떼면 다시 칠판을 보고 이어서 써요.'),
       k('KeyH', 'H', '조작법', '이 조작법을 열고 닫아요.')],
     [k('ShiftLeft', 'Shift', '달리기', '누른 채로 움직이면 달려요.', 1.6),
       k('KeyZ', 'Z'),
       k('KeyX', 'X', '고르기', T ? '바라보는 것을 골라요. 교탁을 보면 교탁에 서기, 칠판을 보면 판서, 자리를 보면 앉기, 문을 보면 나가기.' : '바라보는 것을 골라요. 자리를 보면 앉기, 칠판을 보면 크게 보기, 옆 친구를 보면 소곤거리기, 문을 보면 나가기.'),
       k('KeyC', 'C'), k('KeyV', 'V'),
       k('KeyB', 'B', T ? '판서' : '칠판 보기', T ? '판서 화면을 열고 닫아요. 펜 · 지우개 · 색을 골라 칠판에 써요.' : '칠판을 크게 봐요. 한 번 더 누르면 돌아와요.')],
-    [gap(1.6), k('Space', 'Space', '점프', '제자리에서 뛰어요.', 3.6), gap(0.6),
+    [gap(1.6), k('Space', 'Space', '점프', T ? '제자리에서 뛰어요. 판서 화면에서는 누르고 있는 동안 학생들을 돌아봐요.' : '제자리에서 뛰어요.', 3.6), gap(0.6),
       k('ArrowLeft', '←', T ? '왼쪽·이전' : '왼쪽', side('왼쪽', '이전')),
       k('ArrowUp', '↑', '앞으로', '앞으로 걸어요.'),
       k('ArrowDown', '↓', '뒤로', '뒤로 걸어요.'),
       k('ArrowRight', '→', T ? '오른쪽·다음' : '오른쪽', side('오른쪽', '다음'))],
   ];
 }
+/* 터치 기기(휴대폰 · 패드)의 조작 안내: PC 의 가상 키보드 대신, 화면을 줄여 놓은 '작은 화면'에 조작 단추들을 그려 둔다.
+   · 걸을 때 / 판서할 때(칠판 볼 때) 두 장이 있고, 지금 화면에 맞는 장이 보인다 (위의 두 단추로 다른 장도 볼 수 있다)
+   · 점선 칸은 화면의 자리: 오른쪽 아래(엄지 단추), 오른쪽 위(그때그때 생기는 아이콘)
+   · 진짜 단추를 누르면 작은 화면의 같은 단추에 불이 들어오고 설명이 나온다 (조이스틱은 손잡이도 따라 움직인다). 눌러 본 것에는 초록 테
+   · 작은 화면의 단추나 점선 칸을 누르면 그 설명이 아래에 나온다
+   [이름, 모양, 적힌 글자, 설명 제목, 설명, 자리(%)] — 선생님과 학생이 다르다 */
+const MINI_SLOT = [0, 1, 2].map((k) => {           // 둥근 단추 둘레의 자리: 위쪽부터 반시계 방향으로 45°씩 (진짜 화면과 같은 규칙)
+  const a = (90 + 45 * k) * Math.PI / 180;
+  return { right: `${10.5 - Math.cos(a) * 14.5 - 4.25}%`, bottom: `${14.8 + Math.sin(a) * 23.2 - 6.8}%` };
+});
+function miniParts(board) {
+  const T = isTeacher, W = canWrite(), G = T && W;
+  const icons = T ? [['cRemote', 'remote', '리모컨 아이콘', '리모컨을 꺼내고 넣어요.']] : [];
+  icons.push(['cSound', 'note', '음표 아이콘', '배경 음악 소리를 켜고 꺼요. 내 기기에서만 바뀌어요. 배경 음악이 있는 강의실에서만 생겨요.']);
+  if (!T && board) icons.push(['cFollow', 'eye', '눈 아이콘', '"선생님 따라가기"를 켜고 꺼요. 켜 두면 선생님이 쓰는 곳으로 화면이 따라가요.']);
+  const corner = [
+    ['zoneTR', 'zone', '오른쪽 위', '오른쪽 위 · 그때그때 생기는 아이콘', T
+      ? '필요할 때만 아이콘이 생기는 자리예요. 리모컨 꺼내기 · 넣기, 배경 음악이 있으면 소리 켜기 · 끄기.'
+      : '필요할 때만 아이콘이 생기는 자리예요. 배경 음악이 있으면 소리 켜기 · 끄기, 칠판을 크게 볼 때는 눈 모양의 "선생님 따라가기".'],
+    ...icons.map(([part, icon, title, about], i) => [part, 'icon', icon, title, about, { right: `${4.5 + 9.5 * i}%` }]),
+    ...(T ? [['remote', 'remote', '리모컨', '리모컨', '◀ ▶ 장 넘기기 · 포인터(누르고 있는 동안 빨간 점) · 띄우기(문구 · 자료 · 화면 공유) · 감추기 · 더보기.']] : []),
+  ];
+  const acts = T ? '교탁 서기 · 판서 · 앉기 · 돌아가기' : '앉기 · 일어나기 · 질문 · 이해했어요 · 돌아가기';
+  if (!board) return [
+    ['zoneBR', 'zone', '오른쪽 아래', '오른쪽 아래 · 오른손 엄지 자리', '큰 동그라미(점프)가 늘 가운데에 있고, 지금 할 수 있는 일이 그 둘레에 둥근 단추로 생겨요. 위쪽부터 반시계 방향으로, 많아야 세 개예요.'],
+    ...corner,
+    ['stick', 'stick round', '', '왼쪽 아래 · 왼손 엄지 자리', '동그라미를 밀어서 걸어요. 끝까지 밀면 달려요.'],
+    ['drag', 'look dash', '끌어서 둘러보기', '둘러보기', '화면의 빈 곳을 끌면 둘러봐요.'],
+    ['tap', 'tap round dash', '톡', '톡 누르기', T ? '교탁 · 칠판 · 자리 · 문을 화면에서 직접 톡 누르면 교탁 서기 · 판서 · 앉기 · 나가기를 바로 해요.' : '자리 · 칠판 · 옆 친구 · 문을 화면에서 직접 톡 누르면 앉기 · 크게 보기 · 소곤거리기 · 나가기를 바로 해요.'],
+    ['jump', 'jump round', '점프', '점프', `제자리에서 뛰어요.${G ? ' 판서할 때는 "학생보기"로 바뀌어요.' : ''}`],
+    ['act0', 'slot round coral', '할 일', '할 일 단추', `지금 할 수 있는 일이 여기에 생겨요: ${acts}.`, MINI_SLOT[0]],
+    ['act1', 'slot round empty', '+', '할 일 단추 (둘째)', '할 일이 둘이면 여기에 하나 더 생겨요. 반시계 방향으로 늘어나요.', MINI_SLOT[1]],
+    ['act2', 'slot round empty', '+', '할 일 단추 (셋째)', '할 일이 셋이면 여기까지 생겨요. 그보다 많아지지는 않아요.', MINI_SLOT[2]],
+  ];
+  return [
+    ['zoneBR', 'zone', '오른쪽 아래', '오른쪽 아래 · 오른손 엄지 자리', G ? '판서할 때는 큰 동그라미가 "학생보기"로 바뀌고, 그 위에 "돌아가기"가 생겨요.' : '칠판을 크게 볼 때는 "돌아가기"가 여기에 있어요.'],
+    ...corner,
+    ['drag', 'write dash', W ? '손가락으로 쓰기' : '끌어서 옆으로', W ? '쓰기' : '칠판 옮기기', W ? '펜을 고르고 손가락으로 써요. 손 모양을 고르면 끌어서 칠판을 옆으로 옮겨요.' : '끌어서 칠판을 옆으로 옮겨요.'],
+    ['areas', 'areas', '◀ 1 … 4 ▶', '왼쪽 아래 · 영역 단추', '◀ ▶ 로 옆 영역으로, 번호를 누르면 그 영역으로 바로 가요. 영역이 많으면 가운데는 … 으로 줄여서 늘 한 줄이에요.'],
+    ...(W ? [['pens', 'pens', '펜 · 지우개 · 색', '가운데 아래 · 펜 도구', '이동(손) · 볼펜 · 만년필 · 레이저 펜 · 지우개 · 색. 지우개와 색은 누르면 고르는 칸이 위로 열려요.']] : []),
+    ...(G ? [
+      ['jump', 'jump round', '학생보기', '학생보기', '누르고 있는 동안 옆으로 서서 학생들을 봐요. 누른 채로 다른 손가락으로 화면을 끌면 고개를 좌우 · 위아래로 더 움직여요. 떼면 다시 칠판을 봐요.'],
+      ['act0', 'slot round', '뒤로', '돌아가기', '판서를 마치고 걸어 다니는 화면으로 돌아가요.', MINI_SLOT[0]],
+    ] : [['jump', 'jump round', '돌아가기', '돌아가기', '칠판 크게 보기를 닫고 걸어 다니는 화면으로 돌아가요.']]),
+  ];
+}
+function miniBuild() {
+  const el = (tag, cls, text = '') => Object.assign(document.createElement(tag), { className: cls, textContent: text });
+  const mini = el('div', 'mini'), tips = el('p', '');
+  tips.id = 'miniTip';
+  const intro = el('span', 'sel');
+  intro.dataset.tip = 'intro';
+  intro.append(el('b', '', '눌러 보세요'), '진짜 단추를 누르면 작은 화면의 같은 단추에 불이 들어와요. 작은 화면의 단추나 점선 칸을 누르면 설명이 나와요.');
+  tips.append(intro);
+  for (const board of [false, true]) {
+    const layer = el('div', 'mLayer');
+    layer.dataset.board = board ? '1' : '';
+    for (const [part, look, text, title, about, at] of miniParts(board)) {
+      const zone = look === 'zone', icon = look === 'icon';
+      const it = el('div', zone ? `mZone m-${part}` : `mPart ${look.split(' ').map((c, i) => (i ? c : `m-${c}`)).join(' ')}`);
+      if (zone) it.append(el('em', '', text));
+      else if (icon) it.append(iconImg(text));
+      else it.textContent = text;
+      if (part === 'stick') it.append(el('i', ''));
+      if (at) Object.assign(it.style, at);
+      it.dataset.part = part;
+      it.dataset.tip = `${board ? 'b' : 'w'}-${part}`;
+      it.addEventListener('click', () => miniSelect(it));
+      const tip = el('span', '');
+      tip.dataset.tip = it.dataset.tip;
+      tip.append(el('b', '', title), about);
+      tips.append(tip);
+      layer.append(it);
+    }
+    mini.append(layer);
+  }
+  const tabs = ['걸을 때', isTeacher ? '판서할 때' : '칠판 볼 때'].map((name, i) => {
+    const b = Object.assign(el('button', '', name), { type: 'button' });
+    b.addEventListener('click', () => { miniShow(!!i); canvas.focus(); });
+    return b;
+  });
+  $('keysHint').replaceChildren(...tabs);
+  $('keyRows').replaceChildren(mini, tips);
+  miniShow(zoomed);
+}
+// 작은 화면의 장 바꾸기: 걸을 때 ↔ 판서할 때. 진짜 화면이 바뀌면 따라 바뀐다 (setZoom)
+function miniShow(board) {
+  const layers = $('keyRows').querySelectorAll('.mLayer');
+  if (!layers.length) return;
+  for (const layer of layers) layer.hidden = !!layer.dataset.board !== board;
+  [...$('keysHint').children].forEach((b, i) => b.setAttribute('aria-pressed', String(!!i === board)));
+  miniSelect(null);
+}
+function miniSelect(it) {            // 설명 고르기 (없으면 처음의 안내 글)
+  for (const old of $('keyRows').querySelectorAll('.sel')) old.classList.remove('sel');
+  if (it) it.classList.add('sel');
+  $('keyRows').querySelector(`#miniTip [data-tip="${it ? it.dataset.tip : 'intro'}"]`)?.classList.add('sel');
+}
+const miniPart = (part) => ($('keys').hidden ? null : $('keyRows').querySelector(`.mLayer:not([hidden]) [data-part="${part}"]`));
+function miniLight(part, on) {
+  const el = miniPart(part);
+  if (!el) return;
+  el.classList.toggle('on', on);
+  if (on) { el.classList.add('done'); miniSelect(el); }
+}
+function miniFlash(part) {
+  miniLight(part, true);
+  setTimeout(() => miniLight(part, false), 400);
+}
+if (COARSE) {                        // 진짜 단추를 누르는 동안 작은 화면의 같은 단추에 불을 켠다
+  const partOf = (t) => {
+    if (!t.closest) return '';
+    const act = t.closest('#acts button'), icon = t.closest('#corner button');
+    if (act) return +act.dataset.slot < 0 ? 'jump' : `act${act.dataset.slot || 0}`;      // 둘레의 몇 번째 자리인지 (layoutActs 가 적어 둔다)
+    if (icon) return { remoteBtn: 'cRemote', soundBtn: 'cSound', followBtn: 'cFollow' }[icon.id] || '';
+    return t.closest('#stick') ? 'stick' : t.closest('#jump') ? 'jump' : t.closest('#remote') ? 'remote'
+      : t.closest('#pens') ? 'pens' : t.closest('#areas') ? 'areas' : t === canvas ? 'drag' : '';
+  };
+  const pressing = new Map();        // 손가락 → 누르고 있는 단추
+  addEventListener('pointerdown', (e) => {
+    const part = partOf(e.target);
+    if (!part) return;
+    pressing.set(e.pointerId, part);
+    miniLight(part, true);
+  }, true);
+  const lift = (e) => {
+    const part = pressing.get(e.pointerId);
+    if (!part) return;
+    pressing.delete(e.pointerId);
+    miniLight(part, false);
+    if (part === 'stick') miniPart('stick')?.style.setProperty('--jx', 0), miniPart('stick')?.style.setProperty('--jy', 0);
+  };
+  addEventListener('pointerup', lift, true);
+  addEventListener('pointercancel', lift, true);
+  addEventListener('pointermove', (e) => {            // 조이스틱 손잡이도 따라 움직인다
+    if (pressing.get(e.pointerId) !== 'stick') return;
+    const m = miniPart('stick');
+    if (m) { m.style.setProperty('--jx', joy.x.toFixed(2)); m.style.setProperty('--jy', joy.y.toFixed(2)); }
+  });                                // (조이스틱이 먼저 값을 고친 다음에 읽도록, 올라오는 차례에 듣는다)
+}
 function setKeys(on) {
   if (on === !$('keys').hidden) return;
-  if (on) {
+  if (on && COARSE) {                // 터치 기기: 작은 화면
+    miniBuild();
+  } else if (on) {
     const el = (tag, cls, text = '') => Object.assign(document.createElement(tag), { className: cls, textContent: text });
     $('keyRows').replaceChildren(...keyRows().map((row) => {
       const line = el('div', 'krow');
@@ -5875,7 +6333,7 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyH' && !e.repeat && !e.ctrlKey && !e.metaKey) { setKeys($('keys').hidden); return; }     // 조작법 열기 · 닫기
   // ← → = 이전 · 다음
   const step = e.code === 'ArrowRight' || (zoomed && e.code === 'KeyD') ? 1 : e.code === 'ArrowLeft' || (zoomed && e.code === 'KeyA') ? -1 : 0;
-  if (step && zoomed) {                // 칠판 보기: 옆 영역으로 (영역이 하나뿐이면 슬라이드)
+  if (step && zoomed && !glancing) {   // 칠판 보기: 옆 영역으로 (영역이 하나뿐이면 슬라이드). 학생보기 중에는 고개를 움직이는 데 쓴다
     if (areas.length > 1) { if (!e.repeat || pan.t >= 1) gotoArea(areaAt + step); }
     else if (slidesMine() && !e.repeat) gotoPage(show.page + step);
     e.preventDefault();
@@ -5898,10 +6356,7 @@ addEventListener('keydown', (e) => {
     return;
   }
   if (e.code === 'KeyR' && !e.repeat && isTeacher) setRemoteOut(!remoteOut);     // 선생님: 리모컨 꺼내기 · 넣기
-  if (e.code === 'KeyF' && !e.repeat && isTeacher) {      // 포인터 켜기 · 끄기 (리모컨을 넣어 두었으면 꺼내면서 켠다)
-    if (!remoteOut) setRemoteOut(true);
-    setLaser(!laserOn);
-  }
+  if (e.code === 'KeyF' && !e.repeat && isTeacher) pointerOn();      // 포인터: F 를 누르고 있는 동안만 켜진다
   if (e.code === 'KeyF' && !e.repeat && zoomed && canFollow()) setFollow(!follow.on);  // 학생의 칠판 보기: 선생님 따라가기 켜기 · 끄기
   if (e.code === 'KeyB' && !e.repeat) setZoom(!zoomed);                          // 칠판 보기 (선생님은 판서)
   if (e.code === 'Space') { jumpQueued = true; e.preventDefault(); }
@@ -5913,15 +6368,45 @@ addEventListener('keydown', (e) => {
   else if (e.code.startsWith('Arrow')) e.preventDefault();
   keys.add(e.code);       // e.code 는 한/영 상태와 상관없이 같은 값이라 한글 입력 중에도 동작
 });
-addEventListener('keyup', (e) => keys.delete(e.code));
-addEventListener('blur', () => keys.clear());
+addEventListener('keyup', (e) => {
+  keys.delete(e.code);
+  if (e.code === 'KeyF' && laserOn) setLaser(false);     // 포인터는 F 를 떼면 꺼진다
+});
+addEventListener('blur', () => { keys.clear(); if (laserOn) setLaser(false); });
 
+const hover = { clientX: 0, clientY: 0, on: false };       // 포인터(마우스 · 손가락)가 화면의 어디에 있는지 (판서 모드의 빨간 점이 따라간다)
+// 지우개 범위: 지우개를 들고 칠판 위에 있으면, 지워지는 크기만큼의 점선 동그라미가 포인터를 따라다닌다
+function showRing(on = true) {
+  const ring = $('eraseRing');
+  const erasing = on && hover.on && zoomed && zoomAmt > 0.97 && canWrite() && !laserOn && (pen.tool === 'rub' || pen.tool === 'wipe');
+  ring.hidden = !erasing;
+  if (!erasing) return;
+  // 문지르는 지우개는 펜 굵기의 7배 폭, 획 지우개는 닿는 것으로 치는 거리(반지름)의 두 배
+  const meters = pen.tool === 'rub' ? BOARD.h * 0.009 * PEN_W[pen.size] * 7 : BOARD.h * 0.035 * PEN_W[pen.size] * 2;
+  const r = canvas.getBoundingClientRect(), size = meters / boardCam().per;
+  ring.style.width = ring.style.height = `${size}px`;
+  ring.style.left = `${hover.clientX - r.left}px`;
+  ring.style.top = `${hover.clientY - r.top}px`;
+}
 // 끌기 = 시야 움직이기. 평소에는 둘러보고, 칠판 보기에서는 옆으로 옮겨 간다. 펜을 들고 있을 때만 칠판에 쓴다
 let lookId = null, lookX = 0, lookY = 0;
 let slideId = null, slideX = 0, slideFrom = 0;       // 칠판 보기에서 끌어서 옆으로 옮기는 중
 canvas.addEventListener('pointerdown', (e) => {
   if (!entered || lookId !== null || slideId !== null) return;
+  hover.clientX = e.clientX;
+  hover.clientY = e.clientY;
+  hover.on = true;
+  showRing();
+  if (zoomed && glancing) {             // 학생보기 중: 끌어서 고개를 좌우 · 위아래로 움직인다
+    lookId = e.pointerId;
+    lookX = e.clientX;
+    lookY = e.clientY;
+    tap.at = 0;
+    try { canvas.setPointerCapture(e.pointerId); } catch {}
+    return;
+  }
   if (zoomed) {
+    if (laserOn) { dirty = true; return; }     // 포인터를 켜고 있는 동안에는 쓰지 않고 가리키기만 한다
     if (pen.tool !== 'hand' && (pen.tool === 'laser' ? canZap() : canWrite())) penDown(e);
     else if (zoomAmt > 0.97) {
       followOff();
@@ -5936,21 +6421,65 @@ canvas.addEventListener('pointerdown', (e) => {
   lookId = e.pointerId;
   lookX = e.clientX;
   lookY = e.clientY;
+  tap.x = e.clientX;
+  tap.y = e.clientY;
+  tap.at = performance.now();
   try { canvas.setPointerCapture(e.pointerId); } catch {}   // 창 밖으로 끌어도 계속 따라오게
   canvas.classList.add('drag');
 });
-const hover = { clientX: 0, clientY: 0, on: false };       // 마우스 포인터가 화면의 어디에 있는지 (판서 모드의 레이저가 따라간다)
+/* 톡 눌러서 고르기 (터치 기기): 마인크래프트 모바일처럼, 자리 · 교탁 · 문 · 칠판을 화면에서 직접 톡 누르면 바로 그 일을 한다.
+   화면 가운데로 맞춰 바라본 다음 단추를 누르지 않아도 된다. 자리는 멀리 있어도 되고(걸어가서 앉는다), 끌면 전처럼 둘러보기다 */
+const tap = { x: 0, y: 0, at: 0 };
+function tapAt(clientX, clientY) {
+  miniFlash('tap');
+  if (!entered || zoomed || paused || (player.mode !== 'free' && player.mode !== 'seated')) return;
+  const r = canvas.getBoundingClientRect();
+  viewRay.origin.copy(camera.position);
+  viewRay.direction.set((clientX - r.left) / r.width * 2 - 1, 1 - (clientY - r.top) / r.height * 2, 0.5).unproject(camera).sub(camera.position).normalize();
+  let found = null, best = Infinity;
+  if (player.mode === 'free') {
+    for (const it of interactables) {
+      for (const b of it.boxes) {
+        if (!viewRay.intersectBox(b, _hit)) continue;
+        const d = _hit.distanceToSquared(viewRay.origin);
+        if (d < best) { best = d; found = it; }
+      }
+    }
+  }
+  if (player.mode === 'seated') {      // 앉아서 옆 친구를 톡 누르면 소곤거리기
+    const friend = whisperLooked(true);
+    if (friend) { openWhisper(friend.seat.taken.peerId || 'mate'); return; }
+  }
+  if (viewRay.intersectBox(screenObj.boxes[0], _hit) && _hit.distanceToSquared(viewRay.origin) < best) {      // 칠판은 앉아서도, 멀리서도
+    setZoom(true, _hit.x);
+    return;
+  }
+  if (!found) return;
+  if (found.taken) toast(found.stand ? `${polite(found.taken.name)}이 교탁에 서 있어요` : `${polite(found.taken.name)}이 앉은 자리예요`);
+  else if (found.kind === 'door') { if (best < 36) askExit(); }      // 문은 가까이(6m 안)에서만
+  else if (player.goSit(found)) mySeatAt = Date.now();
+  dirty = true;
+}
 canvas.addEventListener('pointermove', (e) => {
   hover.clientX = e.clientX;
   hover.clientY = e.clientY;
   hover.on = true;
+  showRing();
   if (laserOn && zoomed) dirty = true;
   if (e.pointerId === pen.id) { penMove(e); return; }
   if (e.pointerId === slideId) {                     // 칠판 보기: 끈 만큼 옆으로 (칠판 끝에서 멈춘다)
-    zoomX = clamp(slideFrom - (e.clientX - slideX) * boardCam().vis / canvas.clientWidth, areas[0], areas[areas.length - 1]);
+    zoomX = clamp(slideFrom - (e.clientX - slideX) * boardCam().per, areas[0], areas[areas.length - 1]);
     pan.t = 1;
     areaAt = nearestArea(zoomX);
     showAreas();
+    dirty = true;
+    return;
+  }
+  if (e.pointerId === lookId && zoomed && glancing) {
+    glanceLook.yaw = clamp(glanceLook.yaw - (e.clientX - lookX) * 0.005, -0.9, 0.9);
+    glanceLook.pitch = clamp(glanceLook.pitch + (e.clientY - lookY) * 0.004, -0.35, 0.5);
+    lookX = e.clientX;
+    lookY = e.clientY;
     dirty = true;
     return;
   }
@@ -5966,6 +6495,7 @@ canvas.addEventListener('pointermove', (e) => {
   dirty = true;
 });
 const lookEnd = (e) => {
+  if (e.pointerType !== 'mouse') showRing(false);      // 손가락은 떼면 동그라미도 사라진다 (마우스는 떠 있는 동안 계속 보인다)
   if (e.pointerId === pen.id) { penUp(); return; }
   if (e.pointerId === slideId) {
     slideId = null;
@@ -5977,14 +6507,25 @@ const lookEnd = (e) => {
   lookId = null;
   canvas.classList.remove('drag');
   dirty = true;
+  // 거의 움직이지 않고 짧게 눌렀다 뗐으면 '톡 누르기'
+  if (COARSE && e.type === 'pointerup' && performance.now() - tap.at < 350 && Math.hypot(e.clientX - tap.x, e.clientY - tap.y) < 12) tapAt(e.clientX, e.clientY);
 };
 canvas.addEventListener('pointerup', lookEnd);
 canvas.addEventListener('pointercancel', lookEnd);
+canvas.addEventListener('pointerleave', () => { hover.on = false; showRing(false); });
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
 $('act').addEventListener('click', () => { act(); canvas.focus(); });
 $('backBtn').addEventListener('click', () => { back(); canvas.focus(); });
-$('jump').addEventListener('pointerdown', (e) => { e.preventDefault(); jumpQueued = true; });
+// 점프 단추: 평소에는 점프, 판서 모드에서는 누르고 있는 동안 돌아보기
+$('jump').addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  if (!zoomed) { jumpQueued = true; return; }
+  try { $('jump').setPointerCapture(e.pointerId); } catch {}
+  keys.add('KeyG');
+  dirty = true;
+});
+for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) $('jump').addEventListener(type, () => { keys.delete('KeyG'); dirty = true; });
 
 const stick = $('stick'), knob = stick.firstElementChild;
 let stickId = null;
@@ -5997,7 +6538,7 @@ function stickMove(e) {
   joy.x = dx / max;
   joy.y = -dy / max;
 }
-stick.addEventListener('pointerdown', (e) => { stickId = e.pointerId; stick.setPointerCapture(e.pointerId); stickMove(e); });
+stick.addEventListener('pointerdown', (e) => { stickId = e.pointerId; try { stick.setPointerCapture(e.pointerId); } catch {} stickMove(e); });
 stick.addEventListener('pointermove', (e) => { if (e.pointerId === stickId) stickMove(e); });
 const stickEnd = (e) => {
   if (e.pointerId !== stickId) return;
@@ -6042,7 +6583,7 @@ async function copyLink(forTeacher) {
   }
   canvas.focus();
 }
-$('room').addEventListener('click', () => copyLink(false));
+$('room').addEventListener('click', () => { if (isTeacher) copyLink(false); });
 $('linkStudent').addEventListener('click', () => copyLink(false));
 $('linkTeacher').addEventListener('click', () => copyLink(true));
 $('inviteCopy').addEventListener('click', () => { $('invite').hidden = true; copyLink(false); });
@@ -6061,6 +6602,7 @@ function showStart() {
 function beginEntry(newRole, { code = '', locked = false, create = false } = {}) {
   role = newRole;
   creator = create;
+  $('entry').classList.toggle('teacher', role === 'teacher');     // 선생님에게는 출석 기록을 보여 주지 않는다
   $('roleNote').textContent = role === 'teacher' ? (create ? '선생님 · 수업 만들기' : '선생님으로 들어가요') : '학생으로 들어가요';
   $('restart').hidden = locked;                 // 초대 링크로 온 사람에게는 처음 화면이 없다
   $('code').value = code;
@@ -6197,14 +6739,17 @@ function enter() {
   $('entry').hidden = true;
   $('hud').hidden = false;
   $('remoteBtn').hidden = !isTeacher;           // 선생님에게만 리모컨이 있다
+  $('att').hidden = isTeacher;                  // 선생님 화면에는 출석 표시를 두지 않는다
+  $('hud').classList.toggle('teacher', isTeacher);
+  $('exitNote').hidden = isTeacher;
   $('invite').hidden = !isTeacher;              // 선생님: 들어오자마자 초대 링크를 복사할 수 있다
   player.setRemote(isTeacher);
-  setRemoteOut(isTeacher);
+  setRemoteOut(isTeacher && !(COARSE && window.innerHeight < 560));     // 작은 화면(휴대폰 가로)에서는 리모컨을 접어 둔 채로 시작한다
   let skipKeys = false;
   try { skipKeys = localStorage.getItem(KEYS_SKIP) === '1'; } catch {}
   $('keysSkip').checked = skipKeys;
   setKeys(false);
-  if (!COARSE && !skipKeys) setKeys(true);      // 조작법(가상 키보드)을 화면 가운데에 띄운다
+  if (!skipKeys) setKeys(true);                 // 조작법을 화면 가운데에 띄운다 (PC = 가상 키보드, 터치 기기 = 손가락 안내)
   else {                                        // 조작법을 띄우지 않을 때는 짧은 안내만
     toast(isTeacher ? '리모컨으로 칠판을 조작하고, 리모컨의 "더보기 → 강의실 설정"에서 강의실 · 자리 · 칠판 · BGM을 바꿔요'
       : '자리를 바라보고 X를 누르면 앉아요 · 칠판을 바라보고 X를 누르면 크게 볼 수 있어요', 7000);
@@ -6260,13 +6805,7 @@ function resize() {
   camera.aspect = (window.innerWidth || 1) / (window.innerHeight || 1);      // 창이 가려져 있으면 크기가 0 으로 나온다
   camera.fov = camera.aspect < 1 ? 82 : 70;      // 세로 화면(휴대폰)에서는 조금 넓게
   camera.updateProjectionMatrix();
-  if (zoomed) {                                  // 화면 폭이 바뀌면 칠판 영역도 다시 나눈다
-    layoutAreas();
-    zoomX = pan.from = pan.to = follow.to = areas[areaAt];
-    follow.vel = 0;
-    pan.t = 1;
-    showAreas();
-  }
+  relayoutZoom();                                // 화면 폭이 바뀌면 칠판 영역도 다시 나눈다
   dirty = true;
 }
 addEventListener('resize', resize);
@@ -6433,7 +6972,7 @@ window.classroom = {
   cfg, cfgAt, setConfig: (kind, key) => setConfig(kind, key, true), askConfig: setConfig, back, ink, pen, inviteLink, teacherKey,
   get role() { return [role, creator, isTeacher]; }, strokes, inkAdd, FORMS, BOARD, spawn, nearestFree, playBgm, gotoArea, boardCam,
   get areas() { return [areas, areaAt, zoomX]; },
-  get zoom() { return [zoomed, zoomAmt]; }, frame, zaps, zapAdd, liveTex, liveMesh, live, inkTex, showTex, startLive, endShow, inkClear, inkErase, get show() { return show; }, get lap() { return { ...lapShown, level: pixels.level, trial: !!pixels.trial, hold: Math.round(Math.max(0, pixels.hold - performance.now()) / 1000), mirrorMs, every: mirrorEvery() }; }, get mirror() { return { on: mirrorGlass.visible, pos: mirrorGlass.position.toArray(), calls: mirrorCalls, all: info.calls, fade: mirrorMat.uniforms.fade.value }; }, get mySkin() { return mySkin; }, peerSkins, actors, get follow() { return { on: follow.on, can: canFollow(), x: zoomX, to: follow.to, area: areaAt }; }, setZoom, get bgm() { return bgmNow; }, get audio() { return ac; },
+  get zoom() { return [zoomed, zoomAmt]; }, frame, zaps, zapAdd, liveTex, liveMesh, live, inkTex, showTex, startLive, endShow, inkClear, inkErase, get show() { return show; }, get lap() { return { ...lapShown, level: pixels.level, trial: !!pixels.trial, hold: Math.round(Math.max(0, pixels.hold - performance.now()) / 1000), mirrorMs, every: mirrorEvery() }; }, get mirror() { return { on: mirrorGlass.visible, pos: mirrorGlass.position.toArray(), calls: mirrorCalls, all: info.calls, fade: mirrorMat.uniforms.fade.value }; }, get mySkin() { return mySkin; }, peerSkins, actors, get follow() { return { on: follow.on, can: canFollow(), x: zoomX, to: follow.to, area: areaAt }; }, setZoom, setHide, get glance() { return [glancing, +glanceLook.yaw.toFixed(3), +glanceLook.pitch.toFixed(3)]; }, get bgm() { return bgmNow; }, get audio() { return ac; },
   get room() { return { ROOM, HW, HD, floorAt, obstacles, blocked, cellH, NX, NZ }; },
   net: { peers, myId, tick: netTick, receive: netReceive, pace: netPace, openSupabase,
     get link() { return link; }, get state() { return linkState; }, get seatAt() { return mySeatAt; } },
