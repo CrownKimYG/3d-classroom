@@ -73,6 +73,16 @@
   }
   .pick i { flex: none; width: 24px; height: 24px; background: var(--c); border: 2px solid var(--ink); }
   .pick small { display: block; font-size: 11px; font-weight: 600; opacity: .7; }
+  .pick.three { grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .pick.three button { flex-direction: column; gap: 6px; padding: 10px 4px; font-size: 14px; text-align: center; --c: #ffd84a; }
+  .pick canvas, .pick.three i { flex: none; width: 36px; height: 36px; image-rendering: pixelated; border: 2px solid var(--ink); }
+  .pick.three i { display: grid; place-items: center; font: 800 22px/1 var(--font); font-style: normal; background: #fff; }
+  .pick [hidden] { display: none; }
+  .skin { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+  .skin > span:first-child { flex: 1; font-size: 12px; line-height: 1.45; opacity: .8; }
+  .skin #skinMore { display: flex; gap: 6px; flex: none; }
+  .skin [hidden] { display: none !important; }
+  .skin .mini { flex: none; white-space: nowrap; }
   .pick button[aria-pressed="true"] {
     background: color-mix(in srgb, var(--c) 30%, #fff);
     box-shadow: 0 4px 0 var(--ink); transform: translateY(-2px);
@@ -101,7 +111,13 @@
     position: absolute; background: rgba(255, 246, 227, .93);
     border: 2px solid var(--ink); padding: 6px 10px; font: 600 12px var(--font); color: var(--ink);
   }
-  #perf { right: 12px; top: 12px; font: 600 11px ui-monospace, Menlo, Consolas, monospace; }
+  /* 시스템 정보 (F3): 마인크래프트의 F3 화면처럼 반투명 띠에 흰 글씨로 한 줄씩 */
+  #perf {
+    position: absolute; left: 12px; top: 124px; display: grid; justify-items: start; gap: 2px; pointer-events: none;
+    font: 600 12px/1.4 ui-monospace, Menlo, Consolas, monospace; color: #fff; text-shadow: 1px 1px 0 #3a3a3a;
+  }
+  #perf[hidden] { display: none; }
+  #perf span { padding: 1px 6px; background: rgba(60, 60, 60, .6); white-space: pre; }
   #att { left: 12px; top: 12px; font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
 
   /* 화면 가운데 십자선: 이것으로 바라본 물체에 테두리가 뜬다 */
@@ -193,27 +209,90 @@
     display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px 12px; padding: 6px 8px;
   }
   #pens .grp { display: flex; align-items: center; gap: 4px; }
-  #pens button, #areas button {
+  #areas button, #pens .pop button {
     font: 800 12px var(--font); color: var(--ink); background: #fff; border: 2px solid var(--ink);
     border-radius: 0; cursor: pointer; padding: 6px 8px;
   }
-  #pens button[aria-pressed="true"], #areas button[aria-pressed="true"] { color: #fff; background: var(--coral); }
-  #penColors button { width: 28px; height: 28px; padding: 0; border-radius: 50%; background: var(--c, #333) !important; }
-  #penColors button[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--coral); }
-  #penSizes button { width: 30px; height: 30px; padding: 0; display: grid; place-items: center; }
-  #penSizes i { width: var(--d); height: var(--d); border-radius: 50%; background: currentColor; }
+  #areas button[aria-pressed="true"] { color: #fff; background: var(--coral); }
+  /* 펜 도구 단추: 마인크래프트의 소지품 칸처럼 생긴 네모 칸에 픽셀 그림을 담는다. 고른 칸은 흰 테두리가 둘러진다 */
+  #pens .slot {
+    position: relative; width: 38px; height: 38px; padding: 0; display: grid; place-items: center;
+    background: #8b8b8b; border: 2px solid var(--ink); border-radius: 0; cursor: pointer; color: #fff;
+    box-shadow: inset 2px 2px 0 #4a4a4a, inset -2px -2px 0 #d8d8d8;
+  }
+  #pens .slot[aria-pressed="true"] { background: #b9b9b9; border-color: var(--coral); box-shadow: inset 0 0 0 3px #fff; }
+  #pens .slot:focus-visible, #pens .pop button:focus-visible { outline: 3px solid var(--mint); outline-offset: 1px; }
+  #pens img { width: 32px; height: 32px; image-rendering: pixelated; pointer-events: none; display: block; }
+  #pens .more::after {                 /* 누르면 하위 메뉴가 열리는 칸: 오른쪽 아래의 작은 계단 세모 */
+    content: ''; position: absolute; right: 3px; bottom: 3px; width: 2px; height: 2px; background: #fff;
+    box-shadow: -2px 0 #fff, -4px 0 #fff, 0 -2px #fff, -2px -2px #fff, 0 -4px #fff;
+  }
+  #pens .menu { position: relative; display: flex; }
+  #pens .pop {
+    position: absolute; left: 50%; bottom: calc(100% + 10px); transform: translateX(-50%); z-index: 2;
+    display: flex; gap: 4px; padding: 5px; background: rgba(255, 246, 227, .97); border: 2px solid var(--ink);
+  }
+  #pens .pop[hidden] { display: none; }
+  #pens .pop button { display: grid; justify-items: center; gap: 2px; padding: 4px 6px; font-size: 11px; white-space: nowrap; }
+  #pens .pop button[aria-pressed="true"] { color: #fff; background: var(--coral); }
+  #pens .pop button[hidden] { display: none; }
+  #pens .pop .slot { padding: 0; }
+  #pens .block {                       /* 색: 양털 블록처럼 위 · 왼쪽이 밝고 아래 · 오른쪽이 어두운 네모 */
+    width: 24px; height: 24px; background: var(--c, #333); pointer-events: none;
+    box-shadow: inset 3px 3px 0 rgba(255, 255, 255, .38), inset -3px -3px 0 rgba(0, 0, 0, .3), 0 0 0 2px #1b1b1b;
+  }
+  #penSizes i { width: var(--d); height: var(--d); background: #fff; box-shadow: 0 0 0 2px #1b1b1b; pointer-events: none; }
   /* 판서 뷰의 영역 단추: ◀ 1 2 3 ▶ */
-  #areas { left: 50%; top: 12px; transform: translateX(-50%); display: flex; gap: 4px; padding: 5px 6px; }
+  #areas {
+    left: 50%; top: 12px; transform: translateX(-50%); width: max-content; max-width: calc(100% - 24px);
+    display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; padding: 5px 6px;
+  }
   #areas button { min-width: 30px; padding: 5px 6px; }
+  #areas #followBtn { margin-left: 6px; padding: 5px 9px; }
   #areas button:disabled { opacity: .35; cursor: default; }
   .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
   .row .go { font-size: 16px; }
   .go.ghost { color: var(--ink); background: #fff; }
   .go:focus-visible, .pick button:focus-visible { outline: 3px solid var(--mint); outline-offset: 2px; }
-  #help {
-    left: 50%; bottom: 14px; transform: translateX(-50%);
-    max-width: calc(100% - 24px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  /* 조작법: 화면 가운데의 반투명 가상 키보드. 누른 키에 불이 들어오고, 눌러 본 키에는 초록 테가 남는다 */
+  #keys { position: absolute; inset: 0; z-index: 5; display: grid; place-items: center; pointer-events: none; }
+  #keys[hidden] { display: none; }
+  .kb {
+    --u: clamp(30px, 5.4vw, 50px);
+    max-width: calc(100% - 16px); padding: 14px 16px; color: #fff6e3;
+    background: rgba(24, 19, 14, .62); border: 2px solid rgba(255, 246, 227, .5);
   }
+  .kbTop { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-bottom: 10px; }
+  .kbTop b { font-size: 16px; }
+  .kbTop span { font-size: 12px; opacity: .85; }
+  #keyRows { display: grid; gap: 4px; }
+  .krow { display: flex; gap: 4px; }
+  .key {
+    position: relative; flex: none; width: calc(var(--u) * var(--w, 1) + 4px * (var(--w, 1) - 1)); height: var(--u);
+    background: rgba(139, 139, 139, .55); border: 2px solid rgba(20, 16, 12, .8);
+    box-shadow: inset 2px 2px 0 rgba(255, 255, 255, .28), inset -2px -2px 0 rgba(0, 0, 0, .3);
+  }
+  .key b { position: absolute; left: 4px; top: 2px; font-size: 11px; font-weight: 800; }
+  .key span { position: absolute; left: -4px; right: -4px; bottom: 4px; text-align: center; font-size: 10px; font-weight: 700; letter-spacing: -.5px; white-space: nowrap; }
+  .key.none { opacity: .35; }
+  .key.done { border-color: #7ee08f; }
+  .key.on { color: var(--ink); background: #fff6e3; box-shadow: inset 0 0 0 2px var(--coral); transform: translateY(1px); }
+  .kgap { flex: none; width: calc(var(--u) * var(--w)); }
+  /* 키에 마우스를 올리면 그 키의 설명이 키 바로 위에 뜬다 */
+  .key[data-tip] { pointer-events: auto; cursor: help; }
+  .key[data-tip]:hover { z-index: 3; border-color: #fff6e3; }
+  .key[data-tip]:hover::after {
+    content: attr(data-tip); position: absolute; left: 50%; bottom: calc(100% + 8px); transform: translateX(-50%);
+    width: max-content; max-width: 250px; padding: 7px 10px; font-size: 12px; font-weight: 600; line-height: 1.5; letter-spacing: 0;
+    white-space: normal; text-align: left; color: var(--ink); background: #fff6e3; border: 2px solid var(--ink);
+  }
+  .kbFoot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; font-size: 12px; pointer-events: auto; }
+  .kbFoot label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .kbFoot button, #keysBtn { font: 800 13px var(--font); color: var(--ink); cursor: pointer; }
+  .kbFoot button { padding: 6px 12px; background: #fff6e3; border: 2px solid var(--ink); border-radius: 0; }
+  .kbFoot kbd, #keysBtn kbd { display: inline-block; margin-right: 4px; padding: 0 5px; font: 800 11px var(--font); color: #fff6e3; background: var(--ink); }
+  #keysBtn { left: 50%; bottom: 14px; transform: translateX(-50%); font-size: 12px; }
+  #keysBtn[hidden] { display: none; }
   #acts { position: absolute; left: 50%; bottom: 58px; transform: translateX(-50%); display: flex; gap: 8px; }
   #acts button {
     font: 800 16px var(--font); color: var(--ink); background: var(--paper);
@@ -255,7 +334,6 @@
   }
   .keys.touch { display: none; }
   @media (max-width: 640px) {
-    #perf { top: 120px; left: 12px; right: auto; }   /* 좁은 화면에서는 출석·수업·리모컨 표시 아래로 */
     #soundBtn { top: 12px; }
     #areas { top: 122px; }
     #invite { top: 122px; }
@@ -263,7 +341,7 @@
   @media (pointer: coarse) {
     .keys { display: none; }
     .keys.touch { display: grid; }
-    #help, #acts kbd { display: none; }
+    #keys, #keysBtn, #acts kbd { display: none; }
     #acts { bottom: 170px; }
     #ask { bottom: 228px; }
     #whisper { bottom: 228px; }
@@ -303,15 +381,24 @@
     <section class="step" id="stepName" hidden>
       <label for="nick">이름</label>
       <div class="line">
-        <input id="nick" maxlength="12" autocomplete="off" spellcheck="false">
+        <input id="nick" maxlength="12" placeholder="수업에서 보일 이름" autocomplete="off" spellcheck="false">
         <button id="nameNext" class="mini" type="button">다음</button>
       </div>
     </section>
     <section class="step" id="stepWho" hidden>
       <label>캐릭터</label>
-      <div class="pick" role="group" aria-label="캐릭터 고르기">
-        <button type="button" data-who="roy" style="--c:#5fc46b" aria-pressed="true"><i></i><span>로이<small>초록 옷</small><small id="rec-roy">출석 00:00:00</small></span></button>
-        <button type="button" data-who="stella" style="--c:#ff9cc2" aria-pressed="false"><i></i><span>스텔라<small>분홍 옷</small><small id="rec-stella">출석 00:00:00</small></span></button>
+      <div class="pick three" role="group" aria-label="캐릭터 고르기">
+        <button type="button" data-who="roy" aria-pressed="true"><canvas data-face="roy" width="8" height="8" aria-hidden="true"></canvas><span>초록 후드<small id="rec-roy">출석 00:00:00</small></span></button>
+        <button type="button" data-who="stella" aria-pressed="false"><canvas data-face="stella" width="8" height="8" aria-hidden="true"></canvas><span>분홍 후드<small id="rec-stella">출석 00:00:00</small></span></button>
+        <button type="button" data-who="mine" aria-pressed="false"><i id="skinPlus" aria-hidden="true">+</i><canvas id="skinFace" width="8" height="8" hidden aria-hidden="true"></canvas><span>내 스킨<small id="rec-mine">출석 00:00:00</small></span></button>
+      </div>
+      <div class="skin">
+        <span id="skinNote">"내 스킨"을 누르면 마인크래프트 스킨(PNG)을 넣을 수 있어요.</span>
+        <span id="skinMore" hidden>
+          <button type="button" class="mini" id="skinBtn">다른 스킨</button>
+          <button type="button" class="mini" id="skinOff">빼기</button>
+        </span>
+        <input type="file" id="skinFile" accept="image/png,.png" hidden>
       </div>
     </section>
     <section class="step" id="stepRoom" hidden>
@@ -331,7 +418,7 @@
   <div id="aim"></div>
   <div id="att" class="chip" title="강의실에 있는 동안 쌓이는 출석 시간">출석 00:00:00</div>
   <button id="room" class="chip" type="button" title="수업 코드가 든 초대 링크를 복사해요" hidden></button>
-  <div id="perf" class="chip" title="화면이 멈춰 있으면 그리기를 쉬어서 컴퓨터 부담을 줄여요">준비 중</div>
+  <div id="perf" hidden></div>
   <div id="toast" class="chip" hidden></div>
   <button id="remoteBtn" class="chip" type="button" hidden>리모컨 <kbd>R</kbd></button>
   <div id="remote" hidden>
@@ -372,25 +459,33 @@
   <div id="areas" class="chip" hidden></div>
   <div id="pens" class="chip" hidden>
     <div class="grp" id="penTools">
-      <button type="button" data-tool="hand" aria-pressed="false" title="끌어서 칠판을 옆으로 옮기기">이동</button>
-      <button type="button" data-tool="ball" aria-pressed="true" title="굵기가 고른 펜">볼펜</button>
-      <button type="button" data-tool="fount" aria-pressed="false" title="긋는 방향에 따라 획이 가늘어지고 굵어지는 펜">만년필</button>
-      <button type="button" data-tool="rub" aria-pressed="false" title="문지른 곳만 지우기">지우개</button>
-      <button type="button" data-tool="wipe" aria-pressed="false" title="닿은 획을 통째로 지우기">획 지우개</button>
+      <button type="button" class="slot" data-tool="hand" data-icon="hand" aria-pressed="false" aria-label="이동" title="이동: 끌어서 칠판을 옆으로 옮기기"></button>
+      <button type="button" class="slot" data-tool="ball" data-icon="ball" aria-pressed="true" aria-label="볼펜" title="볼펜: 굵기가 고른 펜"></button>
+      <button type="button" class="slot" data-tool="fount" data-icon="fount" aria-pressed="false" aria-label="만년필" title="만년필: 긋는 방향에 따라 획이 가늘어지고 굵어지는 펜"></button>
+      <div class="menu">
+        <button type="button" class="slot more" id="eraseBtn" aria-pressed="false" aria-haspopup="true" aria-expanded="false" aria-label="지우개" title="지우개: 누르면 지우는 방법을 고를 수 있어요"></button>
+        <div class="pop" id="erasePop" hidden>
+          <button type="button" data-erase="rub" data-icon="rub" aria-pressed="false" title="문지른 곳만 지우기">문지르기</button>
+          <button type="button" data-erase="wipe" data-icon="wipe" aria-pressed="false" title="닿은 획을 통째로 지우기">획 지우기</button>
+          <button type="button" data-erase="all" data-icon="tnt" title="칠판에 쓴 것을 모두 지우기">모두 지우기</button>
+        </div>
+      </div>
     </div>
-    <div class="grp" id="penColors">
-      <button type="button" data-color="0" aria-pressed="true" aria-label="색 1"></button>
-      <button type="button" data-color="1" aria-pressed="false" aria-label="색 2"></button>
-      <button type="button" data-color="2" aria-pressed="false" aria-label="색 3"></button>
-      <button type="button" data-color="3" aria-pressed="false" aria-label="색 4"></button>
-      <button type="button" data-color="4" aria-pressed="false" aria-label="색 5"></button>
+    <div class="grp menu">
+      <button type="button" class="slot more" id="colorBtn" aria-haspopup="true" aria-expanded="false" aria-label="색 고르기" title="색: 누르면 다른 색을 고를 수 있어요"><i class="block"></i></button>
+      <div class="pop" id="colorPop" hidden>
+        <button type="button" class="slot" data-color="0" aria-pressed="true" aria-label="색 1"><i class="block"></i></button>
+        <button type="button" class="slot" data-color="1" aria-pressed="false" aria-label="색 2"><i class="block"></i></button>
+        <button type="button" class="slot" data-color="2" aria-pressed="false" aria-label="색 3"><i class="block"></i></button>
+        <button type="button" class="slot" data-color="3" aria-pressed="false" aria-label="색 4"><i class="block"></i></button>
+        <button type="button" class="slot" data-color="4" aria-pressed="false" aria-label="색 5"><i class="block"></i></button>
+      </div>
     </div>
     <div class="grp" id="penSizes">
-      <button type="button" data-size="0" aria-pressed="false" aria-label="가늘게" title="가늘게"><i style="--d: 4px"></i></button>
-      <button type="button" data-size="1" aria-pressed="true" aria-label="보통 굵기" title="보통"><i style="--d: 8px"></i></button>
-      <button type="button" data-size="2" aria-pressed="false" aria-label="굵게" title="굵게"><i style="--d: 14px"></i></button>
+      <button type="button" class="slot" data-size="0" aria-pressed="false" aria-label="가늘게" title="가늘게"><i style="--d: 4px"></i></button>
+      <button type="button" class="slot" data-size="1" aria-pressed="true" aria-label="보통 굵기" title="보통"><i style="--d: 8px"></i></button>
+      <button type="button" class="slot" data-size="2" aria-pressed="false" aria-label="굵게" title="굵게"><i style="--d: 14px"></i></button>
     </div>
-    <button type="button" id="wipeBtn">모두 지우기</button>
   </div>
   <div id="invite" class="chip" hidden>
     <span>학생들에게 보낼 초대 링크</span>
@@ -416,7 +511,17 @@
       <input id="whisperText" maxlength="60" placeholder="소곤소곤… Enter로 쪽지 보내기" autocomplete="off" spellcheck="false">
     </form>
   </div>
-  <div id="help" class="chip"></div>
+  <div id="keys" hidden>
+    <div class="kb">
+      <div class="kbTop"><b id="keysTitle">조작법</b><span>키를 눌러 보면 불이 들어와요. 키에 마우스를 올리면 설명이 나와요.</span></div>
+      <div id="keyRows"></div>
+      <div class="kbFoot">
+        <label><input type="checkbox" id="keysSkip"> 다음부터 열지 않기</label>
+        <button type="button" id="keysClose"><kbd>H</kbd>닫기</button>
+      </div>
+    </div>
+  </div>
+  <button id="keysBtn" class="chip" type="button"><kbd>H</kbd>조작법</button>
   <div id="stick"><i></i></div>
   <button id="jump" type="button">점프</button>
 </div>
@@ -476,21 +581,22 @@ try {
 }
 
 /* ───────────── 설정 (강의실의 크기와 자리 배치는 아래 "강의실 짓기"의 FORMS 에 있어요) ───────────── */
-const CHARACTERS = {                                      // 캐릭터 옷·머리 색
+const CHARACTERS = {                                      // 기본 스킨 두 가지: 옷·머리 색 (이름은 없다. 이름은 들어올 때 적은 것만 쓴다)
   roy: {
-    name: '로이', hood: '#5fc46b', hoodDark: '#3f9f52', pants: '#44568a',
+    label: '초록 후드', hood: '#5fc46b', hoodDark: '#3f9f52', pants: '#44568a',
     hair: '#5a3a2a', hairLight: '#7b5340', longHair: false, pin: false,
   },
   stella: {
-    name: '스텔라', hood: '#ff9cc2', hoodDark: '#e9749f', pants: '#7c6bb0',
+    label: '분홍 후드', hood: '#ff9cc2', hoodDark: '#e9749f', pants: '#7c6bb0',
     hair: '#4b2e39', hairLight: '#6d4656', longHair: true, pin: true,
   },
 };
 const DOOR = { z: 5.7, w: 1.3, h: 2.3, y: 0 };            // 나가는 문 (오른쪽 벽). 위치는 강의실 형태마다 다르다
 const WALK = 2.4, RUN = 4.4, JUMP = 3.7, GRAVITY = 12;    // 걷기·달리기 속도, 점프 세기, 중력
-const AV = { leg: 0.44, body: 0.46, head: 0.4 };          // 캐릭터의 다리 · 몸통 · 머리 길이 (마인크래프트 · 로블록스처럼 머리가 작은 비율)
+// 캐릭터의 몸은 마인크래프트와 같은 비율이다: 한 점(u) = 4cm, 머리 8×8×8 · 몸통 8×12×4 · 팔다리 4×12×4 점 (키 32점 = 1.28m)
+const AV = { u: 0.04, leg: 0.48, body: 0.48, head: 0.32, armX: 0.24, shoulder: 0.88 };     // armX · shoulder = 어깨 관절의 옆 위치 · 높이
 const EYE_H = AV.leg + AV.body + AV.head / 2;             // 눈높이 = 머리 한가운데
-const SEAT_RISE = -0.07;                                  // 앉으면 엉덩이가 의자 높이까지 내려간다
+const SEAT_RISE = -0.11;                                  // 앉으면 엉덩이가 의자 높이까지 내려간다
 const MATE_WANDERS = true;                                // (혼자 입장했을 때) 친구가 가끔 자리를 옮길지
 
 // 다른 기기의 사람들과 함께 접속하려면 Supabase 프로젝트의 주소와 공개 키를 따옴표 안에 붙여 넣으세요.
@@ -810,59 +916,114 @@ const screenTex = makeTex(64, 36, (g, w, h) => {
 }, { smooth: true });
 screenTex.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
 
-// 아바타: 머리·몸·팔·다리 그림을 64×64 한 장에 모아 둔다 (캐릭터마다 색만 다르게)
-function makeAvatarTex(look) {
-  const tex = makeTex(64, 64, (g) => {
-    const R = (c, x, y, w, h) => { g.fillStyle = c; g.fillRect(x, y, w, h); };
-    const SKIN = '#ffdcb8', SKIN_D = '#f2c29b', EYE = '#2e2433', SOLE = '#d5d5d5', PIN = '#ffd84a';
-    const { hood: HOOD, hoodDark: HOOD_D, pants: PANTS, hair: HAIR, hairLight: HAIR_L } = look;
-    const lock = look.longHair ? 10 : 6;     // 얼굴 옆으로 내려오는 머리 길이
-    const back = look.longHair ? 11 : 9;     // 옆에서 본 뒷머리 길이
-
-    // 얼굴 (0,0)
-    R(SKIN, 0, 0, 16, 16);
-    R(HAIR, 0, 0, 16, 5);
-    R(HAIR, 0, 5, 2, lock); R(HAIR, 14, 5, 2, lock);
-    R(HAIR, 2, 5, 3, 1); R(HAIR, 6, 5, 2, 1); R(HAIR, 10, 5, 4, 1);
-    R(HAIR_L, 3, 1, 5, 1); R(HAIR_L, 10, 2, 3, 1);
-    if (look.pin) { R(PIN, 11, 3, 3, 1); R(PIN, 12, 2, 1, 3); }     // 별 머리핀
-    R(EYE, 3, 8, 3, 4); R(EYE, 10, 8, 3, 4);
-    R('#ffffff', 3, 8, 1, 2); R('#ffffff', 10, 8, 1, 2);
-    R('#ff9d9d', 2, 12, 2, 1); R('#ff9d9d', 12, 12, 2, 1);
-    R('#c9584e', 7, 12, 2, 1);
-    R(SKIN_D, 2, 15, 12, 1);
-    // 뒤통수 (16,0)
-    R(HAIR, 16, 0, 16, 14); R(SKIN, 16, 14, 16, 2);
-    if (look.longHair) R(HAIR, 16, 14, 16, 2);
-    else { R(HAIR, 16, 14, 3, 1); R(HAIR, 22, 14, 4, 1); R(HAIR, 29, 14, 3, 1); }
-    R(HAIR_L, 19, 2, 6, 1); R(HAIR_L, 26, 4, 3, 1);
-    // 옆머리 (32,0): 왼쪽 끝이 얼굴 쪽
-    R(SKIN, 32, 0, 16, 16); R(HAIR, 32, 0, 16, 5); R(HAIR, 32, 5, 2, lock); R(HAIR, 39, 5, 9, back);
-    R(SKIN_D, 36, 8, 2, 3); R(SKIN_D, 34, 15, 5, 1);
-    // 반대쪽 옆머리 (48,0): 오른쪽 끝이 얼굴 쪽
-    R(SKIN, 48, 0, 16, 16); R(HAIR, 48, 0, 16, 5); R(HAIR, 62, 5, 2, lock); R(HAIR, 48, 5, 9, back);
-    R(SKIN_D, 58, 8, 2, 3); R(SKIN_D, 57, 15, 5, 1);
-    // 정수리 (0,16) · 턱 밑 (16,16)
-    R(HAIR, 0, 16, 16, 16); R(HAIR_L, 4, 20, 6, 1); R(HAIR_L, 3, 21, 1, 3); R(HAIR_L, 10, 25, 3, 1);
-    R(SKIN_D, 16, 16, 16, 16);
-    // 후드티 앞 (32,16) · 뒤 (42,16) · 옆 (52,16) · 위아래 (58,16)
-    R(HOOD, 32, 16, 10, 10); R(HOOD_D, 35, 16, 4, 2); R('#ffffff', 35, 18, 1, 2); R('#ffffff', 38, 18, 1, 2);
-    R(HOOD_D, 34, 22, 6, 1); R(HOOD_D, 34, 22, 1, 3); R(HOOD_D, 39, 22, 1, 3); R(HOOD_D, 32, 25, 10, 1);
-    R(HOOD, 42, 16, 10, 10); R(HOOD_D, 44, 16, 6, 4); R(HOOD, 45, 16, 4, 3); R(HOOD_D, 42, 25, 10, 1);
-    R(HOOD, 52, 16, 6, 10); R(HOOD_D, 52, 25, 6, 1);
-    R(HOOD_D, 58, 16, 4, 4);
-    // 팔 (32,28) · 어깨 (36,28) · 손바닥 (40,28)
-    R(HOOD, 32, 28, 4, 7); R(HOOD_D, 32, 35, 4, 1); R(SKIN, 32, 36, 4, 2);
-    R(HOOD, 36, 28, 4, 4); R(SKIN, 40, 28, 4, 4);
-    // 다리 (32,40) · 위 (37,40) · 신발 바닥 (41,40)
-    R(PANTS, 32, 40, 5, 6); R('#fafafa', 32, 46, 5, 1); R(SOLE, 32, 47, 5, 1);
-    R(PANTS, 37, 40, 4, 4); R(SOLE, 41, 40, 4, 4);
-    // 감은 눈 (0,32): 배경은 투명
-    R(SKIN, 3, 40, 3, 4); R(SKIN, 10, 40, 3, 4); R(EYE, 3, 42, 3, 1); R(EYE, 10, 42, 3, 1);
-  });
-  tex.minFilter = THREE.NearestFilter;
+/* 아바타의 스킨: 마인크래프트 스킨과 같은 64×64 펼침면을 쓴다 (그래서 마인크래프트 스킨 PNG 를 그대로 입힐 수 있다).
+   부위마다 [오른쪽 옆 · 앞 · 왼쪽 옆 · 뒤] 가 한 줄로 놓이고 그 위에 [윗면 · 아랫면] 이 놓인다.
+     머리 (0,0)   몸통 (16,16)   오른팔 (40,16)   오른다리 (0,16)   왼팔 (32,48)   왼다리 (16,48)
+   slim = 팔 폭이 3점인 스킨, blink = 눈 깜빡임 그림(56,16)이 들어 있는 스킨 (기본 캐릭터만) */
+function makeSkin(canvas, { slim = false, blink = false } = {}) {
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.magFilter = tex.minFilter = THREE.NearestFilter;
   tex.generateMipmaps = false;
-  return tex;
+  return { canvas, slim, blink, ghost: null, mat: new THREE.MeshLambertMaterial({ map: tex, alphaTest: 0.5 }) };
+}
+function dropSkin(skin) {
+  skin.mat.map.dispose();
+  skin.mat.dispose();
+  if (skin.ghost) skin.ghost.dispose();
+}
+const blankSkin = () => Object.assign(document.createElement('canvas'), { width: 64, height: 64 });
+
+// 기본 스킨 두 가지(초록 후드 · 분홍 후드)를 그린다: 후드티 · 바지 · 운동화
+function defaultSkin(look) {
+  const canvas = blankSkin(), g = canvas.getContext('2d');
+  const R = (c, x, y, w, h) => { g.fillStyle = c; g.fillRect(x, y, w, h); };
+  const SKIN = '#ffdcb8', SKIN_D = '#f2c29b', EYE = '#2e2433', SHOE = '#fafafa', SOLE = '#d5d5d5', PIN = '#ffd84a';
+  const { hood: HOOD, hoodDark: HOOD_D, pants: PANTS, hair: HAIR, hairLight: HAIR_L } = look;
+  const long = look.longHair;
+
+  // 머리: 정수리 (8,0) · 턱 밑 (16,0)
+  R(HAIR, 8, 0, 8, 8); R(HAIR_L, 10, 2, 3, 1); R(HAIR_L, 9, 3, 1, 2); R(HAIR_L, 13, 5, 2, 1);
+  R(SKIN_D, 16, 0, 8, 8);
+  // 얼굴 (8,8)
+  R(SKIN, 8, 8, 8, 8); R(HAIR, 8, 8, 8, 2); R(HAIR_L, 10, 8, 2, 1);
+  R(HAIR, 8, 10, 1, long ? 6 : 2); R(HAIR, 15, 10, 1, long ? 6 : 2);
+  R(HAIR, 10, 10, 1, 1); R(HAIR, 12, 10, 2, 1);
+  if (look.pin) R(PIN, 13, 9, 2, 1);               // 머리핀
+  R('#ffffff', 9, 11, 1, 2); R(EYE, 10, 11, 1, 2); R(EYE, 13, 11, 1, 2); R('#ffffff', 14, 11, 1, 2);
+  R('#ff9d9d', 9, 13, 1, 1); R('#ff9d9d', 14, 13, 1, 1);
+  R('#c9584e', 11, 14, 2, 1);
+  R(SKIN_D, 9, 15, 6, 1);
+  // 오른쪽 옆머리 (0,8): 오른쪽 끝이 얼굴 쪽 · 왼쪽 옆머리 (16,8): 왼쪽 끝이 얼굴 쪽
+  R(SKIN, 0, 8, 8, 8); R(HAIR, 0, 8, 8, 3); R(HAIR, 0, 11, 4, long ? 5 : 3); R(HAIR, 7, 11, 1, long ? 5 : 1); R(SKIN_D, 4, 12, 1, 2);
+  R(SKIN, 16, 8, 8, 8); R(HAIR, 16, 8, 8, 3); R(HAIR, 20, 11, 4, long ? 5 : 3); R(HAIR, 16, 11, 1, long ? 5 : 1); R(SKIN_D, 19, 12, 1, 2);
+  // 뒤통수 (24,8)
+  R(HAIR, 24, 8, 8, 8); R(HAIR_L, 26, 9, 3, 1); R(HAIR_L, 29, 11, 2, 1);
+  if (!long) { R(SKIN, 24, 15, 8, 1); R(HAIR, 24, 15, 2, 1); R(HAIR, 27, 15, 2, 1); R(HAIR, 31, 15, 1, 1); }
+  // 감은 눈 (56,16): 눈 자리만 덮고 나머지는 투명
+  R(SKIN_D, 57, 19, 2, 2); R(SKIN_D, 61, 19, 2, 2); R(EYE, 57, 20, 2, 1); R(EYE, 61, 20, 2, 1);
+
+  // 몸통: 어깨 위 (20,16) · 아래 (28,16) · 오른쪽 옆 (16,20) · 앞 (20,20) · 왼쪽 옆 (28,20) · 뒤 (32,20)
+  R(HOOD_D, 20, 16, 8, 4); R(PANTS, 28, 16, 8, 4);
+  R(HOOD, 16, 20, 24, 12); R(HOOD_D, 16, 31, 24, 1);
+  R(HOOD_D, 22, 20, 4, 2); R(SKIN, 23, 20, 2, 1); R('#ffffff', 22, 22, 1, 2); R('#ffffff', 25, 22, 1, 2);
+  R(HOOD_D, 21, 26, 6, 1); R(HOOD_D, 21, 26, 1, 3); R(HOOD_D, 26, 26, 1, 3);
+  R(HOOD_D, 33, 20, 6, 4); R(HOOD, 34, 20, 4, 3);
+  if (long) R(HAIR, 33, 20, 6, 3);                 // 긴 머리가 등으로 내려온다
+  // 팔 (오른팔 40,16 · 왼팔 32,48): 소매 · 손
+  for (const [x, y] of [[40, 16], [32, 48]]) {
+    R(HOOD, x, y + 4, 16, 12); R(HOOD_D, x, y + 12, 16, 1); R(SKIN, x, y + 13, 16, 3);
+    R(HOOD, x + 4, y, 4, 4); R(SKIN, x + 8, y, 4, 4);
+  }
+  // 다리 (오른다리 0,16 · 왼다리 16,48): 바지 · 운동화
+  for (const [x, y] of [[0, 16], [16, 48]]) {
+    R(PANTS, x, y + 4, 16, 12); R(SHOE, x, y + 13, 16, 2); R(SOLE, x, y + 15, 16, 1);
+    R(PANTS, x + 4, y, 4, 4); R(SOLE, x + 8, y, 4, 4);
+  }
+  return makeSkin(canvas, { blink: true });
+}
+
+// 마인크래프트 스킨 그림을 이 캐릭터에 맞게 다듬는다. 스킨이 아니면 null
+//   · 64×64 (요즘 스킨) 과 64×32 (옛 스킨: 왼팔 · 왼다리는 오른쪽을 뒤집어 쓴다) 를 받는다. 큰 그림(128 …)은 64 로 줄인다
+//   · 겉옷 층(모자 · 재킷 · 소매 · 바지 겉감)은 따로 그리지 않고 속 그림 위에 겹쳐 한 장으로 만든다 (그릴 도형을 늘리지 않으려고)
+function skinFromImage(img) {
+  const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+  if (!(w >= 64 && w <= 1024 && w % 64 === 0 && (h === w || h * 2 === w))) return null;
+  const old = h !== w;
+  const src = Object.assign(document.createElement('canvas'), { width: 64, height: old ? 32 : 64 });
+  const sg = src.getContext('2d', { willReadFrequently: true });
+  sg.imageSmoothingEnabled = false;
+  sg.drawImage(img, 0, 0, 64, src.height);
+  const clear = (x, y, cw, ch) => sg.getImageData(x, y, cw, ch).data.every((v, i) => i % 4 !== 3 || v === 0);       // 모두 투명한지
+  const solid = (x, y, cw, ch) => sg.getImageData(x, y, cw, ch).data.every((v, i) => i % 4 !== 3 || v === 255);    // 모두 불투명한지
+  const slim = !old && clear(54, 20, 2, 12);       // 팔이 3점짜리 스킨은 오른팔 칸의 끝 두 줄이 비어 있다
+
+  const canvas = blankSkin(), g = canvas.getContext('2d');
+  g.imageSmoothingEnabled = false;
+  g.fillStyle = '#000000';                         // 속 그림의 빈 곳은 마인크래프트처럼 검게 나온다
+  g.fillRect(0, 0, 64, 64);
+  g.drawImage(src, 0, 0);
+  if (old) {                                       // 옛 스킨: 오른팔 · 오른다리를 좌우로 뒤집어 왼쪽을 만든다
+    const flip = (sx, sy, cw, ch, dx, dy) => {
+      g.save();
+      g.translate(dx + cw, dy);
+      g.scale(-1, 1);
+      g.drawImage(src, sx, sy, cw, ch, 0, 0, cw, ch);
+      g.restore();
+    };
+    for (const [sx, sy, dx, dy] of [[0, 16, 16, 48], [40, 16, 32, 48]]) {
+      flip(sx + 4, sy, 4, 4, dx + 4, dy); flip(sx + 8, sy, 4, 4, dx + 8, dy);
+      flip(sx, sy + 4, 4, 12, dx + 8, dy + 4); flip(sx + 4, sy + 4, 4, 12, dx + 4, dy + 4);
+      flip(sx + 8, sy + 4, 4, 12, dx, dy + 4); flip(sx + 12, sy + 4, 4, 12, dx + 12, dy + 4);
+    }
+  }
+  if (!old || !solid(32, 0, 32, 16)) g.drawImage(src, 32, 0, 32, 16, 0, 0, 32, 16);     // 모자 (옛 스킨의 꽉 찬 모자 칸은 그림이 아니다)
+  if (!old) {
+    g.drawImage(src, 0, 32, 56, 16, 0, 16, 56, 16);          // 오른다리 · 몸통 · 오른팔의 겉옷
+    g.drawImage(src, 0, 48, 16, 16, 16, 48, 16, 16);         // 왼다리 겉옷
+    g.drawImage(src, 48, 48, 16, 16, 32, 48, 16, 16);        // 왼팔 겉옷
+  }
+  return { canvas, slim };
 }
 
 /* ───────────── 강의실 짓기 ─────────────
@@ -952,7 +1113,7 @@ const stairTex = makeTex(8, 16, (g) => {
   g.fillRect(0, 13, 8, 3);
 }, { repeat: true });
 // 칠판 바탕: 화이트보드 · 그린보드(분필 자국) · 자유 보드(모눈 점)
-function boardTexOf(base, line, stains) {       // 512px = 2m. 25cm 마다 가는(1pt) 격자선
+function boardTexOf(base, line, stains) {       // 512px = 2m. 12.5cm 마다 가는(1pt) 격자선
   const tex = makeTex(512, 512, (g) => {
     const r = rng(41);
     g.fillStyle = base;
@@ -968,7 +1129,7 @@ function boardTexOf(base, line, stains) {       // 512px = 2m. 25cm 마다 가�
       }
     }
     g.fillStyle = line;
-    for (let k = 0; k < 512; k += 64) {
+    for (let k = 0; k < 512; k += 32) {
       g.fillRect(k, 0, 1, 512);
       g.fillRect(0, k, 512, 1);
     }
@@ -1000,18 +1161,40 @@ const sunMat = keep(new THREE.MeshBasicMaterial({
 }));
 const clockMat = keep(new THREE.MeshBasicMaterial({ map: clockTex, transparent: true, depthWrite: false }));
 const doorMat = keep(new THREE.MeshLambertMaterial({ map: doorTex }));
+// 문 위의 비상구 표지: 글자 없이 그림으로. 흔히 보는 비상구 표지처럼 초록 바탕에 흰 문 · 문으로 달려가는 사람 · 화살표
 const signMat = keep(new THREE.MeshBasicMaterial({
-  map: makeTex(128, 48, (g) => {
-    g.fillStyle = '#2f9e62';
-    g.fillRect(0, 0, 128, 48);
-    g.strokeStyle = '#eafff3';
-    g.lineWidth = 3;
-    g.strokeRect(4.5, 4.5, 119, 39);
-    g.fillStyle = '#ffffff';
-    g.font = `800 28px ${UI_FONT}`;
-    g.textAlign = 'center';
-    g.textBaseline = 'middle';
-    g.fillText('나가는 문', 64, 25);
+  map: makeTex(336, 128, (g) => {
+    g.fillStyle = '#17964f';
+    g.fillRect(0, 0, 336, 128);
+    g.strokeStyle = g.fillStyle = '#ffffff';
+    g.lineWidth = 5;
+    g.strokeRect(6.5, 6.5, 323, 115);
+    g.fillRect(30, 20, 74, 92);                    // 열린 문
+    g.lineCap = g.lineJoin = 'round';
+    const line = (width, ...pts) => {
+      g.lineWidth = width;
+      g.beginPath();
+      g.moveTo(pts[0], pts[1]);
+      for (let k = 2; k < pts.length; k += 2) g.lineTo(pts[k], pts[k + 1]);
+      g.stroke();
+    };
+    // 달리는 사람 (왼쪽의 문을 향해): 머리 · 몸통 · 앞팔 · 뒤팔 · 앞다리 · 뒷다리
+    g.beginPath();
+    g.arc(160, 30, 13, 0, Math.PI * 2);
+    g.fill();
+    line(17, 168, 50, 190, 78);
+    line(12, 170, 52, 146, 62, 130, 50);
+    line(12, 172, 52, 196, 54, 212, 40);
+    line(14, 190, 78, 164, 86, 148, 110);
+    line(14, 190, 78, 210, 96, 236, 98);
+    // 문 쪽을 가리키는 화살표
+    line(12, 310, 64, 272, 64);
+    g.beginPath();
+    g.moveTo(254, 64);
+    g.lineTo(280, 42);
+    g.lineTo(280, 86);
+    g.closePath();
+    g.fill();
   }, { smooth: true }),
 }));
 const corkMat = keep(new THREE.MeshLambertMaterial({ map: boardTex }));
@@ -1057,35 +1240,38 @@ const LOOKS = {
 };
 
 /* ── 강의실 형태 ──
-   w · d · h   가로 · 깊이 · 높이          board   칠판의 가로 · 세로 · 가운데 높이
+   w · d · h   가로 · 깊이 · 높이          board   칠판의 가로 · 세로 · 아래쪽 높이
+   칠판 높이는 강의실의 구조로 정한다: 선생님이 서는 바닥(단상 · 무대)에서 95cm 쯤, 곧 올라선 캐릭터의 가슴께에 아래쪽이 온다
    doorZ       나가는 문 (오른쪽 벽)       spawn   들어왔을 때 서는 곳 [x0, x1, z0, z1]
    area · cap  테이블을 놓는 곳과 정원     solo    개인 책상의 열(x) · 줄(z)
    fixed       고정 좌석 (계단 · 무대 · 2층도 여기서 만든다)   floorAt  바닥 높이 */
 const FORMS = {
   small: {
-    name: '소형', note: '10명', look: 'seminar', w: 9, d: 9, h: 3.8, dais: true,
-    board: [4.4, 2.475, 2.25], doorZ: 3.2, win: [-1.9, 1.9], cork: [-1.4, 2.2, 2.8, 1.4],
+    name: '소형', note: '10명', look: 'seminar', w: 9, d: 9, h: 3.8, dais: 0.2,
+    board: [4.4, 2.475, 1.15], doorZ: 3.2, win: [-1.9, 1.9], cork: [-1.4, 2.2, 2.8, 1.4],
     spawn: [-3.4, 2.2, 2.7, 3.9], area: [-3.7, 3.7, -1.7, 2.6], cap: 10,
     solo: { cols: [-3.2, -1.6, 0, 1.6, 3.2], rows: [-1.2, 0.6] },          // 개인 책상은 사이사이를 띄워 놓는다
   },
   mid: {
-    name: '중형', note: '24명', look: 'classroom', w: 12, d: 16, h: 4.6, dais: true,      // dais = 칠판 아래에 단상(교단)을 놓는다
-    board: [6.0, 3.375, 2.64], doorZ: 5.7, win: [-4.5, 0, 4.5], cork: [-2.2, 2.4, 3.6, 1.8],
+    name: '중형', note: '24명', look: 'classroom', w: 12, d: 16, h: 4.6, dais: 0.3,       // dais = 칠판 아래에 놓는 단상(교단)의 높이
+    board: [6.0, 3.375, 1.25], doorZ: 5.7, win: [-4.5, 0, 4.5], cork: [-2.2, 2.4, 3.6, 1.8],
     spawn: [-4, 3.5, 3.7, 6.7], area: [-4.6, 4.6, -3.9, 3.3], cap: 24,
     solo: { cols: [-4.0, -2.4, -0.8, 0.8, 2.4, 4.0], rows: [-3.4, -1.6, 0.2, 2.0] },
   },
   large: {
-    name: '대형', note: '100명', look: 'lecture', w: 18, d: 24, h: 5.4, dais: true,
-    board: [12.8, 3.2, 2.85], doorZ: 10.6, win: [-8, -4, 0, 4, 8], cork: [-3, 2.5, 4.4, 2.0],
-    spawn: [-7, 6.5, 10.3, 11.3], area: [-7.9, 7.9, -6.9, 9.6], cap: 100,
+    // 가로로 긴 방: 긴 벽(24m)에 칠판을 걸어서, 줄 수가 적고 맨 뒷자리도 칠판에서 가깝다
+    name: '대형', note: '100명', look: 'lecture', w: 24, d: 18, h: 5.4, dais: 0.5,
+    board: [16, 3.2, 1.45], doorZ: 7.8, win: [-5.2, -1.75, 1.75, 5.2], cork: [-3, 2.5, 4.4, 2.0],
+    spawn: [-9.5, 9, 7.6, 8.5], area: [-10.9, 10.9, -4.4, 6.7], cap: 100,
     solo: {
-      cols: Array.from({ length: 10 }, (_, i) => -7.2 + i * 1.6),
-      rows: Array.from({ length: 10 }, (_, j) => -6.6 + j * 1.7),
+      cols: Array.from({ length: 13 }, (_, i) => -9.6 + i * 1.6),
+      rows: Array.from({ length: 8 }, (_, j) => -4.2 + j * 1.5),
+      skip: (x, z) => z > 6 && Math.abs(x) > 7,      // 맨 뒷줄 양 끝 두 자리씩은 비운다 (13 × 8 − 4 = 100, 문 앞도 넓어진다)
     },
   },
   tier: {
     name: '계단식', note: '96명', look: 'wood', w: 15, d: 16, h: 5.8,
-    board: [7.2, 4.05, 3.1], doorZ: 7.3, spawn: [-5.5, 4.5, 6.95, 7.55], lectern: [5.2, -5.8],
+    board: [7.2, 4.05, 1.2], doorZ: 7.3, spawn: [-5.5, 4.5, 6.95, 7.55], lectern: [5.2, -5.8],
     // 앞쪽 5m 는 평평하고, 그 뒤로 1.6m 마다 24cm 씩 여섯 단이 올라간다
     floorAt: (x, z) => (z < -3 ? 0 : Math.min(6, Math.floor((z + 3) / 1.6) + 1) * 0.24),
     fixed(P, unit) {
@@ -1107,7 +1293,7 @@ const FORMS = {
   },
   hall: {
     name: '강당', note: '220명', look: 'theater', w: 20, d: 26, h: 8.6, curtains: true,
-    board: [9.6, 5.4, 4.34], doorZ: -1.2, spawn: [-7, 7, 3.4, 5.6], lectern: [6, -10.6],
+    board: [9.6, 5.4, 1.65], doorZ: -1.2, spawn: [-7, 7, 3.4, 5.6], lectern: [6, -10.6],
     floorAt(x, z) {
       if (z < -8.6) return 0.72;                                                       // 무대
       if (z < -7.7 && Math.abs(x) < 1.6) return z < -8.15 ? 0.48 : 0.24;               // 무대로 오르는 두 단
@@ -1159,7 +1345,7 @@ const FORMS = {
    per 한 테이블의 자리 수 · fw/fd 의자까지 포함한 가로/세로 · gap 테이블 사이 간격 */
 const TABLES = {
   solo: { name: '개인', note: '책상', per: 1 },
-  t2: { name: '2인', note: '짝꿍 (나란히)', per: 2, fw: 1.3, fd: 1.15, gap: 0.6, put: pairDesk },
+  t2: { name: '2인', note: '짝꿍', per: 2, fw: 1.3, fd: 1.15, gap: 0.6, put: pairDesk },
   t2f: { name: '2인', note: '마주 보기', per: 2, fw: 1.9, fd: 0.8, gap: 0.9, put: (P, x, z) => rectTable(P, x, z, 0.8, 0.8, [0]) },
   // 4인 · 6인은 옆 사람과 어깨가 닿지 않게 자리 사이를 90cm · 85cm 로 띄운다
   t4: { name: '4인', note: '모둠', per: 4, fw: 2.3, fd: 1.6, gap: 0.9, put: (P, x, z) => rectTable(P, x, z, 1.2, 1.6, [-0.45, 0.45]) },
@@ -1391,7 +1577,7 @@ function placeBoard() {
   inkMesh.position.set(0, y, z + 0.008);
   screenObj.boxes[0].min.set(-w / 2 - 0.15, y - h / 2 - 0.15, z - 0.09);
   screenObj.boxes[0].max.set(w / 2 + 0.15, y + h / 2 + 0.15, z);
-  const iw = 1536, ih = Math.round(iw * h / w);
+  const iw = clamp(Math.round(w * 120), 1536, 3072), ih = Math.round(iw * h / w);     // 긴 칠판은 그만큼 촘촘하게 (1m 에 120점)
   if (ink.canvas.width !== iw || ink.canvas.height !== ih) {      // 칠판 크기가 바뀌면 판서도 새로 시작한다
     ink.canvas.width = iw;
     ink.canvas.height = ih;
@@ -1410,10 +1596,128 @@ function applyBoard() {
   boardTray.visible = inkMesh.visible = cfg.board !== 'video';     // 영상 스크린에는 받침과 판서가 없다
 }
 
+/* ── 전신 거울 (문 옆 벽) ──
+   거울에 비친 모습은 강의실을 거울 뒤쪽에서 한 번 더 그려서 만든다. 그만큼 그릴 것이 늘어나므로 부하를 이렇게 줄인다:
+   · 거울에서 MIRROR.far 안에 있고 거울이 화면에 보일 때만 그린다. 멀어지면 은빛 유리로만 보인다
+   · 거울 속은 멀리까지 보이지 않는다. 거울에서 몇 m 너머는 은빛으로 흐려지고, 그보다 먼 것은 아예 그리지 않는다
+   · 작은 그림(640×400)으로 그린다 */
+const MIRROR = { w: 0.9, h: 1.8, near: 3.5, far: 5.5, deep: 3, end: 7 };      // near~far = 유리가 은빛으로 바뀌는 거리, deep~end = 거울 속이 흐려지는 깊이
+const mirrorHaze = new THREE.Color('#b7c6d2');
+const mirrorFog = new THREE.Fog(mirrorHaze, 1, 2);
+const mirrorRT = new THREE.WebGLRenderTarget(640, 400);
+const mirrorCam = new THREE.PerspectiveCamera();
+const mirrorMat = keep(new THREE.ShaderMaterial({
+  uniforms: { map: { value: mirrorRT.texture }, texMat: { value: new THREE.Matrix4() }, haze: { value: mirrorHaze }, fade: { value: 1 } },
+  vertexShader: `
+    uniform mat4 texMat;
+    varying vec4 vAt;
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      vAt = texMat * vec4(position, 1.0);
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }`,
+  fragmentShader: `
+    uniform sampler2D map;
+    uniform vec3 haze;
+    uniform float fade;
+    varying vec4 vAt;
+    varying vec2 vUv;
+    void main() {
+      vec3 seen = texture2DProj(map, vAt).rgb * vec3(0.94, 0.97, 0.99);
+      vec3 glass = mix(seen, haze, fade);
+      // 유리의 반짝임: 왼쪽 위에 흰 대각선 두 줄 (굵은 것 · 가는 것). 도트 그림처럼 2cm 계단으로 끊는다
+      vec2 p = floor(vUv * vec2(45.0, 90.0)) * 0.02;        // 유리 위의 위치 (m)
+      float across = p.x - p.y, along = p.x + p.y;
+      float glint = step(-1.40, across) * step(across, -1.31) * step(1.40, along) * step(along, 2.02)
+                  + step(-1.25, across) * step(across, -1.21) * step(1.52, along) * step(along, 1.92);
+      // 유리 가장자리: 깎은 모서리가 빛나는 것처럼 흰 테 한 줄과 그 안쪽의 옅은 한 줄
+      vec2 inset = min(p, vec2(0.88, 1.78) - p);
+      float edge = min(inset.x, inset.y);
+      float rim = step(edge, 0.005) * 0.7 + step(0.015, edge) * step(edge, 0.025) * 0.25;
+      gl_FragColor = vec4(mix(glass, vec3(1.0), max(0.6 * min(glint, 1.0), rim)), 1.0);
+      #include <tonemapping_fragment>
+      #include <colorspace_fragment>
+    }`,
+}));
+const mirrorFrameMat = keep(new THREE.MeshLambertMaterial({ color: '#6b4a2b' }));
+const mirrorGlass = new THREE.Mesh(quad, mirrorMat);
+mirrorGlass.scale.set(MIRROR.w, MIRROR.h, 1);
+mirrorGlass.rotation.y = -Math.PI / 2;           // 오른쪽 벽에 걸려 강의실 안쪽을 본다
+mirrorGlass.visible = false;
+scene.add(mirrorGlass);
+const mirrorBox = new THREE.Box3();
+let mirrorCalls = 0;                             // 거울을 그리느라 늘어난 그리기 호출 수
+{
+  const N = new THREE.Vector3(), P = new THREE.Vector3(), C = new THREE.Vector3(), V = new THREE.Vector3(), T = new THREE.Vector3();
+  const rot = new THREE.Matrix4(), view = new THREE.Matrix4(), frustum = new THREE.Frustum(), plane = new THREE.Plane();
+  const clip = new THREE.Vector4(), q = new THREE.Vector4();
+  // 화면을 그리기 바로 전에 부른다: 거울이 가까이 보이면 거울 속 모습을 새로 그린다
+  var mirrorThink = () => {
+    mirrorCalls = 0;
+    if (!mirrorGlass.visible) return;
+    camera.updateMatrixWorld();
+    P.setFromMatrixPosition(mirrorGlass.matrixWorld);
+    C.setFromMatrixPosition(camera.matrixWorld);
+    N.set(0, 0, 1).applyMatrix4(rot.extractRotation(mirrorGlass.matrixWorld));
+    V.subVectors(P, C);
+    const gap = -V.dot(N), dist = V.length();    // gap = 거울 면에서 카메라까지의 거리 (앞쪽이면 +)
+    const fade = gap > 0.01 ? clamp((dist - MIRROR.near) / (MIRROR.far - MIRROR.near), 0, 1) : 1;
+    mirrorMat.uniforms.fade.value = fade;
+    if (fade >= 1) return;
+    if (!frustum.setFromProjectionMatrix(view.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)).intersectsBox(mirrorBox)) return;
+
+    // 거울 뒤쪽의 카메라: 내 카메라를 거울 면에 대칭으로 옮긴 것
+    rot.extractRotation(camera.matrixWorld);
+    mirrorCam.position.copy(V).reflect(N).negate().add(P);
+    T.set(0, 0, -1).applyMatrix4(rot).add(C);
+    T.subVectors(P, T).reflect(N).negate().add(P);
+    mirrorCam.up.set(0, 1, 0).applyMatrix4(rot).reflect(N);
+    mirrorCam.lookAt(T);
+    mirrorCam.fov = camera.fov;
+    mirrorCam.aspect = camera.aspect;
+    mirrorCam.near = camera.near;
+    mirrorCam.far = gap + MIRROR.end + 0.3;      // 거울 속에서 흐려진 곳 너머는 그리지 않는다
+    mirrorCam.updateProjectionMatrix();
+    mirrorCam.updateMatrixWorld();
+    mirrorMat.uniforms.texMat.value.set(0.5, 0, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0, 0.5, 0.5, 0, 0, 0, 1)
+      .multiply(mirrorCam.projectionMatrix).multiply(mirrorCam.matrixWorldInverse).multiply(mirrorGlass.matrixWorld);
+    // 거울 면보다 뒤(벽 속)에 있는 것은 잘라 낸다
+    plane.setFromNormalAndCoplanarPoint(N, P).applyMatrix4(mirrorCam.matrixWorldInverse);
+    clip.set(plane.normal.x, plane.normal.y, plane.normal.z, plane.constant);
+    const e = mirrorCam.projectionMatrix.elements;
+    q.set((Math.sign(clip.x) + e[8]) / e[0], (Math.sign(clip.y) + e[9]) / e[5], -1, (1 + e[10]) / e[14]);
+    clip.multiplyScalar(2 / clip.dot(q));
+    e[2] = clip.x;
+    e[6] = clip.y;
+    e[10] = clip.z + 1 - 0.003;
+    e[14] = clip.w;
+
+    // 거울 속에서는 내 머리도 보이고, 손에 든 리모컨(내 눈앞에만 있는 것)은 보이지 않는다
+    const head = player.model.head, headWas = head.visible, heldWas = held.visible, bg = scene.background;
+    head.visible = true;
+    held.visible = false;
+    mirrorGlass.visible = false;
+    mirrorFog.near = gap + MIRROR.deep;
+    mirrorFog.far = gap + MIRROR.end;
+    scene.fog = mirrorFog;
+    scene.background = mirrorHaze;
+    renderer.setRenderTarget(mirrorRT);
+    renderer.render(scene, mirrorCam);
+    renderer.setRenderTarget(null);
+    mirrorCalls = renderer.info.render.calls;
+    scene.fog = null;
+    scene.background = bg;
+    head.visible = headWas;
+    held.visible = heldWas;
+    mirrorGlass.visible = true;
+  };
+}
+
 /* ── 칠판 크기: 작게 · 보통 · 넓게 · 길게 (강의실마다 그 강의실에 맞는 크기로 정해진다) ── */
 const BSIZES = { s: { name: '작게' }, m: { name: '보통' }, l: { name: '넓게' }, x: { name: '길게', note: '벽 끝까지' } };
 function boardSize(F) {
-  const [w, h, y] = F.board, wide = h * 16 / 9, max = F.w - 1.6;
+  const [w, h, low] = F.board, y = low + h / 2, wide = h * 16 / 9, max = F.w - 1.6;
   if (cfg.size === 's') {            // 보통이 16:9 면 그 70%, 보통이 긴 칠판이면 16:9 로
     const k = w > wide + 0.1 ? 1 : 0.7;
     return [wide * k, h * k, y - h / 2 + h * k / 2];
@@ -1422,26 +1726,7 @@ function boardSize(F) {
   if (cfg.size === 'x') return [max, h, y];
   return [w, h, y];
 }
-const BOARD_LIFT = 0.6;              // 칠판을 얼마나 올릴지 (1 = 어느 자리에서도 전혀 가리지 않는 높이까지, 0 = 올리지 않음)
-// 모든 자리에 사람이 앉았을 때, 어느 자리에서 봐도 앞사람 머리에 칠판이 가리지 않으려면 칠판 아래쪽이 얼마나 높아야 하는지.
-// 눈에서 앞사람 머리 위를 스쳐 칠판까지 그은 선의 높이 가운데 가장 높은 값이다 (같은 테이블에 바짝 붙어 앉은 사람은 빼고 센다)
-function clearHeight(bw) {
-  const EYE = EYE_H + SEAT_RISE, TOP = AV.leg + AV.body + AV.head + SEAT_RISE, zB = -HD + 0.09;
-  let need = 0;
-  for (const a of seats) {
-    const ey = a.y + EYE, far = a.sit.z - zB;
-    for (const b of seats) {
-      const d = a.sit.z - b.sit.z, up = b.y + TOP - ey;
-      if (d < 1) continue;                             // 내 뒤나 옆에 있는 사람 (계단식에서는 눈보다 낮은 머리도 아래쪽을 가릴 수 있다)
-      const k = far / d;
-      if (Math.abs(a.sit.x + (b.sit.x - a.sit.x) * k) - 0.2 * k > bw / 2) continue;     // 머리에 가리는 곳이 칠판 밖이다
-      need = Math.max(need, ey + up * k);
-    }
-  }
-  return need;
-}
-
-const DAIS = { d: 2.0, chest: 0.95, tread: 0.3 };     // 칠판 아래 단상: 깊이 · 캐릭터의 가슴 높이(단상 높이를 정하는 기준) · 계단 한 단의 깊이
+const DAIS = { d: 2.0, tread: 0.3 };     // 칠판 아래 단상: 깊이 · 계단 한 단의 깊이
 
 /* ── 강의실을 지금 설정대로 새로 짓는다 ── */
 function buildRoom() {
@@ -1478,24 +1763,22 @@ function buildRoom() {
   // 자리: 책상 · 의자 · 테이블을 종류별로 모아 두었다가 한꺼번에 그린다
   const P = { desk: [], round: [], chair: [], metal: [], shadow: [] };
   if (F.fixed) F.fixed(P, unit);
-  else if (cfg.table === 'solo') for (const z of F.solo.rows) for (const x of F.solo.cols) soloDesk(P, x, 0, z);
+  else if (cfg.table === 'solo') for (const z of F.solo.rows) for (const x of F.solo.cols) { if (!F.solo.skip?.(x, z)) soloDesk(P, x, 0, z); }
   else {
     const T = TABLES[cfg.table];
     for (const c of fit(F.area, T, F.cap)) T.put(P, c.x, c.z);
   }
   ARM_SIT = F.fixed ? -0.45 : -1.25;
 
-  // 칠판: 크기를 정하고, 모두 앉았을 때 앞사람 머리에 덜 가리도록 아래쪽을 올린다. 천장도 그만큼 높아진다.
-  // 하나도 가리지 않을 높이까지 다 올리면 칠판이 너무 높아져서, 그 60% 만큼만 올리고 2.6m 를 넘기지 않는다
+  // 칠판: 크기와 높이는 강의실마다 정해져 있다 (자리 배치와는 상관없다). 천장은 칠판 위로 여유가 있게 맞춘다
   const [bw, bh, by] = boardSize(F);
-  const low = by - bh / 2;
-  const bottom = Math.min(2.6, Math.round((low + Math.max(0, clearHeight(bw) - low) * BOARD_LIFT) * 20) / 20);
+  const bottom = Math.round((by - bh / 2) * 100) / 100;
   const H = Math.max(F.h, bottom + bh + (F.curtains ? 1.5 : 0.55));
 
-  // 칠판 아래 단상(교단): 방 앞쪽을 벽에서 벽까지 가로지른다. 높이는 캐릭터의 키에 맞춰,
-  // 올라서면 칠판 아래쪽이 가슴께에 오도록 정한다. 한 걸음에 오르기엔 높아서 앞쪽에 계단을 둔다.
-  // 교탁은 단상 위 오른쪽 끝에 놓는다. 단상이 없는 강의실에서는 교탁 뒤에 낮은 발판을 따로 둔다
-  const daisH = F.dais ? clamp(Math.round((bottom - DAIS.chest) * 20) / 20, 0.2, 0.9) : 0;
+  // 칠판 아래 단상(교단): 방 앞쪽을 벽에서 벽까지 가로지른다. 올라서면 칠판 아래쪽이 가슴께에 온다.
+  // 한 걸음에 오르기엔 높으면 앞쪽에 계단을 둔다. 교탁은 단상 위 오른쪽 끝에 놓는다.
+  // 단상이 없는 강의실에서는 교탁 뒤에 낮은 발판을 따로 둔다
+  const daisH = F.dais || 0;
   const steps = Math.ceil(daisH / 0.3), stepH = steps ? daisH / steps : 0, edge = -HD + DAIS.d;
   const [lx, lz] = F.dais ? [HW - 1.3, -HD + 1.5] : F.lectern || [HW - 1.8, -HD + 2.1];
   const ly = F.dais ? daisH : ground(lx, lz), pod = F.dais ? 0 : 0.14;
@@ -1526,7 +1809,7 @@ function buildRoom() {
   wallPiece(F.d, H, HW, 0, 0, -Math.PI / 2);        // 오른쪽 벽 (문)
 
   // 천장 조명판 → 그리기 호출 1번
-  const lightX = F.w > 14 ? [-0.36, -0.12, 0.12, 0.36] : [-0.233, 0.233];
+  const lightX = F.w > 20 ? [-0.41, -0.246, -0.082, 0.082, 0.246, 0.41] : F.w > 14 ? [-0.36, -0.12, 0.12, 0.36] : [-0.233, 0.233];
   const lightN = Math.max(2, Math.round(F.d / 5.3));
   const panels = [];
   for (let j = 0; j < lightN; j++) for (const k of lightX) {
@@ -1585,6 +1868,22 @@ function buildRoom() {
   addStatic(exitSign);
   doorObj.boxes[0].min.set(HW - 0.06, DOOR.y, DOOR.z - DOOR.w / 2);
   doorObj.boxes[0].max.set(HW - 0.01, DOOR.y + DOOR.h, DOOR.z + DOOR.w / 2);
+  // 문 옆 벽의 전신 거울: 문에서 칠판 쪽으로 (자리가 마땅치 않으면 반대쪽), 바닥이 문 앞과 같은 높이인 곳에 건다
+  mirrorGlass.visible = false;
+  for (const side of [-1, 1]) {
+    const mz = DOOR.z + side * (DOOR.w / 2 + 0.4 + MIRROR.w / 2), my = DOOR.y + 0.14 + MIRROR.h / 2;
+    const level = (z) => Math.abs(floorAt(HW - 0.4, z) - DOOR.y) < 0.02;
+    if (Math.abs(mz) + MIRROR.w / 2 > HD - 0.3 || !level(mz - MIRROR.w / 2) || !level(mz + MIRROR.w / 2)) continue;
+    const frame = new THREE.Mesh(box, mirrorFrameMat);
+    frame.scale.set(0.05, MIRROR.h + 0.14, MIRROR.w + 0.14);
+    frame.position.set(HW - 0.035, my, mz);
+    addStatic(frame);
+    mirrorGlass.position.set(HW - 0.065, my, mz);
+    mirrorGlass.updateMatrixWorld();
+    mirrorBox.setFromCenterAndSize(mirrorGlass.position, new THREE.Vector3(0.02, MIRROR.h, MIRROR.w));
+    mirrorGlass.visible = true;
+    break;
+  }
   if (F.cork) {
     const cork = new THREE.Mesh(quad, corkMat);
     cork.scale.set(F.cork[2], F.cork[3], 1);
@@ -1851,9 +2150,21 @@ const EYE_FWD = 0.1;                            // 1인칭 카메라를 얼굴 �
 const HEAD_TURN = 1.3;                          // 몸통 기준으로 고개가 돌아가는 한계 (약 75°)
 const SEAT_LOOK = 2.9;                          // 앉아서 둘러볼 수 있는 범위 (뒷자리 친구까지 돌아볼 수 있게 약 165°)
 
+// 팔 · 다리 한 짝의 여섯 면이 스킨의 어디에 있는지. (x, y) = 그 부위 칸의 왼쪽 위, w = 앞면의 폭(점)
+const limbUV = (x, y, w = 4) => ({
+  nx: [x, y + 4, 4, 12], pz: [x + 4, y + 4, w, 12], px: [x + 4 + w, y + 4, 4, 12], nz: [x + 8 + w, y + 4, w, 12],
+  py: [x + 4, y, w, 4], ny: [x + 4 + w, y, w, 4],
+});
+// 팔 도형 [왼팔, 오른팔]. 어깨 관절(위에서 2점 아래)을 축으로 흔들리도록 아래로 내려 둔다
+function armGeos(slim) {
+  const U = AV.u, w = slim ? 3 : 4;
+  return [limbUV(32, 48, w), limbUV(40, 16, w)].map((uv) => atlasBox(w * U, 12 * U, 4 * U, uv).translate(0, -4 * U, 0));
+}
+const armX = (slim) => (slim ? 5.5 : 6) * AV.u;     // 팔의 가운데가 몸 가운데에서 떨어진 거리
+
 function buildAvatar(look, name) {
-  // 같은 옷을 입은 캐릭터끼리는 그림 한 장을 함께 쓴다
-  const mat = look.mat || (look.mat = new THREE.MeshLambertMaterial({ map: makeAvatarTex(look), alphaTest: 0.5 }));
+  // 같은 기본 캐릭터끼리는 스킨 한 장을 함께 쓴다
+  const skin = look.skin || (look.skin = defaultSkin(look)), mat = skin.mat, U = AV.u;
   const root = new THREE.Group();     // 위치·몸 방향
   const rig = new THREE.Group();      // 걸을 때 통통, 앉을 때 위로
   root.add(rig);
@@ -1864,37 +2175,33 @@ function buildAvatar(look, name) {
     return m;
   };
 
-  // 머리는 키의 3분의 1이 조금 안 된다. 목을 축으로 끄덕이도록 도형을 위로 올려 둔다
+  // 머리. 목을 축으로 끄덕이도록 도형을 위로 올려 둔다
   const headGeo = atlasBox(AV.head, AV.head, AV.head, {
-    pz: [0, 0, 16, 16], nz: [16, 0, 16, 16], px: [32, 0, 16, 16], nx: [48, 0, 16, 16],
-    py: [0, 16, 16, 16], ny: [16, 16, 16, 16],
+    nx: [0, 8, 8, 8], pz: [8, 8, 8, 8], px: [16, 8, 8, 8], nz: [24, 8, 8, 8], py: [8, 0, 8, 8], ny: [16, 0, 8, 8],
   });
   headGeo.translate(0, AV.head / 2, 0);
   const head = part(headGeo, 0, AV.leg + AV.body, 0);
   head.rotation.order = 'YXZ';        // 좌우로 돌린 다음 위아래로 끄덕인다
 
-  part(atlasBox(0.36, AV.body, 0.2, {
-    pz: [32, 16, 10, 10], nz: [42, 16, 10, 10], px: [52, 16, 6, 10], nx: [52, 16, 6, 10],
-    py: [58, 16, 4, 4], ny: [58, 16, 4, 4],
+  const body = part(atlasBox(8 * U, AV.body, 4 * U, {
+    nx: [16, 20, 4, 12], pz: [20, 20, 8, 12], px: [28, 20, 4, 12], nz: [32, 20, 8, 12], py: [20, 16, 8, 4], ny: [28, 16, 8, 4],
   }), 0, AV.leg + AV.body / 2, 0);
 
-  // 팔·다리는 위쪽 끝(어깨·골반)을 축으로 흔들리도록 도형을 아래로 내려 둔다
-  const armGeo = atlasBox(0.13, 0.46, 0.15, { all: [32, 28, 4, 10], py: [36, 28, 4, 4], ny: [40, 28, 4, 4] });
-  armGeo.translate(0, -0.19, 0);
-  const legGeo = atlasBox(0.17, AV.leg, 0.19, { all: [32, 40, 5, 8], py: [37, 40, 4, 4], ny: [41, 40, 4, 4] });
-  legGeo.translate(0, -AV.leg / 2, 0);
-  const shoulder = AV.leg + AV.body - 0.05;
-  const armL = part(armGeo, 0.245, shoulder, 0), armR = part(armGeo, -0.245, shoulder, 0);
-  const legL = part(legGeo, 0.09, AV.leg, 0), legR = part(legGeo, -0.09, AV.leg, 0);
+  // 팔·다리는 위쪽 끝(어깨·골반)을 축으로 흔들린다. 캐릭터의 왼쪽이 +x, 오른쪽이 -x
+  const [armGeoL, armGeoR] = armGeos(skin.slim), ax = armX(skin.slim);
+  const armL = part(armGeoL, ax, AV.shoulder, 0), armR = part(armGeoR, -ax, AV.shoulder, 0);
+  const legGeo = (x, y) => atlasBox(4 * U, AV.leg, 4 * U, limbUV(x, y)).translate(0, -AV.leg / 2, 0);
+  const legL = part(legGeo(16, 48), 2 * U, AV.leg, 0), legR = part(legGeo(0, 16), -2 * U, AV.leg, 0);
   legL.rotation.order = legR.rotation.order = 'YXZ';   // 앉을 때 다리를 앞으로 뻗고 살짝 벌린다
 
-  // 눈 깜빡임용 덮개 (평소엔 숨김)
+  // 눈 깜빡임용 덮개 (평소엔 숨김. 기본 캐릭터의 스킨에만 그림이 있다)
   const lidGeo = new THREE.PlaneGeometry(AV.head, AV.head);
-  setFaceUV(lidGeo, 0, [0, 32, 16, 16]);
+  setFaceUV(lidGeo, 0, [56, 16, 8, 8]);
   const lids = new THREE.Mesh(lidGeo, mat);
   lids.position.set(0, AV.head / 2, AV.head / 2 + 0.003);
   lids.visible = false;
   head.add(lids);
+  const parts = [head, body, armL, armR, legL, legR, lids];
 
   // 머리 위 이름표
   const tag = new THREE.Sprite(new THREE.SpriteMaterial({
@@ -1911,6 +2218,7 @@ function buildAvatar(look, name) {
     }, { smooth: true }),
   }));
   tag.scale.set(1.0, 0.25, 1);
+  tag.visible = !!name;               // 이름이 없으면 이름표도 없다
   root.add(tag);
 
   const blob = new THREE.Mesh(quad, shadowMat);     // 발밑 그림자
@@ -1925,7 +2233,7 @@ function buildAvatar(look, name) {
     tag.material.map.dispose();
     tag.material.dispose();
   };
-  return { root, rig, head, armL, armR, legL, legR, lids, tag, blob, look, dispose };
+  return { root, rig, head, armL, armR, legL, legR, lids, tag, blob, look, skin, parts, dispose };
 }
 
 /* ───────────── 캐릭터 한 명의 움직임 (나 · 친구가 같은 규칙을 쓴다) ─────────────
@@ -1935,7 +2243,7 @@ function buildAvatar(look, name) {
           seated    앉아 있음
           standing  일어나는 동작 중                                                */
 class Actor {
-  constructor(look, name = look.name) {
+  constructor(look, name = '') {
     this.name = name;
     this.model = buildAvatar(look, name);
     this.pos = new THREE.Vector3();
@@ -1987,7 +2295,7 @@ class Actor {
   setSelf(on) {
     this.isSelf = on;
     this.model.head.visible = !on;
-    this.model.tag.visible = !on;
+    this.model.tag.visible = !on && !!this.name;
   }
 
   // 자리까지 걸어가서 앉기
@@ -2188,8 +2496,8 @@ class Actor {
     if (this.writeAmt > 0.002) {                                // 판서: 오른팔을 칠판의 쓰는 곳으로 뻗는다
       const s = Math.sin(this.bodyYaw), c = Math.cos(this.bodyYaw);
       const wx = this.hand.x - this.pos.x, wz = BOARD.z - this.pos.z;
-      const ax = wx * c - wz * s + 0.245, az = wx * s + wz * c;   // 어깨에서 본 옆 · 앞
-      const ay = this.hand.y - this.pos.y - (AV.leg + AV.body - 0.05);
+      const ax = wx * c - wz * s + AV.armX, az = wx * s + wz * c;   // 어깨에서 본 옆 · 앞
+      const ay = this.hand.y - this.pos.y - AV.shoulder;
       rx += (Math.atan2(-az, -ay) - rx) * this.writeAmt;
       rz += (Math.asin(clamp(ax / (Math.hypot(ax, ay, az) || 1), -0.95, 0.95)) - rz) * this.writeAmt;
     }
@@ -2256,6 +2564,26 @@ class Actor {
     return true;
   }
 
+  // 스킨을 갈아입는다 (skin 을 주지 않으면 기본 캐릭터의 스킨으로 돌아간다)
+  setSkin(skin) {
+    const m = this.model;
+    skin = skin || m.look.skin;
+    if (skin === m.skin) return;
+    if (skin.slim !== m.skin.slim) {             // 팔 폭이 다른 스킨이면 팔 도형도 바꾼다
+      const [geoL, geoR] = armGeos(skin.slim), ax = armX(skin.slim);
+      m.armL.geometry.dispose();
+      m.armR.geometry.dispose();
+      m.armL.geometry = geoL;
+      m.armR.geometry = geoR;
+      m.armL.position.x = ax;
+      m.armR.position.x = -ax;
+    }
+    for (const part of m.parts) { part.material = skin.mat; part.renderOrder = 0; }
+    m.lids.visible = false;
+    m.skin = skin;
+    dirty = true;
+  }
+
   // 선생님은 오른손에 리모컨을 들고 있다
   setRemote(on) {
     if (on && !this.remote) {
@@ -2278,7 +2606,7 @@ class Actor {
 
   blink(now) {
     const lids = this.model.lids;
-    if (this.isSelf || !this.model.root.visible) return false;
+    if (this.isSelf || !this.model.root.visible || !this.model.skin.blink) return false;
     if (lids.visible) {
       if (now < this.blinkEnd) return false;
       lids.visible = false;
@@ -2293,15 +2621,72 @@ class Actor {
 }
 
 /* ───────────── 등장인물 ───────────── */
-const actors = { roy: new Actor(CHARACTERS.roy), stella: new Actor(CHARACTERS.stella) };
-actors.roy.place(-0.5, 4.4, 0);
-actors.stella.place(0.5, 4.4, 0);
+// 소개 화면에 서 있는 캐릭터: 기본 스킨 둘 + 내 스킨을 입은 세 번째 (스킨을 넣었을 때만 나온다)
+const actors = { roy: new Actor(CHARACTERS.roy), stella: new Actor(CHARACTERS.stella), mine: new Actor(CHARACTERS.roy) };
+const STAGE_X = { roy: -0.5, stella: 0.5, mine: 1.5 };
+for (const key in actors) actors[key].place(STAGE_X[key], 4.4, 0);
+actors.mine.model.root.visible = actors.mine.model.blob.visible = false;
 
 let chosen = 'roy';
 let nickTouched = false;             // 이름 칸을 직접 고쳤는지 (안 고쳤으면 캐릭터 이름을 따라간다)
 let player = actors.roy;             // 내가 조종하는 캐릭터
 let mate = actors.stella;            // 강의실에 함께 있는 친구
 let mateNext = null, mateTimer = 0;
+
+/* ───────────── 내 스킨: 마인크래프트 스킨 PNG 를 내 캐릭터에 입힌다 ─────────────
+   이 브라우저에 저장해 두고, 수업에 들어가면 같은 수업의 사람들에게도 보내서 모두에게 같은 모습으로 보인다 (k 메시지) */
+const SKIN_KEY = 'classroom-skin-v1';
+const SKIN_URL = /^data:image\/png;base64,[A-Za-z0-9+/=]+$/;
+const SKIN_MAX = 40000;              // 스킨 그림(글자로 바꾼 것)의 최대 길이. 64×64 PNG 는 보통 2,000 ~ 6,000자다
+let mySkin = null;                   // { skin, d: 보낼 그림, sl: 팔이 가는 스킨인지 }
+const imageOf = (src) => new Promise((done, fail) => {
+  const img = new Image();
+  img.onload = () => done(img);
+  img.onerror = fail;
+  img.src = src;
+});
+// 다듬어 둔 스킨 그림(64×64 PNG 를 글자로 바꾼 것)에서 스킨을 만든다. 저장해 둔 것 · 다른 사람이 보낸 것에 쓴다
+async function skinFromURL(d, slim) {
+  if (typeof d !== 'string' || d.length > SKIN_MAX || !SKIN_URL.test(d)) return null;
+  let img;
+  try { img = await imageOf(d); } catch { return null; }
+  if (img.naturalWidth !== 64 || img.naturalHeight !== 64) return null;
+  const canvas = blankSkin();
+  canvas.getContext('2d').drawImage(img, 0, 0);
+  return makeSkin(canvas, { slim: !!slim });
+}
+const wearing = () => chosen === 'mine' && !!mySkin;       // 내 스킨을 입고 들어가는지
+function wearSkin() {                // 내 스킨을 입은 세 번째 캐릭터를 세운다 (스킨이 없으면 치운다)
+  const a = actors.mine, on = !!mySkin;
+  a.setSkin(on ? mySkin.skin : null);
+  if (!entered) a.model.root.visible = a.model.blob.visible = on;
+  const face = $('skinFace');
+  face.hidden = $('skinMore').hidden = !on;
+  $('skinPlus').hidden = on;
+  if (on) {
+    const g = face.getContext('2d');
+    g.clearRect(0, 0, 8, 8);
+    g.drawImage(mySkin.skin.canvas, 8, 8, 8, 8, 0, 0, 8, 8);
+  }
+  $('skinNote').textContent = on ? '내 스킨을 고르면 다른 사람에게도 이 모습으로 보여요.' : '"내 스킨"을 누르면 마인크래프트 스킨(PNG)을 넣을 수 있어요.';
+  dirty = true;
+}
+function setMySkin(made) {           // made = { canvas, slim } 또는 null (스킨 빼기)
+  const old = mySkin;
+  mySkin = null;
+  if (made) {
+    const d = made.canvas.toDataURL('image/png');
+    if (d.length <= SKIN_MAX) mySkin = { skin: makeSkin(made.canvas, { slim: made.slim }), d, sl: made.slim ? 1 : 0 };
+  }
+  if (!mySkin && chosen === 'mine') choose('roy');     // 스킨을 뺐으면 기본 스킨으로 돌아간다
+  wearSkin();
+  if (old) dropSkin(old.skin);
+  try {
+    if (mySkin) localStorage.setItem(SKIN_KEY, JSON.stringify({ d: mySkin.d, sl: mySkin.sl }));
+    else localStorage.removeItem(SKIN_KEY);
+  } catch {}
+  return !!mySkin;
+}
 
 function choose(who) {
   chosen = who;
@@ -2312,7 +2697,6 @@ function choose(who) {
     a.applyPose();
   }
   document.querySelectorAll('.pick [data-who]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.who === who)));
-  if (!nickTouched) $('nick').value = CHARACTERS[who].name;
   dirty = true;
 }
 
@@ -2392,8 +2776,35 @@ function layoutAreas() {
 }
 const nearestArea = (x) => areas.reduce((best, c, i) => (Math.abs(c - x) < Math.abs(areas[best] - x) ? i : best), 0);
 
+/* 선생님 따라가기 (학생의 칠판 보기): 선생님이 쓰고 있는 곳으로 카메라가 스스로 부드럽게 옮겨 간다.
+   내가 직접 옮기거나(← → · 영역 단추 · 끌기) 쓰기 시작하면 꺼지고, "선생님 따라가기" 단추나 F 로 다시 켠다 */
+const follow = { on: true, x: 0, at: 0, fresh: false, to: 0, vel: 0 };     // x · at = 선생님이 마지막으로 쓴 곳과 그때, to = 카메라가 가려는 곳
+const FOLLOW_RECENT = 20000;         // 이 시간 안에 쓴 곳이면 '지금 쓰고 있는 곳'으로 본다
+const FOLLOW_TIME = 0.7;             // 따라가는 데 걸리는 시간의 기준 (천천히 출발해서 천천히 멈춘다)
+const canFollow = () => !isTeacher && cfg.board !== 'video' && areas.length > 1;
+const followRecent = () => follow.at > 0 && performance.now() - follow.at < FOLLOW_RECENT;
+function followNote(x) {             // 선생님이 방금 칠판의 여기(가로 위치)에 썼다
+  follow.x = x;
+  follow.at = performance.now();
+  follow.fresh = true;
+  if (zoomed && follow.on) dirty = true;
+}
+function setFollow(on, why = '') {
+  if (follow.on === on) return;
+  follow.on = on;
+  follow.to = zoomX;
+  follow.vel = 0;
+  follow.fresh = on && followRecent();           // 켜면 선생님이 쓰고 있는 곳으로 바로 간다
+  if (on) pan.t = 1;
+  showAreas();
+  toast(on ? (follow.fresh ? '선생님이 쓰는 곳을 따라가요' : '선생님이 쓰기 시작하면 따라가요') : `${why}따라가기를 껐어요 · F 로 다시 켜기`, 2600);
+  dirty = true;
+}
+const followOff = () => { if (follow.on && zoomed && canFollow()) setFollow(false, '직접 옮겨서 '); };
+
 // 영역 고르기: 카메라가 그 영역으로 옮겨 가고, 판서하는 선생님은 그 앞까지 걸어간다
 function gotoArea(i) {
+  followOff();
   i = clamp(i, 0, areas.length - 1);
   if (i !== areaAt || Math.abs(zoomX - areas[i]) > 0.01) {
     areaAt = i;
@@ -2428,9 +2839,18 @@ function setZoom(on, hint) {
     areaAt = nearestArea(hint === undefined ? player.pos.x : hint);            // 바라보던 곳(없으면 서 있는 곳)에서 가장 가까운 영역
     zoomX = pan.from = pan.to = areas[areaAt];
     pan.t = 1;
+    const tail = follow.on && canFollow();
+    if (tail && followRecent()) {                // 선생님이 쓰고 있으면 그곳에서부터 본다
+      zoomX = pan.from = pan.to = clamp(follow.x, areas[0], areas[areas.length - 1]);
+      areaAt = nearestArea(zoomX);
+    }
+    follow.to = zoomX;
+    follow.vel = 0;
+    follow.fresh = false;
     goWrite();
     const move = areas.length > 1 ? ' · ← → 옆으로 이동' : '';
-    toast(canWrite() ? `펜을 들고 끌어서 써 보세요${move} · Esc로 돌아가기` : `Esc로 돌아가기${move}`, 5000);
+    toast(canWrite() ? `펜을 들고 끌어서 써 보세요${move} · Esc로 돌아가기`
+      : tail ? '선생님이 쓰는 곳을 따라가요 · ← → 로 직접 옮기기 · Esc로 돌아가기' : `Esc로 돌아가기${move}`, 5000);
   }
   if (!zoomed) {
     penUp();
@@ -2445,7 +2865,7 @@ function setZoom(on, hint) {
 function setGhost(on) {
   if (on === ghostOn) return;
   ghostOn = on;
-  const m = player.model, look = m.look;
+  const m = player.model, look = m.skin;
   if (on && !look.ghost) {
     look.ghost = new THREE.MeshLambertMaterial({ map: look.mat.map, transparent: true, opacity: 0.45, alphaTest: 0.2, depthWrite: false });
   }
@@ -2465,6 +2885,26 @@ function zoomThink(dt) {
     zoomX = pan.from + (pan.to - pan.from) * pan.t * pan.t * (3 - 2 * pan.t);
     active = true;
   }
+  if (zoomed && follow.on && canFollow()) {
+    if (follow.fresh) {              // 선생님이 화면 가운데에서 꽤 벗어난 곳에 쓰면 그곳이 가운데에 오게 옮긴다
+      follow.fresh = false;
+      const goal = clamp(follow.x, areas[0], areas[areas.length - 1]);
+      if (Math.abs(goal - follow.to) > boardCam().vis * 0.12) follow.to = goal;
+    }
+    const off = zoomX - follow.to;
+    if (Math.abs(off) > 0.002 || Math.abs(follow.vel) > 0.002) {       // 용수철처럼 부드럽게: 가는 도중에 목표가 바뀌어도 덜컥거리지 않는다
+      const om = 2 / FOLLOW_TIME, x = om * dt, ex = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x), tmp = (follow.vel + om * off) * dt;
+      follow.vel = (follow.vel - om * tmp) * ex;
+      zoomX = follow.to + (off + tmp) * ex;
+      const i = nearestArea(zoomX);
+      if (i !== areaAt) { areaAt = i; showAreas(); }
+      active = true;
+    } else if (off) {
+      zoomX = follow.to;
+      follow.vel = 0;
+      active = true;
+    }
+  }
   const want = zoomed ? 1 : 0;
   if (zoomAmt !== want) {
     zoomAmt += (want - zoomAmt) * (1 - Math.exp(-9 * dt));
@@ -2481,7 +2921,7 @@ function showAreas() {
   const on = zoomed && areas.length > 1, el = $('areas');
   el.hidden = !on;
   if (!on) return;
-  if (el.children.length !== areas.length + 2) {
+  if (el.children.length !== areas.length + 3) {
     const make = (text, label, go) => {
       const b = document.createElement('button');
       b.type = 'button';
@@ -2494,12 +2934,18 @@ function showAreas() {
       make('◀', '왼쪽 영역', () => gotoArea(areaAt - 1)),
       ...areas.map((_, i) => make(String(i + 1), `${i + 1}번 영역`, () => gotoArea(i))),
       make('▶', '오른쪽 영역', () => gotoArea(areaAt + 1)),
+      make('선생님 따라가기', '선생님이 쓰는 곳을 따라가기', () => setFollow(!follow.on)),
     );
+    el.lastChild.id = 'followBtn';
   }
   [...el.children].forEach((b, i) => {
     if (i === 0) b.disabled = areaAt === 0;
-    else if (i > areas.length) b.disabled = areaAt === areas.length - 1;
-    else b.setAttribute('aria-pressed', String(i - 1 === areaAt));
+    else if (i <= areas.length) b.setAttribute('aria-pressed', String(i - 1 === areaAt));
+    else if (i === areas.length + 1) b.disabled = areaAt === areas.length - 1;
+    else {                           // 선생님 따라가기 (학생에게만 보인다)
+      b.hidden = !canFollow();
+      b.setAttribute('aria-pressed', String(follow.on));
+    }
   });
 }
 
@@ -2622,21 +3068,8 @@ function updateTarget() {
     $('backBtn').hidden = !back;
     $('backText').textContent = back;
   }
-  // 아래 안내 줄: 지금 상태에서 쓸 수 있는 키만 보여 준다
-  const many = areas.length > 1 ? ' · ← → 옆 영역' : '';
-  const help = !entered ? ''
-    : zoomed ? (canWrite() ? `펜을 들고 끌어서 쓰기 · "이동"을 들고 끌면 옆으로${many} · Esc 돌아가기` : `끌어서 옆으로${many} · Esc 돌아가기`)
-    : player.mode === 'seated' ? (player.seat.stand
-      ? `끌어서 둘러보기 · 칠판을 보고 X 칠판 보기${slidesMine() ? ' · ← → 슬라이드' : ''} · Esc 내려오기`
-      : '끌어서 둘러보기 · 칠판을 보고 X 칠판 보기 · 옆 친구를 보고 X 소곤거리기 · Q 질문 · E 이해했어요 · Esc 일어나기')
-    : player.mode === 'path' ? 'Esc 멈추기'
-    : `WASD·방향키 이동 · 끌어서 둘러보기 · 바라보고 X: 자리 앉기 · 교탁 서기 · 문 나가기 · 칠판 보기${isTeacher ? ' · R 리모컨' : ''}`;
-  if (help !== helpShown) {
-    helpShown = help;
-    $('help').textContent = help;
-  }
 }
-let backLabel = '', helpShown = '';
+let backLabel = '';
 const slidesMine = () => presenting() && show.mode === 'slides';      // 내가 슬라이드를 띄워 둔 중인지
 
 // X: 바라본 것에 하는 행동
@@ -2761,7 +3194,7 @@ function mateThink(dt) {
 
 /* ───────────── 출석 시간: 강의실에 있는 동안만 쌓이고, 나가도 기록은 남는다 ───────────── */
 const STORE_KEY = 'classroom-attendance-v1';
-const attendance = { roy: 0, stella: 0 };       // 캐릭터별로 쌓인 시간 (1000 = 1초)
+const attendance = { roy: 0, stella: 0, mine: 0 };       // 캐릭터별로 쌓인 시간 (1000 = 1초)
 try {
   const saved = JSON.parse(localStorage.getItem(STORE_KEY)) || {};
   for (const who in attendance) attendance[who] = Math.max(0, Number(saved[who]) || 0);
@@ -2780,7 +3213,7 @@ function tickAttendance() {
   if (attending && !document.hidden) attendance[chosen] += Math.min(now - attTick, 2000);   // 화면을 보고 있는 동안만
   attTick = now;
   if (!attending) return;
-  const text = `${myName || player.name} · 출석 ${clockText(attendance[chosen])}`;
+  const text = `${myName || (isTeacher ? '선생님' : '학생')} · 출석 ${clockText(attendance[chosen])}`;
   if (text !== attShown) { attShown = text; $('att').textContent = text; }
   if (now - attSaved > 5000) { attSaved = now; saveAttendance(); }
 }
@@ -2840,11 +3273,14 @@ function leave() {
   setRemoteOut(false);
   $('exit').hidden = true;
   $('hud').hidden = true;
+  setKeys(false);
   $('entry').hidden = false;
   player.setSelf(false);
-  for (const a of [actors.roy, actors.stella]) a.model.root.visible = a.model.blob.visible = true;
-  actors.roy.reset(-0.5, 4.4);
-  actors.stella.reset(0.5, 4.4);
+  for (const key in actors) {
+    const a = actors[key];
+    a.model.root.visible = a.model.blob.visible = key !== 'mine' || !!mySkin;
+    a.reset(STAGE_X[key], 4.4);
+  }
   mateNext = null;
   choose(chosen);
 }
@@ -2892,10 +3328,41 @@ function snapshot() {
   };
 }
 
+// 스킨 주고받기 (k 메시지). 내가 들어왔을 때와 새 사람이 들어왔을 때 내 스킨을 한 번씩 보낸다.
+// 여럿이 한꺼번에 보내지 않도록, 사람이 많을수록 저마다 다른 만큼 기다렸다가 보낸다
+let skinDue = 0;                     // 내 스킨을 보낼 시각 (0 = 보낼 것 없음)
+const peerSkins = new Map();         // id → { d, skin }: 다른 사람들의 스킨
+let skinTold = false;                // 이번에 내 스킨을 알린 적이 있는지 (기본 스킨으로 바꿔 들어오면 "스킨 없음"을 알려야 한다)
+function queueSkin(soon) {
+  if ((!wearing() && !skinTold) || (skinDue && !soon)) return;
+  skinDue = Date.now() + (soon ? 300 : 500 + Math.random() * Math.min(8000, peers.size * 150));
+}
+async function onSkin(m) {
+  if (typeof m.d !== 'string') return;
+  const have = peerSkins.get(m.id);
+  if (have && have.d === m.d) return;
+  const entry = { d: m.d, skin: null };
+  if (peerSkins.size >= 300 && !have) {          // 너무 많이 쌓이면 지금 없는 사람의 것부터 버린다
+    for (const [id, it] of peerSkins) if (!peers.has(id)) { peerSkins.delete(id); if (it.skin) dropSkin(it.skin); break; }
+    if (peerSkins.size >= 300) return;
+  }
+  peerSkins.set(m.id, entry);
+  entry.skin = await skinFromURL(m.d, m.sl);     // 스킨이 아니면 null → 기본 캐릭터로 보인다
+  if (peerSkins.get(m.id) !== entry) { if (entry.skin) dropSkin(entry.skin); return; }      // 그사이에 또 다른 스킨이 왔다
+  const peer = peers.get(m.id);
+  if (peer) peer.actor.setSkin(entry.skin);
+  if (have && have.skin) dropSkin(have.skin);
+}
+
 // 내 상태 보내기: 달라졌으면 바로, 그대로면 가끔만
 function netTick() {
   if (!link || !entered) return;
   const now = Date.now(), pace = netPace();
+  if (skinDue && now >= skinDue) {
+    skinDue = 0;
+    if (wearing()) { skinTold = true; link.send({ t: 'k', id: myId, d: mySkin.d, sl: mySkin.sl }); }
+    else if (skinTold) link.send({ t: 'k', id: myId, d: '', sl: 0 });
+  }
   if (now - lastSentAt > pace.goneMs - 2000) mySeatAt = now;     // 오래 조용했으면(탭을 떠나 있었으면) 자리 순서를 새로 받는다
   const msg = snapshot(), body = JSON.stringify([msg.p, msg.r, msg.s, msg.k, msg.w]);
   const wait = body === lastSent ? pace.beatMs : pace.sendMs;
@@ -2914,8 +3381,10 @@ function netReceive(m) {
     laserSent = '';
     if (presenting()) setTimeout(resendShow, 400);
     if (strokes.length && inkKeeper(m.id)) setTimeout(() => sendInk(m.id), 700);     // 지금까지의 판서도 보내 준다
+    queueSkin(false);                // 내 스킨도 보내 준다
     return;
   }
+  if (m.t === 'k') { onSkin(m); return; }
   if (m.t === 'b') { dropPeer(m.id); return; }
   if (m.t === 'p') { onShow(m); return; }
   if (m.t === 'rtc') { if (m.to === myId) onRtc(m); return; }
@@ -2936,8 +3405,9 @@ function netReceive(m) {
   if (!peer) {
     if (peers.size >= MAX_PEERS) return;
     const look = Object.hasOwn(CHARACTERS, m.c) ? CHARACTERS[m.c] : CHARACTERS.roy;
-    const actor = new Actor(look, String(m.n || look.name).slice(0, 12) + (m.tc ? ' 선생님' : ''));
+    const actor = new Actor(look, `${String(m.n || (m.tc ? '' : '학생')).slice(0, 12)}${m.tc ? ' 선생님' : ''}`.trim());
     actor.peerId = m.id;
+    if (peerSkins.get(m.id)?.skin) actor.setSkin(peerSkins.get(m.id).skin);
     if (m.tc) actor.setRemote(true);
     peer = { id: m.id, actor, teacher: !!m.tc, from: goal, goal, t: 1, span: 0.2, last: now, seat: null, at: 0 };
     peers.set(m.id, peer);
@@ -2954,6 +3424,7 @@ function netReceive(m) {
   if (peer.actor.writeOn) {
     peer.actor.handTo.x = num(m.w[0], -HW, HW);
     peer.actor.handTo.y = num(m.w[1], 0, 14);
+    if (peer.teacher) followNote(peer.actor.handTo.x);
   }
   // 자리 번호는 강의실과 배치가 같을 때만 뜻이 통한다
   const sameRoom = Array.isArray(m.cf) && m.cf[0] === cfg.form && m.cf[2] === cfg.table;
@@ -3084,7 +3555,7 @@ async function openSupabase(topic) {
   channel.subscribe((status) => {
     ready = status === 'SUBSCRIBED';
     linkState = ready ? '온라인' : status === 'CLOSED' ? '연결 끊김' : '연결 문제 · 다시 시도 중';
-    if (ready) { lastSent = ''; lastSentAt = 0; send({ t: 'h', id: myId }); }
+    if (ready) { lastSent = ''; lastSentAt = 0; send({ t: 'h', id: myId }); queueSkin(true); }
     showRoom();
   });
   return { send, close: () => client.removeChannel(channel) };
@@ -3106,6 +3577,7 @@ async function netJoin() {
       link = openLocal(topic);
       linkState = '이 컴퓨터의 탭끼리';
       link.send({ t: 'h', id: myId });
+      queueSkin(true);
     }
     clearInterval(netTimer);
     netTimer = setInterval(netTick, 100);
@@ -3133,6 +3605,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden || !link) return;
   lastSent = '';
   link.send({ t: 'h', id: myId });
+  queueSkin(true);
 });
 
 /* ───────────── 강의 자료: 선생님이 큰 스크린에 띄운다 ─────────────
@@ -3745,7 +4218,7 @@ $('soundBtn').addEventListener('click', () => {
 const PEN_W = [0.55, 1, 1.9];        // 굵기 세 단계
 const TOOL_NO = { ball: 0, fount: 1, rub: 2 };
 const round4 = (v) => Math.round(v * 10000) / 10000;
-const pen = { id: null, tool: 'ball', color: 0, size: 1, key: '', n: 0, last: null, out: [], gone: [], sentAt: 0 };
+const pen = { id: null, tool: 'ball', erase: 'rub', write: 'ball', color: 0, size: 1, key: '', n: 0, last: null, out: [], gone: [], sentAt: 0 };
 
 // 획에서 아직 그리지 않은 부분을 그린다 (from = 이미 그린 점의 수)
 function inkDraw(st, from) {
@@ -3881,6 +4354,7 @@ function penDown(e) {
   if (pen.id !== null || !canWrite() || zoomAmt < 0.97) return;
   const uv = boardUV(e);
   if (!uv) return;
+  if (follow.on && canFollow()) setFollow(false, '직접 쓰기 시작해서 ');
   pen.id = e.pointerId;
   try { canvas.setPointerCapture(e.pointerId); } catch {}
   pen.key = `${myId}-${++pen.n}`;
@@ -3944,6 +4418,7 @@ function onInk(m) {
   }
   if (typeof m.s === 'string' && m.s.startsWith(m.id + '-') && okStroke(m.s, m.k, m.c, m.w, m.p)) {
     inkAdd(m.s, m.k, m.c, m.w, m.p.map(in01));
+    if (peer.teacher) followNote(BOARD.x + (in01(m.p[m.p.length - 2]) - 0.5) * BOARD.w);     // 방금 그은 획의 끝
   }
 }
 // 새로 온 사람에게 지금까지의 판서를 보내 줄 한 사람: 선생님 가운데(없으면 모두 가운데) id 가 가장 앞선 사람
@@ -3973,38 +4448,137 @@ function sendInk(to) {
 }
 
 // 펜 고르기 (크게 보는 중이고 쓸 수 있을 때만 보인다)
+/* 도구 그림: 16 × 16 픽셀 그림 (마인크래프트의 아이템처럼). 글자 하나가 점 하나, '.' 은 비어 있는 곳 */
+const ICON_INK = {
+  k: '#1b1b1b', w: '#ffffff', g: '#c9ccd2', s: '#e6b08a', S: '#bf8560', b: '#3f76dd', B: '#27499c', l: '#86b0f5',
+  d: '#4b4f58', G: '#9aa0aa', p: '#f5a3bd', P: '#cf6788', r: '#dc4034', R: '#9a251d', i: '#26324f',
+};
+const ICONS = {
+  hand: [                            // 이동: 손바닥
+    '.......kk.......', '...kk.kwwkkk....', '..kwwkkwwkwwk...', '..kwwkkwwkwwk.k.',
+    '...kwwkwwkwwkkwk', '...kwwkwwkwwkwwk', '.kk.kwwwwwwwkwwk', 'kwwkkwwwwwwwwwwk',
+    'kwwwkwwwwwwwwwk.', '.kwwwwwwwwwwwwk.', '..kwwwwwwwwwwwk.', '..kwwwwwwwwwwk..',
+    '...kwwwwwwwwwk..', '....kwwwwwwwk...', '.....kwwwwwwk...', '.....kkkkkkkk...',
+  ].map((row) => row.replaceAll('w', 's')),
+  ball: [                            // 볼펜
+    '.............kk.', '............kBbk', '...........kBblk', '..........kBblk.',
+    '.........kBblk..', '........kBblk...', '.......kBblk....', '......kBblk.....',
+    '.....kBblk......', '....kGgwk.......', '...kGgwk........', '..kdGgk.........',
+    '..kddk..........', '.kkk............', '.k..............', '................',
+  ],
+  fount: [                           // 만년필: 깃펜
+    '............kkk.', '..........kkwwwk', '.........kwwwwgk', '........kwwwgwgk',
+    '.......kwwwgwwk.', '......kwwwgwwgk.', '.....kwwwgwwgk..', '.....kwwgwwgk...',
+    '....kwwgwwgk....', '....kwgwwgk.....', '...kkgwgkk......', '...kgkkk........',
+    '..kgk...........', '.kik............', 'kik.............', 'kk..............',
+  ],
+  rub: [                             // 지우개
+    '................', '................', '..........kkkk..', '.........kppppk.',
+    '........kpppppPk', '.......kpppppPPk', '......kbpppppPPk', '.....kbbbpppPPk.',
+    '....kbbbbbpPPk..', '...kbbbbbbBPk...', '..klbbbbbbBk....', '.klllbbbbBBk....',
+    '.kllllbbBBk.....', '.kBllllBBk......', '..kBBBBBk.......', '...kkkkk........',
+  ],
+  wipe: [                            // 획 지우개: 지우개 + 그 아래의 획 하나
+    '................', '..........kkk...', '.........kpppk..', '........kppppPk.',
+    '.......kbpppPPk.', '......kbbbpPPk..', '......klbbbPk...', '......kllbBk....',
+    '.......kkkk.....', '................', '..ww........ww..', '.wkkw......wkkw.',
+    'wk..kw....wk..kw', 'w....kw..wk....w', '......kwwk......', '.......kk.......',
+  ],
+  tnt: [                             // 모두 지우기: TNT
+    'kkkkkkkkkkkkkkkk', 'krrrrrrrrrrrrrrk', 'krrRrrrRrrrRrrrk', 'krrRrrrRrrrRrrrk',
+    'kRRRRRRRRRRRRRRk', 'kwwwwwwwwwwwwwwk', 'kwkkkwkwwkwkkkwk', 'kwwkwwkkwkwwkwwk',
+    'kwwkwwkwkkwwkwwk', 'kwwkwwkwwkwwkwwk', 'kwwkwwkwwkwwkwwk', 'kwwwwwwwwwwwwwwk',
+    'krrrrrrrrrrrrrrk', 'krrRrrrRrrrRrrrk', 'kRRRRRRRRRRRRRRk', 'kkkkkkkkkkkkkkkk',
+  ],
+};
+const iconURL = {};
+for (const name in ICONS) {
+  const c = document.createElement('canvas');
+  c.width = c.height = 16;
+  const g = c.getContext('2d');
+  ICONS[name].forEach((row, y) => [...row].forEach((ch, x) => {
+    if (!ICON_INK[ch]) return;
+    g.fillStyle = ICON_INK[ch];
+    g.fillRect(x, y, 1, 1);
+  }));
+  iconURL[name] = c.toDataURL();
+}
+const iconImg = (name) => Object.assign(new Image(), { src: iconURL[name], alt: '' });
+for (const b of document.querySelectorAll('#pens [data-icon]')) b.prepend(iconImg(b.dataset.icon));
+const eraseImg = $('eraseBtn').appendChild(iconImg('rub'));
+
+// 하위 메뉴 (지우개 · 색): 한 번에 하나만 열린다. 닫은 것이 있으면 true
+function openPop(id) {
+  let closed = false;
+  for (const pop of document.querySelectorAll('#pens .pop')) {
+    const on = pop.id === id;
+    if (!pop.hidden && !on) closed = true;
+    pop.hidden = !on;
+    pop.previousElementSibling.setAttribute('aria-expanded', String(on));
+  }
+  return closed;
+}
+const closePops = () => openPop('');
+addEventListener('pointerdown', (e) => { if (!e.target.closest?.('#pens .menu')) closePops(); }, true);    // 바깥을 누르면 닫힌다
+
 function showPens() {
   const on = zoomed && canWrite();
   $('pens').hidden = !on;
   canvas.classList.toggle('pen', on && pen.tool !== 'hand');
-  if (!on) return;
-  $('wipeBtn').hidden = !isTeacher;
-  for (const b of $('penTools').children) b.setAttribute('aria-pressed', String(b.dataset.tool === pen.tool));
-  for (const b of $('penColors').children) {
+  if (!on) { closePops(); return; }
+  const erasing = pen.tool === 'rub' || pen.tool === 'wipe', inks = BOARDS[cfg.board].pens;
+  for (const b of document.querySelectorAll('#pens [data-tool]')) b.setAttribute('aria-pressed', String(b.dataset.tool === pen.tool));
+  $('eraseBtn').setAttribute('aria-pressed', String(erasing));
+  eraseImg.src = iconURL[pen.erase];             // 지우개 칸에는 마지막에 고른 지우는 방법이 보인다
+  for (const b of $('erasePop').children) {
+    if (b.dataset.erase === 'all') b.hidden = !isTeacher;        // 모두 지우기는 선생님만
+    else b.setAttribute('aria-pressed', String(erasing && b.dataset.erase === pen.tool));
+  }
+  $('colorBtn').style.setProperty('--c', inks[pen.color]);
+  for (const b of $('colorPop').children) {
     const n = Number(b.dataset.color);
-    b.style.setProperty('--c', BOARDS[cfg.board].pens[n]);
-    b.setAttribute('aria-pressed', String(n === pen.color && (pen.tool === 'ball' || pen.tool === 'fount')));
+    b.style.setProperty('--c', inks[n]);
+    b.setAttribute('aria-pressed', String(n === pen.color));
   }
   for (const b of $('penSizes').children) b.setAttribute('aria-pressed', String(Number(b.dataset.size) === pen.size));
 }
-for (const b of $('penTools').children) b.addEventListener('click', () => {
-  pen.tool = b.dataset.tool;
+function setTool(tool) {
+  pen.tool = tool;
+  if (tool === 'rub' || tool === 'wipe') pen.erase = tool;
+  if (tool === 'ball' || tool === 'fount') pen.write = tool;
+}
+for (const b of document.querySelectorAll('#pens [data-tool]')) b.addEventListener('click', () => {
+  setTool(b.dataset.tool);
+  closePops();
   showPens();
   canvas.focus();
 });
-for (const b of $('penColors').children) b.addEventListener('click', () => {
+// 지우개 칸: 누르면 지우개를 들고, 지우는 방법 메뉴가 열린다 (한 번 더 누르면 닫힌다)
+$('eraseBtn').addEventListener('click', () => {
+  setTool(pen.erase);
+  openPop($('erasePop').hidden ? 'erasePop' : '');
+  showPens();
+});
+for (const b of $('erasePop').children) b.addEventListener('click', () => {
+  if (b.dataset.erase === 'all') {
+    if (isTeacher) inkClear(true);
+    setTool(pen.write);                          // 다 지웠으니 다시 펜을 든다
+  } else setTool(b.dataset.erase);
+  closePops();
+  showPens();
+  canvas.focus();
+});
+$('colorBtn').addEventListener('click', () => openPop($('colorPop').hidden ? 'colorPop' : ''));
+for (const b of $('colorPop').children) b.addEventListener('click', () => {
   pen.color = Number(b.dataset.color);
-  if (pen.tool !== 'ball' && pen.tool !== 'fount') pen.tool = 'ball';    // 색을 고르면 다시 펜을 든다
+  if (pen.tool !== 'ball' && pen.tool !== 'fount') setTool(pen.write);     // 색을 고르면 다시 펜을 든다
+  closePops();
   showPens();
   canvas.focus();
 });
 for (const b of $('penSizes').children) b.addEventListener('click', () => {
   pen.size = Number(b.dataset.size);
   showPens();
-  canvas.focus();
-});
-$('wipeBtn').addEventListener('click', () => {
-  if (isTeacher) inkClear(true);
   canvas.focus();
 });
 
@@ -4025,8 +4599,11 @@ function freeActor(a) {
   a.air = false;
 }
 // 들어왔을 때 서는 곳: 여럿이 겹쳐 서지 않게 정해진 구역의 빈 곳 아무 데나
-function spawn(a) {
-  const [x0, x1, z0, z1] = a === player && isTeacher ? [-1.5, 1.5, TEACH_Z, TEACH_Z + 0.4] : ROOM.spawn;     // 선생님은 칠판 앞에서 시작한다
+// 들어올 때(entering)는 누구나 문 옆 거울 앞에 선다. 수업 중에 강의실이 바뀌어 다시 설 때는 학생은 거울 앞, 선생님은 칠판 앞
+function spawn(a, entering = false) {
+  const m = mirrorGlass.visible ? mirrorGlass.position : null;
+  const [x0, x1, z0, z1] = a === player && isTeacher && !entering ? [-1.5, 1.5, TEACH_Z, TEACH_Z + 0.4]
+    : m ? [m.x - 1.9, m.x - 1.1, m.z - 0.7, m.z + 0.7] : ROOM.spawn;
   const c = nearestFree(x0 + Math.random() * (x1 - x0), z0 + Math.random() * (z1 - z0));
   const x = c < 0 ? (x0 + x1) / 2 : cellX(c), z = c < 0 ? (z0 + z1) / 2 : cellZ(c);
   a.pos.set(x, floorAt(x, z), z);
@@ -4044,6 +4621,8 @@ function settle(a) {
 function rebuild(moved, keep = false) {
   setZoom(false);
   zoomAmt = 0;
+  follow.at = 0;                     // 새 칠판에서는 선생님이 쓴 곳을 처음부터 다시 기억한다
+  follow.fresh = false;
   setGhost(false);
   whisperPeer = '';
   $('ask').hidden = $('whisper').hidden = true;
@@ -4291,11 +4870,13 @@ function laserThink(dt) {
   let active = false;
   const now = Date.now();
   if (laserOn) {
-    // 내 시선이 스크린의 어디에 닿는지 (0~1, 왼쪽 아래가 0,0)
+    // 레이저가 스크린의 어디에 닿는지 (0~1, 왼쪽 아래가 0,0).
+    // 칠판 보기(판서)에서는 마우스 포인터가 가리키는 곳, 평소에는 내 시선이 닿는 곳
     const cp = Math.cos(player.lookPitch);
     const dx = Math.sin(player.lookYaw) * cp, dy = -Math.sin(player.lookPitch), dz = Math.cos(player.lookYaw) * cp;
     let hit = null;
-    if (dz < -1e-4) {
+    if (zoomed && zoomAmt > 0.9 && hover.on) hit = boardUV(hover);
+    else if (dz < -1e-4) {
       const t = (BOARD.z - camera.position.z) / dz;
       const u = (camera.position.x + dx * t) / BOARD.w + 0.5;
       const v = (camera.position.y + dy * t - BOARD.y) / BOARD.h + 0.5;
@@ -4390,7 +4971,7 @@ function mateReply() {
   keepWhisper('mate', false, MATE_LINES[Math.random() * MATE_LINES.length | 0]);
   if ($('whisper').hidden || whisperPeer === 'mate') openWhisper('mate', false);
   passNote(mate, player);
-  toast(`${polite(mate.name)}의 쪽지가 왔어요`);
+  toast(`${polite(mate.name || '친구')}의 쪽지가 왔어요`);
 }
 
 function openWhisper(id, focus = true) {
@@ -4516,8 +5097,112 @@ function placeCamera() {
 }
 
 /* ───────────── 입력: 키보드 · 마우스/터치 · 조이스틱 ───────────── */
+/* ───────────── 시스템 정보: F3 (안 되면 I 나 ` 키)로 켜고 끈다. 마인크래프트의 F3 화면처럼 ───────────── */
+let perfOn = false, perfFps = 0;
+function showPerf() {
+  const el = $('perf');
+  el.hidden = !perfOn;
+  if (!perfOn) return;
+  const mem = renderer.info.memory, p = player.pos;
+  const deg = Math.round((wrap(player.lookYaw) * 180 / Math.PI + 360) % 360);
+  const lines = [
+    '시스템 정보',
+    `${perfFps > 4 ? `${perfFps} fps` : '쉬는 중 (바뀐 것이 없어 그리지 않음)'}`,
+    `그리기 호출 ${info.calls}${mirrorCalls ? ` (그중 거울 ${mirrorCalls})` : ''} · 삼각형 ${(info.triangles / 1000).toFixed(1)}k`,
+    `도형 ${mem.geometries} · 그림 ${mem.textures} · 화면 ${renderer.domElement.width}×${renderer.domElement.height}`,
+    `강의실 ${FORMS[cfg.form].name} · 자리 ${seatCount()} · 사람 ${peers.size + 1}`,
+    `위치 X ${p.x.toFixed(1)} · Y ${p.y.toFixed(1)} · Z ${p.z.toFixed(1)} · 방향 ${deg}°`,
+    'F3 으로 닫기',
+  ];
+  el.replaceChildren(...lines.map((text) => Object.assign(document.createElement('span'), { textContent: text })));
+}
+
+/* ───────────── 조작법: 화면 가운데의 반투명 가상 키보드 ─────────────
+   들어오면 한 번 뜬다. 진짜 키보드를 누르면 같은 키에 불이 들어오고 캐릭터도 그대로 움직여서, 눌러 보면서 익힐 수 있다.
+   H 로 열고 닫는다. 손가락으로 쓰는 기기에는 화면 단추가 따로 있어서 띄우지 않는다 */
+const KEYS_SKIP = 'classroom-keys-skip-v1';
+// 가상 키보드의 키들. 선생님과 학생은 쓰는 키와 설명이 다르다. [키 이름, 키에 적힌 글자, 하는 일, 마우스를 올리면 나오는 설명, 폭]
+function keyRows() {
+  const T = isTeacher;
+  const k = (code, cap, label = '', tip = '', w = 1) => ({ code, cap, label, tip, w });
+  const gap = (w) => ({ gap: w });
+  const area = T ? '판서 화면에서 그 번호의 영역으로 옮겨요. 캐릭터도 그 앞으로 걸어가요.' : '칠판 보기에서 그 번호의 영역으로 화면을 옮겨요.';
+  const side = (way, slide) => `${way}으로 움직여요. 칠판 보기에서는 ${way} 영역으로 옮겨요.${T ? ` 교탁이나 자리에서는 슬라이드를 ${slide}으로 넘겨요.` : ''}`;
+  return [
+    [k('Escape', 'Esc', '돌아가기', T ? '한 단계 뒤로 돌아가요. 판서 화면 닫기, 교탁에서 내려오기, 걷던 것 멈추기.' : '한 단계 뒤로 돌아가요. 칠판 보기 닫기, 자리에서 일어나기, 걷던 것 멈추기.'),
+      gap(0.5), k('F3', 'F3', '시스템 정보', '시스템 정보(fps · 그리기 호출 · 내 위치 등)를 켜고 꺼요. F3 이 안 되는 컴퓨터에서는 I 키나 ` 키로도 돼요.', 1.4)],
+    '123456789'.split('').map((d) => k(`Digit${d}`, d, d === '1' ? '영역' : ' ', area)),
+    [gap(0.5),
+      k('KeyQ', 'Q', T ? '' : '질문', '자리에 앉아 있을 때 선생님께 질문을 보내요.'),
+      k('KeyW', 'W', '앞으로', '앞으로 걸어요.'),
+      k('KeyE', 'E', T ? '' : '이해했어요', '자리에 앉아 있을 때 "이해했어요"를 선생님께 알려요.'),
+      k('KeyR', 'R', T ? '리모컨' : '', '리모컨을 꺼내고 넣어요. 리모컨으로 자료를 띄우고, 넘기고, 판서를 시작해요.'),
+      gap(1.4), k('Mouse', '마우스', '끌어서 보기', T ? '화면을 끌면 둘러봐요. 판서 화면에서는 펜을 들고 끌어서 쓰고, 손 모양을 들고 끌면 칠판이 옆으로 움직여요.' : '화면을 끌면 둘러봐요. 칠판 보기에서는 끌어서 칠판을 옆으로 옮겨요.', 1.8)],
+    [gap(0.8),
+      k('KeyA', 'A', '왼쪽', '왼쪽으로 움직여요. 칠판 보기에서는 왼쪽 영역으로 옮겨요.'),
+      k('KeyS', 'S', '뒤로', '뒤로 걸어요.'),
+      k('KeyD', 'D', '오른쪽', '오른쪽으로 움직여요. 칠판 보기에서는 오른쪽 영역으로 옮겨요.'),
+      k('KeyF', 'F', T ? '레이저' : '따라가기', T ? '리모컨을 든 채 누르면 레이저를 켜고 꺼요. 판서 화면에서는 빨간 점이 마우스를 따라다녀요.' : '칠판 보기에서 "선생님 따라가기"를 켜고 꺼요. 켜 두면 선생님이 쓰는 곳으로 화면이 따라가요.'),
+      k('KeyG', 'G'),
+      k('KeyH', 'H', '조작법', '이 조작법을 열고 닫아요.')],
+    [k('ShiftLeft', 'Shift', '달리기', '누른 채로 움직이면 달려요.', 1.6),
+      k('KeyZ', 'Z'),
+      k('KeyX', 'X', '고르기', T ? '바라보는 것을 골라요. 교탁을 보면 교탁에 서기, 칠판을 보면 판서, 자리를 보면 앉기, 문을 보면 나가기.' : '바라보는 것을 골라요. 자리를 보면 앉기, 칠판을 보면 크게 보기, 옆 친구를 보면 소곤거리기, 문을 보면 나가기.'),
+      k('KeyC', 'C'), k('KeyV', 'V'),
+      k('KeyB', 'B', T ? '판서' : '칠판 보기', T ? '판서 화면을 열고 닫아요. 펜 · 지우개 · 색을 골라 칠판에 써요.' : '칠판을 크게 봐요. 한 번 더 누르면 돌아와요.')],
+    [gap(1.6), k('Space', 'Space', '점프', '제자리에서 뛰어요.', 3.6), gap(0.6),
+      k('ArrowLeft', '←', T ? '왼쪽·이전' : '왼쪽', side('왼쪽', '이전')),
+      k('ArrowUp', '↑', '앞으로', '앞으로 걸어요.'),
+      k('ArrowDown', '↓', '뒤로', '뒤로 걸어요.'),
+      k('ArrowRight', '→', T ? '오른쪽·다음' : '오른쪽', side('오른쪽', '다음'))],
+  ];
+}
+function setKeys(on) {
+  if (on === !$('keys').hidden) return;
+  if (on) {
+    const el = (tag, cls, text = '') => Object.assign(document.createElement(tag), { className: cls, textContent: text });
+    $('keyRows').replaceChildren(...keyRows().map((row) => {
+      const line = el('div', 'krow');
+      for (const it of row) {
+        const key = it.gap ? el('span', 'kgap') : el('div', it.label ? 'key' : 'key none');
+        key.style.setProperty('--w', it.gap || it.w);
+        if (!it.gap) {
+          key.dataset.key = it.code;
+          if (it.label) key.dataset.tip = it.tip;                // 마우스를 올리면 나오는 설명
+          key.append(el('b', '', it.cap), el('span', '', it.label.trim()));
+        }
+        line.append(key);
+      }
+      return line;
+    }));
+  }
+  $('keysTitle').textContent = isTeacher ? '선생님 조작법' : '학생 조작법';
+  $('keys').hidden = !on;
+  $('keysBtn').hidden = on;
+}
+const closeKeys = () => { if ($('keys').hidden) return false; setKeys(false); return true; };
+const KEY_ALIAS = { ShiftRight: 'ShiftLeft', Backquote: 'F3', KeyI: 'F3' };
+function lightKey(code, on) {        // 누른 키에 불을 켠다
+  if ($('keys').hidden) return;
+  const key = $('keyRows').querySelector(`[data-key="${KEY_ALIAS[code] || code.replace(/^Numpad(\d)$/, 'Digit$1')}"]`);
+  if (!key) return;
+  key.classList.toggle('on', on);
+  if (on) key.classList.add('done');
+}
+addEventListener('keydown', (e) => { if (/^[A-Za-z0-9]+$/.test(e.code)) lightKey(e.code, true); }, true);
+addEventListener('keyup', (e) => { if (/^[A-Za-z0-9]+$/.test(e.code)) lightKey(e.code, false); }, true);
+addEventListener('blur', () => { for (const key of $('keyRows').querySelectorAll('.on')) key.classList.remove('on'); });
+canvas.addEventListener('pointerdown', () => lightKey('Mouse', true));          // 화면을 끄는 동안 가상 키보드의 마우스에도 불이 켜진다
+addEventListener('pointerup', () => lightKey('Mouse', false));
+$('keysClose').addEventListener('click', () => { setKeys(false); canvas.focus(); });
+$('keysBtn').addEventListener('click', () => { setKeys(true); canvas.focus(); });
+$('keysSkip').addEventListener('change', () => {
+  try { localStorage.setItem(KEYS_SKIP, $('keysSkip').checked ? '1' : '0'); } catch {}
+  canvas.focus();
+});
+
 addEventListener('keydown', (e) => {
-  if (e.target instanceof HTMLInputElement) return;      // 질문·쪽지를 적는 동안에는 글자 입력으로만 쓴다
+  if (e.target instanceof HTMLInputElement && e.target.type !== 'checkbox') return;      // 질문·쪽지를 적는 동안에는 글자 입력으로만 쓴다
   if (!$('confirm').hidden) {          // 바꿀지 묻는 창이 떠 있을 땐 Esc = 취소
     if (e.code === 'Escape') closeConfirm(false);
     return;
@@ -4527,16 +5212,29 @@ addEventListener('keydown', (e) => {
     return;
   }
   if (!entered) return;
-  if (e.code === 'Escape') {           // 한 단계 뒤로
-    if (!e.repeat) back();
+  if (e.code === 'Escape') {           // 한 단계 뒤로 (열려 있는 펜 메뉴 · 조작법이 있으면 그것부터 닫는다)
+    if (!e.repeat && !closePops() && !closeKeys()) back();
     e.preventDefault();
     return;
   }
+  // 시스템 정보 켜기 · 끄기: F3. 브라우저나 노트북이 F3 을 다른 데 쓰는 곳에서는 I 키나 ` 키로도 된다
+  if ((e.code === 'KeyI' && !e.ctrlKey && !e.metaKey && !e.altKey) || e.code === 'F3' || e.code === 'Backquote') {
+    if (!e.repeat) { perfOn = !perfOn; showPerf(); }
+    e.preventDefault();
+    return;
+  }
+  if (e.code === 'KeyH' && !e.repeat && !e.ctrlKey && !e.metaKey) { setKeys($('keys').hidden); return; }     // 조작법 열기 · 닫기
   // ← → = 이전 · 다음
   const step = e.code === 'ArrowRight' || (zoomed && e.code === 'KeyD') ? 1 : e.code === 'ArrowLeft' || (zoomed && e.code === 'KeyA') ? -1 : 0;
   if (step && zoomed) {                // 칠판 보기: 옆 영역으로 (영역이 하나뿐이면 슬라이드)
     if (areas.length > 1) { if (!e.repeat || pan.t >= 1) gotoArea(areaAt + step); }
     else if (slidesMine() && !e.repeat) gotoPage(show.page + step);
+    e.preventDefault();
+    return;
+  }
+  const digit = zoomed && !e.ctrlKey && !e.metaKey && !e.altKey ? /^(?:Digit|Numpad)([1-9])$/.exec(e.code) : null;
+  if (digit) {                         // 칠판 보기: 숫자 키 = 그 번호의 영역으로
+    if (!e.repeat && Number(digit[1]) <= areas.length && areas.length > 1) gotoArea(Number(digit[1]) - 1);
     e.preventDefault();
     return;
   }
@@ -4552,6 +5250,7 @@ addEventListener('keydown', (e) => {
   }
   if (e.code === 'KeyR' && !e.repeat && isTeacher) setRemoteOut(!remoteOut);     // 선생님: 리모컨 꺼내기 · 넣기
   if (e.code === 'KeyF' && !e.repeat && isTeacher && remoteOut) setLaser(!laserOn);   // 레이저 켜기 · 끄기
+  if (e.code === 'KeyF' && !e.repeat && zoomed && canFollow()) setFollow(!follow.on);  // 학생의 칠판 보기: 선생님 따라가기 켜기 · 끄기
   if (e.code === 'KeyB' && !e.repeat) setZoom(!zoomed);                          // 칠판 보기 (선생님은 판서)
   if (e.code === 'Space') { jumpQueued = true; e.preventDefault(); }
   else if (e.code === 'KeyX' && !e.repeat) { act(); e.preventDefault(); }
@@ -4573,6 +5272,7 @@ canvas.addEventListener('pointerdown', (e) => {
   if (zoomed) {
     if (canWrite() && pen.tool !== 'hand') penDown(e);
     else if (zoomAmt > 0.97) {
+      followOff();
       slideId = e.pointerId;
       slideX = e.clientX;
       slideFrom = zoomX;
@@ -4587,7 +5287,12 @@ canvas.addEventListener('pointerdown', (e) => {
   try { canvas.setPointerCapture(e.pointerId); } catch {}   // 창 밖으로 끌어도 계속 따라오게
   canvas.classList.add('drag');
 });
+const hover = { clientX: 0, clientY: 0, on: false };       // 마우스 포인터가 화면의 어디에 있는지 (판서 모드의 레이저가 따라간다)
 canvas.addEventListener('pointermove', (e) => {
+  hover.clientX = e.clientX;
+  hover.clientY = e.clientY;
+  hover.on = true;
+  if (laserOn && zoomed) dirty = true;
   if (e.pointerId === pen.id) { penMove(e); return; }
   if (e.pointerId === slideId) {                     // 칠판 보기: 끈 만큼 옆으로 (칠판 끝에서 멈춘다)
     zoomX = clamp(slideFrom - (e.clientX - slideX) * boardCam().vis / canvas.clientWidth, areas[0], areas[areas.length - 1]);
@@ -4726,7 +5431,11 @@ function codeDone() {
   $('nick').focus();
 }
 function nameDone() {
-  if (!$('nick').value.trim()) $('nick').value = CHARACTERS[chosen].name;
+  if (!$('nick').value.trim()) {                // 이름은 꼭 있어야 한다 (기본 스킨에는 이름이 없다)
+    $('nick').placeholder = '이름을 적어 주세요';
+    $('nick').focus();
+    return;
+  }
   reveal('stepWho');
 }
 function whoDone() {
@@ -4744,9 +5453,35 @@ $('nameNext').addEventListener('click', nameDone);
 $('code').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); codeDone(); } });
 $('nick').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); nameDone(); } });
 document.querySelectorAll('.pick [data-who]').forEach((b) => b.addEventListener('click', () => {
+  if (b.dataset.who === 'mine' && !mySkin) { $('skinFile').click(); return; }      // 아직 스킨이 없으면 먼저 스킨 파일을 고른다
   choose(b.dataset.who);
   whoDone();
 }));
+for (const face of document.querySelectorAll('.pick [data-face]')) {             // 기본 스킨 단추에는 그 스킨의 얼굴을 그려 넣는다
+  face.getContext('2d').drawImage(CHARACTERS[face.dataset.face].skin.canvas, 8, 8, 8, 8, 0, 0, 8, 8);
+}
+
+// 스킨 넣기 · 빼기
+$('skinBtn').addEventListener('click', () => $('skinFile').click());
+$('skinOff').addEventListener('click', () => setMySkin(null));
+$('skinFile').addEventListener('change', async () => {
+  const file = $('skinFile').files[0];
+  $('skinFile').value = '';
+  if (!file) return;
+  let made = null;
+  if (file.size <= 400000) {
+    const url = URL.createObjectURL(file);
+    try { made = skinFromImage(await imageOf(url)); } catch {}
+    URL.revokeObjectURL(url);
+  }
+  if (made && setMySkin(made)) {                // 넣자마자 내 스킨을 고른 것으로 한다
+    choose('mine');
+    whoDone();
+  } else {
+    wearSkin();
+    $('skinNote').textContent = '마인크래프트 스킨 파일이 아니에요. 64×64 크기의 PNG 그림을 골라 주세요.';
+  }
+});
 
 // 강의실 미리 고르기 (수업을 만드는 선생님)
 const PRESETS = [['form', 'preForm', FORMS], ['table', 'preTable', TABLES], ['board', 'preBoard', BOARDS]];
@@ -4777,7 +5512,7 @@ function enter() {
   if (entered || !role || $('stepGo').hidden || !codeValue()) return;      // 모든 항목을 정해야 들어갈 수 있다
   player = actors[chosen];
   mate = actors[chosen === 'roy' ? 'stella' : 'roy'];
-  myName = ($('nick').value.trim() || player.name).slice(0, 12);
+  myName = ($('nick').value.trim() || (role === 'teacher' ? '' : '학생')).slice(0, 12);
   roomCode = codeValue();
   isTeacher = role === 'teacher';
   saveProfile();
@@ -4791,11 +5526,13 @@ function enter() {
   }
   player.wave = mate.wave = 0;
   player.setSelf(true);
-  spawn(player);                                // 학생은 문 쪽, 선생님은 칠판 앞에서 시작한다
-  player.bodyYaw = player.lookYaw = isTeacher ? 0 : FRONT;      // 학생은 칠판을, 선생님은 강의실을 보고 시작
+  spawn(player, true);                          // 문 옆의 전신 거울 앞에서 시작한다
+  player.bodyYaw = player.lookYaw = mirrorGlass.visible ? Math.PI / 2 : isTeacher ? 0 : FRONT;      // 거울을 보고 서서 내 모습부터 확인한다
   player.lookPitch = 0.05;
   player.applyPose();
-  mate.model.root.visible = mate.model.blob.visible = false;     // 소개 화면에 서 있던 다른 캐릭터는 들어가지 않는다
+  for (const key in actors) {                   // 소개 화면에 서 있던 다른 캐릭터는 들어가지 않는다
+    if (actors[key] !== player) actors[key].model.root.visible = actors[key].model.blob.visible = false;
+  }
   mateNext = null;
   netJoin();
   entered = true;
@@ -4811,8 +5548,15 @@ function enter() {
   $('invite').hidden = !isTeacher;              // 선생님: 들어오자마자 초대 링크를 복사할 수 있다
   player.setRemote(isTeacher);
   setRemoteOut(isTeacher);
-  toast(isTeacher ? '리모컨으로 칠판을 조작하고, "강의실 설정"에서 강의실 · 자리 · 칠판 · BGM을 바꿔요'
-    : '자리를 바라보고 X를 누르면 앉아요 · 칠판을 바라보고 X를 누르면 크게 볼 수 있어요', 7000);
+  let skipKeys = false;
+  try { skipKeys = localStorage.getItem(KEYS_SKIP) === '1'; } catch {}
+  $('keysSkip').checked = skipKeys;
+  setKeys(false);
+  if (!COARSE && !skipKeys) setKeys(true);      // 조작법(가상 키보드)을 화면 가운데에 띄운다
+  else {                                        // 조작법을 띄우지 않을 때는 짧은 안내만
+    toast(isTeacher ? '리모컨으로 칠판을 조작하고, "강의실 설정"에서 강의실 · 자리 · 칠판 · BGM을 바꿔요'
+      : '자리를 바라보고 X를 누르면 앉아요 · 칠판을 바라보고 X를 누르면 크게 볼 수 있어요', 7000);
+  }
   canvas.focus();
   dirty = true;
 }
@@ -4830,7 +5574,8 @@ function resize() {
   camera.updateProjectionMatrix();
   if (zoomed) {                                  // 화면 폭이 바뀌면 칠판 영역도 다시 나눈다
     layoutAreas();
-    zoomX = pan.from = pan.to = areas[areaAt];
+    zoomX = pan.from = pan.to = follow.to = areas[areaAt];
+    follow.vel = 0;
     pan.t = 1;
     showAreas();
   }
@@ -4878,8 +5623,9 @@ function frame(now) {
   dirty = false;
   placeCamera();
   updateTarget();
+  mirrorThink();                      // 거울이 가까이 보이면 거울 속 모습부터 그린다
   renderer.render(scene, camera);
-  info.calls = renderer.info.render.calls;
+  info.calls = renderer.info.render.calls + mirrorCalls;
   info.triangles = renderer.info.render.triangles;
   drawn++;
 }
@@ -4908,6 +5654,16 @@ if (profile.preset && typeof profile.preset === 'object') {
 }
 $('nick').addEventListener('input', () => { nickTouched = $('nick').value.trim() !== ''; });
 choose(profile.who === 'stella' ? 'stella' : 'roy');
+wearSkin();
+try {                                           // 지난번에 넣어 둔 스킨
+  const saved = JSON.parse(localStorage.getItem(SKIN_KEY));
+  if (saved) skinFromURL(saved.d, saved.sl).then((skin) => {
+    if (!skin || mySkin || entered) { if (skin) dropSkin(skin); return; }
+    mySkin = { skin, d: saved.d, sl: saved.sl ? 1 : 0 };
+    wearSkin();
+    if (profile.who === 'mine') choose('mine');   // 지난번에 내 스킨으로 들어왔으면 이번에도
+  });
+} catch {}
 
 // 주소에 따라 입장 화면을 연다
 const query = new URLSearchParams(location.search);
@@ -4921,7 +5677,7 @@ if (invited) {                                  // 초대 링크: 역할과 수�
 } else {
   showStart();
   if (profile.role && profile.code) {           // 지난번처럼 한 번에 들어가기
-    const who = CHARACTERS[profile.who === 'stella' ? 'stella' : 'roy'].name;
+    const who = profile.role === 'teacher' ? '선생님' : '학생';
     $('again').replaceChildren('지난번처럼 들어가기', Object.assign(document.createElement('small'), {
       textContent: `${profile.role === 'teacher' ? '선생님' : '학생'} · ${profile.code} · ${profile.name || who}`,
     }));
@@ -4942,8 +5698,8 @@ requestAnimationFrame(frame);
 setInterval(() => {
   const fps = drawn * 2;
   drawn = 0;
-  $('perf').textContent =
-    `${fps > 4 ? `그리는 중 ${fps}fps` : '쉬는 중'} · 그리기 호출 ${info.calls} · 삼각형 ${(info.triangles / 1000).toFixed(1)}k`;
+  perfFps = fps;
+  showPerf();
   tickAttendance();
   sweepPeers();
   showRoom();
@@ -4961,7 +5717,7 @@ window.classroom = {
   cfg, cfgAt, setConfig: (kind, key) => setConfig(kind, key, true), askConfig: setConfig, back, ink, pen, inviteLink, teacherKey,
   get role() { return [role, creator, isTeacher]; }, strokes, inkAdd, FORMS, BOARD, spawn, nearestFree, playBgm, gotoArea, boardCam,
   get areas() { return [areas, areaAt, zoomX]; },
-  get zoom() { return [zoomed, zoomAmt]; }, get bgm() { return bgmNow; }, get audio() { return ac; },
+  get zoom() { return [zoomed, zoomAmt]; }, get mirror() { return { on: mirrorGlass.visible, pos: mirrorGlass.position.toArray(), calls: mirrorCalls, all: info.calls, fade: mirrorMat.uniforms.fade.value }; }, get mySkin() { return mySkin; }, peerSkins, actors, get follow() { return { on: follow.on, can: canFollow(), x: zoomX, to: follow.to, area: areaAt }; }, setZoom, get bgm() { return bgmNow; }, get audio() { return ac; },
   get room() { return { ROOM, HW, HD, floorAt, obstacles, blocked, cellH, NX, NZ }; },
   net: { peers, myId, tick: netTick, receive: netReceive, pace: netPace, openSupabase,
     get link() { return link; }, get state() { return linkState; }, get seatAt() { return mySeatAt; } },
