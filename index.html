@@ -218,6 +218,23 @@
     left: 12px; top: 120px; width: 316px; max-width: calc(100% - 24px); max-height: calc(100% - 136px);
     overflow-y: auto; padding: 10px 10px 12px; background: var(--paper); box-shadow: 0 4px 0 var(--ink);
   }
+  /* 마이크 관리 (선생님): 강의실 설정과 같은 모양의 창 */
+  #voices { right: 176px; top: 50%; transform: translateY(-50%); width: 250px; max-height: calc(100% - 24px); overflow-y: auto; padding: 10px 12px; pointer-events: auto; }
+  #voices[hidden] { display: none; }
+  #voices .head { display: flex; justify-content: space-between; align-items: center; font-size: 14px; margin-bottom: 6px; }
+  #voices .head button { font: 800 16px var(--font); color: var(--ink); background: none; border: 0; cursor: pointer; }
+  #voices label { display: grid; grid-template-columns: auto 1fr; gap: 0 6px; align-items: center; padding: 5px 0; font-size: 13px; font-weight: 700; cursor: pointer; }
+  #voices label small { grid-column: 2; font-size: 11px; font-weight: 600; opacity: .7; }
+  #voices h3 { margin: 8px 0 4px; font-size: 12px; font-weight: 800; }
+  #voiceList { display: grid; gap: 4px; font-size: 13px; }
+  #voiceList div { display: flex; align-items: center; gap: 6px; }
+  #voiceList span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #voiceList img { width: 20px; height: 20px; image-rendering: pixelated; }
+  #voiceList button { padding: 3px 8px; font: 800 12px var(--font); color: var(--ink); background: #fff; border: 2px solid var(--ink); border-radius: 0; cursor: pointer; }
+  #voiceList button[aria-pressed="true"] { color: #fff; background: var(--coral); }
+  #voiceList p { margin: 0; font-size: 12px; opacity: .7; }
+  .touch #voices { right: 12px; top: 68px; transform: none; max-height: calc(100% - 300px); }
+  #corner #micBtn[aria-disabled="true"] { opacity: .45; }
   #setup .head { display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
   #setup .head button { font: 800 16px var(--font); color: var(--ink); background: none; border: 0; cursor: pointer; }
   #setup h3 { margin: 10px 0 4px; font-size: 12px; font-weight: 800; }
@@ -589,6 +606,7 @@
     <button id="remoteBtn" type="button" hidden aria-pressed="false" aria-label="리모컨" title="리모컨 꺼내기 · 넣기 (R)"></button>
     <button id="soundBtn" type="button" hidden aria-pressed="true" aria-label="배경 음악"></button>
     <button id="followBtn" type="button" hidden aria-pressed="true" aria-label="선생님 따라가기"></button>
+    <button id="micBtn" type="button" hidden aria-pressed="false" aria-label="마이크"></button>
   </div>
   <div id="remote" hidden>
     <div id="remoteLed">꺼짐</div>
@@ -611,6 +629,7 @@
       <button id="moreBtn" type="button" class="more" aria-haspopup="true" aria-expanded="false" title="강의실 설정 · 초대 링크">더보기</button>
       <div class="pop" id="morePop" hidden>
         <button id="setupBtn" type="button">강의실 설정<small>강의실 · 자리 · 칠판 · BGM</small></button>
+        <button id="voicesBtn" type="button">마이크 관리<small>내 목소리 · 전체 · 개별 음소거</small></button>
         <button id="inviteBtn" type="button">초대 링크 복사<small>학생에게 보낼 주소</small></button>
       </div>
     </div>
@@ -677,6 +696,13 @@
     <div class="grp" id="penPalm" hidden>
       <button type="button" class="slot" id="palmBtn" aria-pressed="false" aria-label="펜만 쓰기"></button>
     </div>
+  </div>
+  <div id="voices" class="chip" hidden>
+    <div class="head"><b>마이크 관리</b><button id="voicesClose" type="button" aria-label="닫기">×</button></div>
+    <label><input type="checkbox" id="voiceGlobal" checked> 내 목소리를 교실 전체에<small>끄면 가까이 있는 사람에게만 들려요</small></label>
+    <label><input type="checkbox" id="voiceMuteAll"> 학생 전체 음소거<small>켜 두면 학생은 마이크를 켤 수 없어요</small></label>
+    <h3>학생별 음소거</h3>
+    <div id="voiceList"></div>
   </div>
   <div id="react" class="chip" hidden role="group" aria-label="반응 고르기"></div>
   <div id="reacts" class="chip" hidden aria-live="polite" title="방금 학생들이 보낸 반응"></div>
@@ -790,7 +816,7 @@ const CHARACTERS = {                                      // 기본 스킨 두 �
   },
 };
 const DOOR = { z: 5.7, w: 1.3, h: 2.3, y: 0 };            // 나가는 문 (오른쪽 벽). 위치는 강의실 형태마다 다르다
-const WALK = 2.4, RUN = 4.4, JUMP = 3.7, GRAVITY = 12;    // 걷기·달리기 속도, 점프 세기, 중력
+const WALK = 2.4, RUN = 4.4, JUMP = 4.3, GRAVITY = 12;    // 걷기·달리기 속도, 점프 세기(0.77m 까지 뛴다: 책상 · 테이블 위로 올라설 수 있는 높이), 중력
 // 캐릭터의 몸은 마인크래프트와 같은 비율이다: 한 점(u) = 4cm, 머리 8×8×8 · 몸통 8×12×4 · 팔다리 4×12×4 점 (키 32점 = 1.28m)
 const AV = { u: 0.04, leg: 0.48, body: 0.48, head: 0.32, armX: 0.24, shoulder: 0.88 };     // armX · shoulder = 어깨 관절의 옆 위치 · 높이
 const EYE_H = AV.leg + AV.body + AV.head / 2;             // 눈높이 = 머리 한가운데
@@ -1644,7 +1670,7 @@ function addSeat(P, x, y, z, yaw, { g = null, deskBox = null, solid: block = fal
     }
   }
   const half = Math.min(0.27, 0.215 * (Math.abs(sn) + Math.abs(cs)));
-  obstacles.push({ x0: x - half, x1: x + half, z0: z - half, z1: z + half });
+  obstacles.push({ x0: x - half, x1: x + half, z0: z - half, z1: z + half, top: y + 0.46 });      // 의자도 뛰어넘을 수 있다 (앉는 판 높이를 밟고 지나간다)
   const sit = at(0, 0.06);
   const chairBox = boxOf(x - half, x + half, y, y + 0.81, z - half, z + half);
   const seat = {
@@ -1668,7 +1694,7 @@ function soloDesk(P, x, y, z) {
   P.desk.push({ p: [x, y + 0.6, z], s: [1.0, 0.05, 0.58] }, { p: [x, y + 0.5, z - 0.03], s: [0.86, 0.13, 0.44] });
   for (const dx of [-0.45, 0.45]) for (const dz of [-0.24, 0.24]) P.metal.push({ p: [x + dx, y + 0.29, z + dz], s: [0.05, 0.58, 0.05] });
   P.shadow.push({ p: [x, y + 0.012, z + 0.3], r: FLAT, s: [1.5, 1.7, 1] });
-  obstacles.push({ x0: x - 0.5, x1: x + 0.5, z0: z - 0.29, z1: z + 0.29 });
+  obstacles.push({ x0: x - 0.5, x1: x + 0.5, z0: z - 0.29, z1: z + 0.29, top: y + 0.625 });
   addSeat(P, x, y, z + 0.62, FRONT, { reach: 1.75, deskBox: boxOf(x - 0.5, x + 0.5, y, y + 0.625, z - 0.29, z + 0.29) });
 }
 // 2인 짝꿍 책상: 넓은 책상 하나에 의자 둘이 나란히 칠판을 본다 (zc = 책상과 의자를 합친 자리의 가운데)
@@ -1677,7 +1703,7 @@ function pairDesk(P, x, zc) {
   P.desk.push({ p: [x, 0.6, z], s: [1.3, 0.05, 0.58] }, { p: [x, 0.5, z - 0.03], s: [1.16, 0.13, 0.44] });
   for (const dx of [-0.6, 0.6]) for (const dz of [-0.24, 0.24]) P.metal.push({ p: [x + dx, 0.29, z + dz], s: [0.05, 0.58, 0.05] });
   P.shadow.push({ p: [x, 0.012, z + 0.3], r: FLAT, s: [1.9, 1.7, 1] });
-  obstacles.push({ x0: x - 0.65, x1: x + 0.65, z0: z - 0.29, z1: z + 0.29 });
+  obstacles.push({ x0: x - 0.65, x1: x + 0.65, z0: z - 0.29, z1: z + 0.29, top: 0.625 });
   for (const side of [-1, 1]) {
     addSeat(P, x + side * 0.33, 0, z + 0.62, FRONT, { g, deskBox: boxOf(x, x + side * 0.65, 0, 0.625, z - 0.29, z + 0.29) });
   }
@@ -1690,7 +1716,7 @@ function rectTable(P, x, z, tw, td, offs) {
     P.metal.push({ p: [x + dx * (tw / 2 - 0.08), 0.29, z + dz * (td / 2 - 0.08)], s: [0.06, 0.58, 0.06] });
   }
   P.shadow.push({ p: [x, 0.012, z], r: FLAT, s: [tw + 1.7, td + 0.9, 1] });
-  obstacles.push({ x0: x - tw / 2, x1: x + tw / 2, z0: z - td / 2, z1: z + td / 2 });
+  obstacles.push({ x0: x - tw / 2, x1: x + tw / 2, z0: z - td / 2, z1: z + td / 2, top: 0.625 });
   for (const side of [-1, 1]) offs.forEach((o, i) => {
     const z0 = z - td / 2 + i * part;          // 테이블에서 이 자리 몫
     addSeat(P, x + side * (tw / 2 + 0.3), 0, z + o, -side * Math.PI / 2,
@@ -1703,7 +1729,7 @@ function roundTable(P, x, z) {
   P.round.push({ p: [x, 0.6, z], s: [1.15, 0.05, 1.15] });
   P.metal.push({ p: [x, 0.3, z], s: [0.2, 0.58, 0.2] }, { p: [x, 0.02, z], s: [0.9, 0.04, 0.9] });
   P.shadow.push({ p: [x, 0.012, z], r: FLAT, s: [3.7, 3.7, 1] });
-  obstacles.push({ x0: x - 0.9, x1: x + 0.9, z0: z - 0.9, z1: z + 0.9 });
+  obstacles.push({ x0: x - 0.9, x1: x + 0.9, z0: z - 0.9, z1: z + 0.9, top: 0.625 });
   for (let i = 0; i < 10; i++) {
     const a = (-140 + i * 280 / 9) * Math.PI / 180;      // 0 = 칠판에서 가장 먼 쪽
     addSeat(P, x + Math.sin(a) * 1.47, 0, z + Math.cos(a) * 1.47, a + Math.PI, { g });
@@ -1841,7 +1867,7 @@ const mirrorHaze = new THREE.Color('#b7c6d2');
 const FOG_OFF = [1e5, 1e6];                      // 평소: 안개가 닿지 않는 거리
 const mirrorFog = new THREE.Fog(mirrorHaze, ...FOG_OFF);
 scene.fog = mirrorFog;
-const mirrorRT = new THREE.WebGLRenderTarget(512, 320);
+const mirrorRT = new THREE.WebGLRenderTarget(320, 640);      // 유리(0.9 × 1.8m)와 같은 1:2 — 그림 전체가 유리에 쓰인다
 const mirrorCam = new THREE.PerspectiveCamera();
 const mirrorMat = keep(new THREE.ShaderMaterial({
   uniforms: { map: { value: mirrorRT.texture }, texMat: { value: new THREE.Matrix4() }, haze: { value: mirrorHaze }, fade: { value: 1 } },
@@ -1885,12 +1911,15 @@ mirrorGlass.visible = false;
 scene.add(mirrorGlass);
 const mirrorBox = new THREE.Box3();
 let mirrorCalls = 0;                             // 거울을 그리느라 늘어난 그리기 호출 수
+let mirrorN = 0, mirrorSum = 0;                 // (재 보려고) 거울을 그린 횟수 · 그리는 데 쓴 시간의 합(ms)
 let mirrorAt = -1e9, mirrorMs = 0.5, mirrorStale = false;      // 마지막으로 그린 때 · 그리는 데 걸린 시간(평균) · 새로 그릴 것이 밀려 있는지
-const mirrorEvery = () => clamp(mirrorMs * 8, 50, 200);      // 거울을 새로 그리는 간격(ms): 걸린 시간의 8배, 곧 전체의 1/8 까지만 쓴다
+// 거울을 새로 그리는 간격(ms). 화면을 그릴 때마다 거울도 같이 그려야 거울 속 내가 떨리지 않는다(화면은 60장인데 거울이 20장이면 뚝뚝 끊긴다).
+// 그래서 보통은 0(매번 그린다). 거울 한 번에 3ms 넘게 걸리는 버거운 기기에서만, 걸린 시간의 4배(전체의 1/4)까지로 줄인다
+const mirrorEvery = () => (mirrorMs <= 3 ? 0 : clamp(mirrorMs * 4, 33, 200));
 {
   const N = new THREE.Vector3(), P = new THREE.Vector3(), C = new THREE.Vector3(), V = new THREE.Vector3(), T = new THREE.Vector3();
-  const rot = new THREE.Matrix4(), view = new THREE.Matrix4(), frustum = new THREE.Frustum(), plane = new THREE.Plane();
-  const clip = new THREE.Vector4(), q = new THREE.Vector4();
+  const E = new THREE.Vector3(), U = new THREE.Vector3(), R = new THREE.Vector3(), B = new THREE.Vector3();
+  const rot = new THREE.Matrix4(), view = new THREE.Matrix4(), frustum = new THREE.Frustum();
   // 화면을 그리기 바로 전에 부른다: 거울이 가까이 보이면 거울 속 모습을 새로 그린다
   var mirrorThink = (now) => {
     if (!mirrorGlass.visible) { mirrorCalls = 0; mirrorStale = false; return; }
@@ -1910,31 +1939,22 @@ const mirrorEvery = () => clamp(mirrorMs * 8, 50, 200);      // 거울을 새로
     if (now - mirrorAt < mirrorEvery()) { mirrorStale = true; return; }      // 방금 그렸으면 그 그림을 조금 더 쓴다
     const began = performance.now();
 
-    // 거울 뒤쪽의 카메라: 내 카메라를 거울 면에 대칭으로 옮긴 것
-    rot.extractRotation(camera.matrixWorld);
-    mirrorCam.position.copy(V).reflect(N).negate().add(P);
-    T.set(0, 0, -1).applyMatrix4(rot).add(C);
-    T.subVectors(P, T).reflect(N).negate().add(P);
-    mirrorCam.up.set(0, 1, 0).applyMatrix4(rot).reflect(N);
-    mirrorCam.lookAt(T);
-    mirrorCam.fov = camera.fov;
-    mirrorCam.aspect = camera.aspect;
-    mirrorCam.near = camera.near;
-    mirrorCam.far = gap + MIRROR.end + 0.3;      // 거울 속에서 흐려진 곳 너머는 그리지 않는다
-    mirrorCam.updateProjectionMatrix();
+    // 거울 뒤쪽의 카메라: 내 눈을 거울 면에 대칭으로 옮긴 자리에서, 유리 네모를 창 삼아 강의실을 본다 (창에 딱 맞춘 비스듬한 시야).
+    // · 그림의 모든 점이 유리에 쓰여서 선명하고, 유리로 보이는 것만 그려서 가볍다
+    // · 시야의 가까운 쪽 끝이 바로 거울 면이라, 거울 면보다 뒤(벽 속)에 있는 것은 저절로 잘린다
+    E.copy(C).addScaledVector(N, -2 * gap);
+    U.set(0, 1, 0).applyMatrix4(rot);              // (rot = 유리가 놓인 방향)
+    R.crossVectors(N, U);                          // 거울 속 카메라의 오른쪽
+    B.copy(N).negate();                            // 뒤쪽 (카메라는 -z, 곧 강의실 쪽을 본다)
+    mirrorCam.position.copy(E);
+    mirrorCam.quaternion.setFromRotationMatrix(view.makeBasis(R, U, B));
     mirrorCam.updateMatrixWorld();
+    T.subVectors(P, E);                            // 눈에서 유리 한가운데까지
+    const cx = T.dot(R), cy = T.dot(U), hw = mirrorGlass.scale.x / 2, hh = mirrorGlass.scale.y / 2;
+    mirrorCam.projectionMatrix.makePerspective(cx - hw, cx + hw, cy + hh, cy - hh, gap, gap + MIRROR.end + 0.3);      // 거울 속에서 흐려진 곳 너머는 그리지 않는다
+    mirrorCam.projectionMatrixInverse.copy(mirrorCam.projectionMatrix).invert();
     mirrorMat.uniforms.texMat.value.set(0.5, 0, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0, 0.5, 0.5, 0, 0, 0, 1)
       .multiply(mirrorCam.projectionMatrix).multiply(mirrorCam.matrixWorldInverse).multiply(mirrorGlass.matrixWorld);
-    // 거울 면보다 뒤(벽 속)에 있는 것은 잘라 낸다
-    plane.setFromNormalAndCoplanarPoint(N, P).applyMatrix4(mirrorCam.matrixWorldInverse);
-    clip.set(plane.normal.x, plane.normal.y, plane.normal.z, plane.constant);
-    const e = mirrorCam.projectionMatrix.elements;
-    q.set((Math.sign(clip.x) + e[8]) / e[0], (Math.sign(clip.y) + e[9]) / e[5], -1, (1 + e[10]) / e[14]);
-    clip.multiplyScalar(2 / clip.dot(q));
-    e[2] = clip.x;
-    e[6] = clip.y;
-    e[10] = clip.z + 1 - 0.003;
-    e[14] = clip.w;
 
     // 거울 속에서는 내 머리도 보이고, 손에 든 리모컨(내 눈앞에만 있는 것)은 보이지 않는다
     const head = player.model.head, headWas = head.visible, heldWas = held.visible, bg = scene.background;
@@ -1956,7 +1976,9 @@ const mirrorEvery = () => clamp(mirrorMs * 8, 50, 200);      // 거울을 새로
     mirrorGlass.visible = true;
     mirrorAt = now;
     mirrorStale = false;
-    mirrorMs += (Math.min(performance.now() - began, 25) - mirrorMs) * 0.2;       // (처음 그릴 때는 준비하느라 오래 걸리므로 25ms 까지만 센다)
+    mirrorN++;
+    mirrorSum += performance.now() - began;
+    if (mirrorN > 1) mirrorMs += (Math.min(performance.now() - began, 25) - mirrorMs) * 0.2;       // (처음 그릴 때는 준비하느라 오래 걸리므로 25ms 까지만 센다)
   };
 }
 
@@ -2215,8 +2237,20 @@ const BODY_R = 0.2, WALL_PAD = 0.36;
 const STEP_UP = 0.36;                // 이보다 높은 턱(무대 앞 · 2층 벽)은 걸어서 못 올라간다
 // 몸 둘레에서 가장 높은 바닥 (높은 턱에 몸이 파묻히지 않게, 턱 앞에서 멈출 때 쓴다)
 const floorNear = (x, z) => Math.max(floorAt(x + 0.16, z), floorAt(x - 0.16, z), floorAt(x, z + 0.16), floorAt(x, z - 0.16));
+// 발밑의 바닥: 방바닥(계단 포함)이거나, 올라서 있는 책상 · 테이블 위.
+// 책상 · 테이블 · 의자(top 이 적힌 장애물)는 발이 그 높이까지 올라오면(뛰어오르면) 막지 않고 위에 설 수 있다. 가장자리에서는 발이 조금 나가도 된다
+const STAND_EDGE = 0.12, STAND_REACH = 0.06;
+function groundAt(p) {
+  let ground = floorAt(p.x, p.z);
+  for (const o of obstacles) {
+    if (o.top === undefined || o.top <= ground || p.y < o.top - STAND_REACH) continue;
+    if (p.x > o.x0 - STAND_EDGE && p.x < o.x1 + STAND_EDGE && p.z > o.z0 - STAND_EDGE && p.z < o.z1 + STAND_EDGE) ground = o.top;
+  }
+  return ground;
+}
 function collide(p) {
   for (const o of obstacles) {
+    if (o.top !== undefined && p.y >= o.top - STAND_REACH) continue;      // 그 위로 올라와 있으면 지나갈 수 있다 (위에 선다)
     const cx = clamp(p.x, o.x0, o.x1), cz = clamp(p.z, o.z0, o.z1);
     const dx = p.x - cx, dz = p.z - cz, d2 = dx * dx + dz * dz;
     if (d2 >= BODY_R * BODY_R) continue;
@@ -2859,8 +2893,8 @@ class Actor {
       }
     }
 
-    // 점프 · 중력 · 바닥 높이 (계단식 강의실과 강당에서는 바닥이 높아진다)
-    const ground = floorAt(this.pos.x, this.pos.z);
+    // 점프 · 중력 · 바닥 높이 (계단식 강의실과 강당에서는 바닥이 높아진다. 책상 · 테이블 위에 올라서면 그 위가 바닥이다)
+    const ground = groundAt(this.pos);
     if (this.input.jump && this.mode === 'free' && !this.air) { this.vy = JUMP; this.air = true; }
     this.input.jump = false;
     if (!this.air && this.pos.y - ground > 0.45) this.air = true;     // 높은 곳에서 발을 내디디면 떨어진다
@@ -2942,7 +2976,8 @@ class Actor {
     m.root.rotation.y = this.bodyYaw;
     m.tag.position.y = AV.leg + AV.body + AV.head + 0.2 + m.rig.position.y;
     if (this.bubble) this.bubble.position.y = m.tag.position.y + 0.42;
-    const ground = floorAt(this.pos.x, this.pos.z);
+    if (this.micIcon) this.micIcon.position.y = m.tag.position.y + 0.2;
+    const ground = groundAt(this.pos);
     m.blob.position.set(this.pos.x, ground + 0.014, this.pos.z);
     const bs = 0.8 * (1 - clamp(this.pos.y - ground, 0, 1) * 0.45);
     m.blob.scale.set(bs, bs, 1);
@@ -2979,6 +3014,18 @@ class Actor {
     this.bubbleUntil = performance.now() + ms;
     this.wave = 1;
     this.applyPose();
+  }
+
+  // 마이크를 켜 둔 사람: 이름 위에 작은 마이크가 보인다
+  setMic(on) {
+    if (on && !this.micIcon) {
+      this.micIcon = new THREE.Sprite(micBadge());
+      this.micIcon.scale.set(0.2, 0.2, 1);
+      this.model.root.add(this.micIcon);
+      this.applyPose();
+    }
+    if (this.micIcon) this.micIcon.visible = on && !this.isSelf;
+    dirty = true;
   }
 
   // 반응: 머리 위에 아이콘 하나를 잠깐 띄운다 (말풍선과 같은 자리를 쓴다)
@@ -3821,6 +3868,7 @@ function leave() {
   whisperPeer = '';
   $('ask').hidden = $('whisper').hidden = true;
   endShow();                         // 띄워 둔 강의 자료를 내리고
+  voiceReset();                      // 마이크를 끄고 목소리 연결을 모두 끊는다
   gestures.length = 0;
   setZoom(false);
   zoomAmt = 0;
@@ -3832,6 +3880,7 @@ function leave() {
   $('remoteBtn').hidden = true;
   netLeave();                        // 함께 있던 사람들에게 나갔다고 알리고 연결을 끊는다
   paused = entered = false;
+  showMic();
   resetConfig();                     // 강의실 · 칠판 · BGM 을 처음 모습으로
   $('setup').hidden = true;
   setRemoteOut(false);
@@ -3891,6 +3940,8 @@ function snapshot() {
     w: p.writeOn ? [round2(p.handTo.x), round2(p.handTo.y)] : 0,     // 판서하는 손이 가리키는 곳
     h: HOLD.indexOf(p.hold || ''),               // 손에 든 것
     hc: pen.color,                               // 그 펜의 색 번호
+    v: !voice.on ? 0 : isTeacher && voice.global ? 2 : 1,             // 마이크: 0 끔 · 1 켬(가까이에만) · 2 켬(선생님, 교실 전체에)
+    ...(isTeacher ? { vm: voice.muteAll ? 1 : 0, vx: [...voice.muted].slice(0, 120) } : {}),       // 선생님이 정한 전체 · 개별 음소거
   };
 }
 
@@ -3987,6 +4038,7 @@ function netReceive(m) {
     peer.goal = goal;
     peer.last = now;
   }
+  onVoiceState(peer, m);             // 마이크를 켰는지 · (선생님이면) 누구를 음소거했는지
   const holding = Number.isInteger(m.h) && HOLD[m.h] !== undefined ? HOLD[m.h] : m.tc ? 'remote' : '';
   peer.actor.setHold(holding, inkOf(holding, Number.isInteger(m.hc) ? m.hc : 0));      // 손에 든 것과 그 펜의 색
   peer.actor.writeOn = Array.isArray(m.w) && m.w.length === 2;      // 칠판 앞에서 판서하는 중
@@ -4023,7 +4075,7 @@ function peersThink(dt) {
       peer.from.z + (peer.goal.z - peer.from.z) * peer.t - oz) / dt : 0;
     const moving = sp > 0.25 && a.sitAmt < 0.5;
     a.walkAmt += ((moving ? 1 : 0) - a.walkAmt) * (1 - Math.exp(-10 * dt));
-    a.airAmt += ((a.pos.y - floorAt(a.pos.x, a.pos.z) > 0.3 ? 1 : 0) - a.airAmt) * (1 - Math.exp(-14 * dt));
+    a.airAmt += ((a.pos.y - groundAt(a.pos) > 0.3 ? 1 : 0) - a.airAmt) * (1 - Math.exp(-14 * dt));
     if (moving) a.walkPhase += (7 + Math.min(sp, RUN) * 2.4) * dt;
     placePeer(peer, peer.t);
     active = true;
@@ -4069,6 +4121,11 @@ function dropPeer(id) {
   if (show.by === id) endShow(false);                // 발표하던 선생님이 나가면 스크린도 원래대로
   removeLaser(id);
   if (show.pcs.has(id)) { show.pcs.get(id).close(); show.pcs.delete(id); }
+  voiceDrop(id);
+  if (voice.out.has(id)) { voice.out.get(id).close(); voice.out.delete(id); }
+  if (voice.muted.delete(id)) lastSent = '';
+  if (peer.actor.micIcon) peer.actor.micIcon.removeFromParent();
+  setTimeout(showVoices, 0);
   if (peer.seat && peer.seat.taken === peer.actor) peer.seat.taken = null;
   if (whisperPeer === id) closeWhisper();
   if (peer.actor.bubble && peer.actor.bubble.material.map) peer.actor.bubble.material.map.dispose();
@@ -4523,6 +4580,235 @@ function onShow(m) {
   }
 }
 
+/* ───────────── 마이크: 누구나 말할 수 있다 ─────────────
+   목소리는 화면 공유처럼 WebRTC 로, 듣는 사람 한 명 한 명에게 직접 보낸다 (따로 서버가 없다). 연결을 맺는 대화만 방 통로를 쓴다 (rtc 메시지의 v).
+   · 마이크를 켰는지는 상태 소식(s)의 v 에 싣는다. 듣는 쪽이 "나에게도 보내 주세요"(want)를 보내면 말하는 쪽이 연결을 제안한다
+   · 소리는 거리에 따라 작아진다: near(2m)까지 제 크기 → far(12m)에서 0. 들리지 않을 만큼 먼 사람과는 연결하지 않는다 (keep 을 넘으면 끊는다)
+     → 사람이 많아도, 말하는 사람은 자기 둘레의 사람들에게만 보내면 된다
+   · 선생님 목소리는 거리와 상관없이 모두에게 들리게 할 수 있다 (v = 2, 마이크 관리에서 끌 수 있다)
+   · 선생님은 학생 전체 · 한 명씩 음소거할 수 있다. 선생님의 상태 소식(vm · vx)을 보고 학생 쪽에서 스스로 마이크를 끈다 */
+const VOICE = { near: 2, far: 12, keep: 15 };
+const voice = {
+  on: false, stream: null, asking: false,
+  out: new Map(),                    // 듣는 사람 id → 내 목소리를 보내는 연결
+  in: new Map(),                     // 말하는 사람 id → { pc, el, src, gain }
+  asked: new Map(),                  // 말하는 사람 id → 연결을 부탁한 때
+  global: true,                      // (선생님) 내 목소리를 교실 전체에
+  muteAll: false, muted: new Set(),  // (선생님) 학생 전체 음소거 · 따로 음소거한 사람들
+  thought: 0,
+};
+let micMat = null;
+function micBadge() {                 // 이름 위에 뜨는 작은 마이크 그림
+  if (!micMat) micMat = new THREE.SpriteMaterial({ depthWrite: false, map: makeTex(80, 80, (g) => drawIcon(g, 'mic', 0, 0, 5)) });
+  return micMat;
+}
+// 선생님이 나를 음소거해 두었는지
+const voiceBlocked = () => !isTeacher && [...peers.values()].some((p) => p.teacher && (p.muteAll || (p.mutes && p.mutes.includes(myId))));
+function showMic() {
+  const can = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.RTCPeerConnection);
+  $('micBtn').hidden = !(entered && can);
+  $('micBtn').setAttribute('aria-pressed', String(voice.on));
+  $('micBtn').setAttribute('aria-disabled', String(voiceBlocked()));
+  micImg.src = iconURL[voice.on ? 'mic' : 'micOff'];
+  $('micBtn').title = voiceBlocked() ? '선생님이 마이크를 꺼 두었어요' : voice.on ? '마이크 켬 (누르면 꺼요 · V)' : '마이크 끔 (누르면 켜요 · V)';
+}
+async function setMic(on) {
+  if (on === voice.on || voice.asking) return;
+  if (on) {
+    if (!entered) return;
+    if (voiceBlocked()) { toast('선생님이 마이크를 꺼 두었어요'); return; }
+    voice.asking = true;
+    let stream = null;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+    } catch (err) {
+      console.warn('마이크 실패', err);
+      toast('마이크를 쓸 수 없어요. 브라우저에서 이 사이트의 마이크를 허용해 주세요', 7000);
+    }
+    voice.asking = false;
+    if (!stream) return;
+    if (!entered || voiceBlocked()) { for (const track of stream.getTracks()) track.stop(); return; }
+    voice.stream = stream;
+    voice.on = true;
+    toast(isTeacher && voice.global ? '마이크를 켰어요 · 교실 전체에 들려요' : '마이크를 켰어요 · 가까이 있는 사람에게 들려요');
+  } else {
+    voice.on = false;
+    if (voice.stream) for (const track of voice.stream.getTracks()) track.stop();
+    voice.stream = null;
+    for (const pc of voice.out.values()) pc.close();
+    voice.out.clear();
+  }
+  player.setMic(voice.on);
+  showMic();
+  lastSent = '';                     // 켜고 끈 것을 바로 알린다
+  dirty = true;
+}
+$('micBtn').addEventListener('click', () => { setMic(!voice.on); canvas.focus(); });
+// 말하는 사람과의 연결을 끊는다. tell = 그 사람에게도 알려서 보내기를 멈추게 할지
+function voiceDrop(id, tell) {
+  voice.asked.delete(id);
+  const inb = voice.in.get(id);
+  if (!inb) return;
+  voice.in.delete(id);
+  inb.pc.close();
+  if (inb.src) inb.src.disconnect();
+  if (inb.gain) inb.gain.disconnect();
+  if (inb.el) { inb.el.pause(); inb.el.srcObject = null; }
+  if (tell) rtcSend(id, { type: 'bye', v: 1 });
+}
+function voiceReset() {
+  if (voice.on) setMic(false);
+  for (const id of [...voice.in.keys()]) voiceDrop(id);
+  voice.muteAll = false;
+  voice.muted.clear();
+  $('voices').hidden = true;
+  showMic();
+}
+// 받은 목소리를 스피커로: 크기를 거리에 맞춰 조절할 수 있게 Web Audio 를 거친다
+function voicePlay(inb, stream) {
+  const el = new Audio();
+  el.srcObject = stream;
+  el.muted = true;                   // (크롬은 받은 소리를 소리 요소에도 물려 둬야 Web Audio 로 흘려보낸다)
+  el.play().catch(() => {});
+  inb.el = el;
+  try {
+    if (!audioReady()) throw new Error('no audio');
+    inb.src = ac.createMediaStreamSource(stream);
+    inb.gain = ac.createGain();
+    inb.gain.gain.value = 0;         // 거리를 잰 다음에 키운다 (voiceThink)
+    inb.src.connect(inb.gain).connect(ac.destination);
+  } catch (err) {                    // 안 되는 브라우저에서는 크기 조절 없이 그대로 튼다
+    console.warn('목소리 크기 조절 불가', err);
+    el.muted = false;
+  }
+  voice.thought = 0;
+}
+// 0.2초마다: 마이크를 켠 사람들 가운데 들을 사람을 고르고(가까운 사람 · 교실 전체에 말하는 선생님), 거리에 맞춰 소리 크기를 정한다
+function voiceThink(now) {
+  if (!entered || now - voice.thought < 200) return;
+  voice.thought = now;
+  for (const peer of peers.values()) {
+    const inb = voice.in.get(peer.id);
+    if (!peer.voice) { if (inb) voiceDrop(peer.id); continue; }
+    const everywhere = peer.voice === 2 && peer.teacher;
+    const d = Math.hypot(peer.actor.pos.x - player.pos.x, peer.actor.pos.y - player.pos.y, peer.actor.pos.z - player.pos.z);
+    if (!everywhere && d > (inb ? VOICE.keep : VOICE.far)) { if (inb) voiceDrop(peer.id, true); continue; }
+    if (!inb) {                      // 아직 연결이 없다: 보내 달라고 부탁한다 (답이 없으면 4초 뒤에 다시)
+      if (now - (voice.asked.get(peer.id) || -1e9) > 4000) {
+        voice.asked.set(peer.id, now);
+        rtcSend(peer.id, { type: 'want', v: 1 });
+      }
+      continue;
+    }
+    inb.level = everywhere ? 1 : clamp(1 - (d - VOICE.near) / (VOICE.far - VOICE.near), 0, 1) ** 2;
+    if (inb.gain) inb.gain.gain.setTargetAtTime(inb.level, ac.currentTime, 0.12);
+  }
+}
+setInterval(() => voiceThink(performance.now()), 250);        // (화면을 그리지 않을 때에도, 창이 가려져 있어도 돌아야 해서 따로 돌린다)
+function voicePc(to, speaker) {
+  const pc = new RTCPeerConnection(RTC_CONFIG);
+  pc.queue = Promise.resolve();
+  pc.onicecandidate = (e) => { if (e.candidate) rtcSend(to, { type: 'ice', v: 1, s: speaker ? 1 : 0, c: e.candidate.toJSON() }); };     // s = 보내는 내가 말하는 쪽인지
+  return pc;
+}
+function onVoiceRtc(from, d) {
+  const fail = (err) => console.warn('목소리 연결 실패', err);
+  if (d.type === 'want') {                           // (말하는 쪽) 듣겠다는 사람에게 연결을 제안한다
+    if (!voice.on || !voice.stream || !peers.has(from)) return;
+    if (voice.out.has(from)) voice.out.get(from).close();
+    const pc = voicePc(from, true);
+    voice.out.set(from, pc);
+    pc.onconnectionstatechange = () => {
+      if ((pc.connectionState === 'failed' || pc.connectionState === 'closed') && voice.out.get(from) === pc) { pc.close(); voice.out.delete(from); }
+    };
+    for (const track of voice.stream.getTracks()) pc.addTrack(track, voice.stream);
+    pc.queue = pc.createOffer()
+      .then((offer) => pc.setLocalDescription(offer))
+      .then(() => rtcSend(from, { type: 'offer', v: 1, sdp: pc.localDescription.sdp }))
+      .catch(fail);
+  } else if (d.type === 'offer') {                   // (듣는 쪽) 제안을 받아 답한다
+    const peer = peers.get(from);
+    if (!peer || !peer.voice || typeof d.sdp !== 'string') return;
+    voiceDrop(from);
+    const pc = voicePc(from, false), inb = { pc, el: null, src: null, gain: null, level: 0 };
+    voice.in.set(from, inb);
+    pc.ontrack = (e) => voicePlay(inb, e.streams[0] || new MediaStream([e.track]));
+    pc.onconnectionstatechange = () => { if (pc.connectionState === 'failed' && voice.in.get(from) === inb) voiceDrop(from); };
+    pc.queue = pc.setRemoteDescription({ type: 'offer', sdp: d.sdp })
+      .then(() => pc.createAnswer())
+      .then((answer) => pc.setLocalDescription(answer))
+      .then(() => rtcSend(from, { type: 'answer', v: 1, sdp: pc.localDescription.sdp }))
+      .catch(fail);
+  } else if (d.type === 'answer' && typeof d.sdp === 'string') {
+    const pc = voice.out.get(from);
+    if (pc) pc.queue = pc.queue.then(() => pc.setRemoteDescription({ type: 'answer', sdp: d.sdp })).catch(() => {});
+  } else if (d.type === 'ice' && d.c) {              // 보낸 사람이 말하는 쪽이면 내 '듣는 연결'에, 듣는 쪽이면 내 '보내는 연결'에
+    const pc = d.s ? voice.in.get(from) && voice.in.get(from).pc : voice.out.get(from);
+    if (pc) pc.queue = pc.queue.then(() => pc.addIceCandidate(d.c)).catch(() => {});
+  } else if (d.type === 'bye') {                     // 듣던 사람이 멀어졌다: 그만 보낸다
+    if (voice.out.has(from)) { voice.out.get(from).close(); voice.out.delete(from); }
+  }
+}
+// 상태 소식에 실려 온 마이크 상태 (선생님이면 음소거 목록도)
+function onVoiceState(peer, m) {
+  const v = m.v === 1 || m.v === 2 ? m.v : 0;
+  let changed = false;
+  if (v !== (peer.voice || 0)) {
+    peer.voice = v;
+    peer.actor.setMic(!!v);
+    if (!v) voiceDrop(peer.id);
+    voice.thought = 0;
+    changed = true;
+  }
+  if (peer.teacher) {
+    const all = !!m.vm, list = Array.isArray(m.vx) ? m.vx.filter((id) => typeof id === 'string').slice(0, 120) : [];
+    if (all !== !!peer.muteAll || list.join() !== (peer.mutes || []).join()) {
+      peer.muteAll = all;
+      peer.mutes = list;
+      if (voice.on && voiceBlocked()) { setMic(false); toast('선생님이 마이크를 껐어요'); }
+      showMic();
+    }
+  }
+  if (changed) showVoices();
+}
+// (선생님) 마이크 관리 창: 내 목소리 범위 · 학생 전체 음소거 · 학생별 음소거
+function showVoices() {
+  if ($('voices').hidden) return;
+  $('voiceGlobal').checked = voice.global;
+  $('voiceMuteAll').checked = voice.muteAll;
+  const rows = [...peers.values()].filter((p) => !p.teacher).sort((a, b) => (b.voice ? 1 : 0) - (a.voice ? 1 : 0) || a.actor.name.localeCompare(b.actor.name)).map((p) => {
+    const row = document.createElement('div'), name = document.createElement('span'), b = document.createElement('button');
+    name.textContent = p.actor.name || '학생';
+    const off = voice.muted.has(p.id);
+    Object.assign(b, { type: 'button', textContent: off ? '음소거 중' : '음소거' });
+    b.setAttribute('aria-pressed', String(off));
+    b.addEventListener('click', () => {
+      if (!voice.muted.delete(p.id)) voice.muted.add(p.id);
+      lastSent = '';                 // 바로 알린다
+      showVoices();
+      canvas.focus();
+    });
+    row.append(iconImg(p.voice ? 'mic' : 'micOff'), name, b);
+    return row;
+  });
+  if (!rows.length) rows.push(Object.assign(document.createElement('p'), { textContent: '아직 들어온 학생이 없어요.' }));
+  $('voiceList').replaceChildren(...rows);
+}
+$('voicesBtn').addEventListener('click', () => { $('voices').hidden = !$('voices').hidden; showVoices(); canvas.focus(); });
+$('voicesClose').addEventListener('click', () => { $('voices').hidden = true; canvas.focus(); });
+$('voiceGlobal').addEventListener('change', () => {
+  voice.global = $('voiceGlobal').checked;
+  lastSent = '';
+  toast(voice.global ? '내 목소리가 교실 전체에 들려요' : '내 목소리가 가까이 있는 사람에게만 들려요');
+  canvas.focus();
+});
+$('voiceMuteAll').addEventListener('change', () => {
+  voice.muteAll = $('voiceMuteAll').checked;
+  lastSent = '';
+  toast(voice.muteAll ? '학생 전체를 음소거했어요' : '학생 전체 음소거를 풀었어요');
+  canvas.focus();
+});
+
 /* ── WebRTC 연결 맺기 ── */
 const RTC_CONFIG = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 const rtcSend = (to, d) => { if (link) link.send({ t: 'rtc', id: myId, to, d }); };
@@ -4539,6 +4825,7 @@ function makePc(peerId) {
 function onRtc(m) {
   const d = m.d, from = m.id;
   if (!d || typeof d !== 'object') return;
+  if (d.v) { onVoiceRtc(from, d); return; }          // 목소리 연결은 따로 다룬다
   if (d.type === 'want') {                           // (선생님) 보고 싶다는 사람에게 연결을 제안한다
     if (!presenting() || show.mode !== 'live' || !show.stream) return;
     const pc = makePc(from);
@@ -5706,6 +5993,13 @@ function drawIcon(g, name, x, y, px) {         // 픽셀 그림을 캔버스에 
     g.fillRect(x + i * px, y + j * px, px, px);
   }));
 }
+ICONS.mic = [                         // 마이크 켬
+  '................', '......kkkk......', '.....kggggk.....', '.....kgwggk.....',
+  '.....kgwggk.....', '.....kggggk.....', '...k.kggggk.k...', '...k.kggggk.k...',
+  '...k..kkkk..k...', '...kk......kk...', '....kkkkkkkk....', '.......kk.......',
+  '.......kk.......', '.....kkkkkk.....', '................', '................',
+];
+ICONS.micOff = ICONS.mic.map((row, y) => [...row].map((ch, x) => (x - y === 0 || x - y === 1 ? 'r' : ch)).join(''));       // 마이크 끔: 빨간 빗금
 ICONS.undo = [                        // 되돌리기: 왼쪽으로 굽어 돌아가는 화살표
   '................', '................', '.....kk.........', '....kwk.........',
   '...kwwkkkkkk....', '..kwwwwwwwwwk...', '.kwwwwwwwwwwwk..', '..kwwwwwwwwwwwk.',
@@ -5737,6 +6031,7 @@ for (const name in ICONS) {
 const iconImg = (name) => Object.assign(new Image(), { src: iconURL[name], alt: '' });
 $('remoteBtn').append(iconImg('remote'));
 const soundImg = $('soundBtn').appendChild(iconImg('note'));
+const micImg = $('micBtn').appendChild(iconImg('micOff'));
 /* 펜만 쓰기 (손바닥 막기): 켜 두면 손가락 · 손바닥으로는 써지지도 지워지지도 않고, 펜(애플 펜슬 · S펜 같은 스타일러스)으로만 써진다.
    손 모양(이동) 도구로 칠판을 옮기는 것과 단추 누르기는 손으로 그대로 된다.
    · 켜고 끄는 단추는 펜 도구 줄의 맨 끝에 있다 (연필 + 손가락 그림. 켜져 있으면 손가락에 빨간 빗금)
@@ -6491,7 +6786,7 @@ function keyRows() {
     [k('ShiftLeft', 'Shift', '달리기', '누른 채로 움직이면 달려요.', 1.6),
       k('KeyZ', 'Z', canWrite() ? '되돌리기' : '', '판서 화면에서 방금 쓰거나 지운 것을 되돌려요. Shift 와 함께 누르면 되돌린 것을 다시 해요(앞으로 가기). Ctrl(⌘)+Z 도 돼요.'),
       k('KeyX', 'X', '고르기', T ? '바라보는 것을 골라요. 교탁을 보면 교탁에 서기, 칠판을 보면 판서, 자리를 보면 앉기, 문을 보면 나가기.' : '바라보는 것을 골라요. 자리를 보면 앉기, 칠판을 보면 크게 보기, 옆 친구를 보면 소곤거리기, 문을 보면 나가기.'),
-      k('KeyC', 'C'), k('KeyV', 'V'),
+      k('KeyC', 'C'), k('KeyV', 'V', '마이크', T ? '마이크를 켜고 꺼요. 선생님 목소리는 교실 전체에 들려요(리모컨의 더보기 → 마이크 관리에서 바꿀 수 있어요).' : '마이크를 켜고 꺼요. 목소리는 가까이 있는 사람에게 들리고, 멀수록 작게 들려요.'),
       k('KeyB', 'B', T ? '판서' : '칠판 보기', T ? '판서 화면을 열고 닫아요. 펜 · 지우개 · 색을 골라 칠판에 써요.' : '칠판을 크게 봐요. 한 번 더 누르면 돌아와요.')],
     [gap(1.6), k('Space', 'Space', '점프', T ? '제자리에서 뛰어요. 판서 화면에서는 누르고 있는 동안 학생들을 돌아봐요.' : '제자리에서 뛰어요.', 3.6), gap(0.6),
       k('ArrowLeft', '←', T ? '왼쪽·이전' : '왼쪽', side('왼쪽', '이전')),
@@ -6709,6 +7004,7 @@ addEventListener('keydown', (e) => {
     return;
   }
   if (e.code === 'KeyH' && !e.repeat && !e.ctrlKey && !e.metaKey) { setKeys($('keys').hidden); return; }     // 조작법 열기 · 닫기
+  if (e.code === 'KeyV' && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey) { setMic(!voice.on); e.preventDefault(); return; }       // 마이크 켜기 · 끄기
   // 판서 화면: Z = 되돌리기, Shift+Z = 앞으로 가기 (Ctrl · ⌘ 와 함께 눌러도 되고, Ctrl+Y 도 앞으로 가기)
   if (zoomed && canWrite() && !e.altKey && (e.code === 'KeyZ' || (e.code === 'KeyY' && (e.ctrlKey || e.metaKey)))) {
     if (e.code === 'KeyY' || e.shiftKey) redo(); else undo();
@@ -7147,6 +7443,7 @@ function enter() {
   try { skipKeys = localStorage.getItem(KEYS_SKIP) === '1'; } catch {}
   $('keysSkip').checked = skipKeys;
   setKeys(false);
+  showMic();                                    // 마이크 단추 (오른쪽 위)
   if (!skipKeys) setKeys(true);                 // 조작법을 화면 가운데에 띄운다 (PC = 가상 키보드, 터치 기기 = 손가락 안내)
   else {                                        // 조작법을 띄우지 않을 때는 짧은 안내만
     toast(isTeacher ? '리모컨으로 칠판을 조작하고, 리모컨의 "더보기 → 강의실 설정"에서 강의실 · 자리 · 칠판 · BGM을 바꿔요'
@@ -7370,7 +7667,7 @@ window.classroom = {
   cfg, cfgAt, setConfig: (kind, key) => setConfig(kind, key, true), askConfig: setConfig, back, ink, pen, inviteLink, teacherKey,
   get role() { return [role, creator, isTeacher]; }, strokes, inkAdd, FORMS, BOARD, spawn, nearestFree, playBgm, gotoArea, boardCam,
   get areas() { return [areas, areaAt, zoomX]; },
-  get zoom() { return [zoomed, zoomAmt]; }, frame, zaps, zapAdd, liveTex, liveMesh, live, inkTex, showTex, startLive, endShow, inkClear, inkErase, get show() { return show; }, get lap() { return { ...lapShown, level: pixels.level, trial: !!pixels.trial, hold: Math.round(Math.max(0, pixels.hold - performance.now()) / 1000), mirrorMs, every: mirrorEvery() }; }, get mirror() { return { on: mirrorGlass.visible, pos: mirrorGlass.position.toArray(), calls: mirrorCalls, all: info.calls, fade: mirrorMat.uniforms.fade.value }; }, get mySkin() { return mySkin; }, peerSkins, actors, get follow() { return { on: follow.on, can: canFollow(), x: zoomX, to: follow.to, area: areaAt }; }, setZoom, setHide, undo, redo, hist, stylus, joy, get glance() { return [glancing, +glanceLook.yaw.toFixed(3), +glanceLook.pitch.toFixed(3)]; }, get bgm() { return bgmNow; }, get audio() { return ac; },
+  get zoom() { return [zoomed, zoomAmt]; }, frame, zaps, zapAdd, liveTex, liveMesh, live, inkTex, showTex, startLive, endShow, inkClear, inkErase, get show() { return show; }, get lap() { return { ...lapShown, level: pixels.level, trial: !!pixels.trial, hold: Math.round(Math.max(0, pixels.hold - performance.now()) / 1000), mirrorMs, every: mirrorEvery() }; }, mirrorRT, get mirror() { return { n: mirrorN, sum: mirrorSum, ms: mirrorMs, rt: [mirrorRT.width, mirrorRT.height], on: mirrorGlass.visible, pos: mirrorGlass.position.toArray(), calls: mirrorCalls, all: info.calls, fade: mirrorMat.uniforms.fade.value }; }, get mySkin() { return mySkin; }, peerSkins, actors, get follow() { return { on: follow.on, can: canFollow(), x: zoomX, to: follow.to, area: areaAt }; }, setZoom, setHide, undo, redo, hist, stylus, joy, voice, setMic, VOICE, get glance() { return [glancing, +glanceLook.yaw.toFixed(3), +glanceLook.pitch.toFixed(3)]; }, get bgm() { return bgmNow; }, get audio() { return ac; },
   get room() { return { ROOM, HW, HD, floorAt, obstacles, blocked, cellH, NX, NZ }; },
   net: { peers, myId, tick: netTick, receive: netReceive, pace: netPace, openSupabase,
     get link() { return link; }, get state() { return linkState; }, get seatAt() { return mySeatAt; } },
