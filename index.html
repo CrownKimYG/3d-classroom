@@ -230,54 +230,30 @@
   @media (max-width: 640px) { #panels { flex-wrap: nowrap; overflow-y: auto; pointer-events: auto; } #panels:not(:has(> .chip:not([hidden]))) { display: none; } }      /* 좁은 화면: 한 줄로 쌓고 넘치면 굴린다 */
   #setup { width: 316px; max-width: 100%; padding: 10px 10px 12px; }
   /* 채팅: 모두가 함께 보는 대화 창 (왼쪽 창 자리에 쌓인다) */
-  /* 테마 셋(라이트 · 다크 · 미니멀)과 투명도(--a)는 기기마다 따로 정한다. 라이트 · 다크는 바탕만 비치고 글씨는 또렷하게 남는다.
-     미니멀은 바탕 없이 글씨만 화면 위에 뜨는 투명한 창이고, 투명도는 창 전체(글씨까지)에 걸린다 */
+  /* 채팅 창은 바탕과 테두리가 없는 투명한 창이다: 글씨만 화면 위에 뜬다 (밝은 벽 앞에서도 읽히게 글씨 둘레를 어둡게).
+     머리줄에는 투명도 막대가 늘 보인다 (--a, 기기마다 따로 적어 둔다). 글 적는 칸과 보내기 단추는 Q(채팅 단추)를 눌렀을 때만 나온다 */
   #panels > #chat {
-    --a: .93; --pbg: 255 246 227; --lbg: 255 255 255; --fg: #33241a; --line: #33241a; --me: #b4532f; --tc: #2b6cb0; --ibg: #fff;
-    width: 280px; max-width: 100%; padding: 10px 12px; display: flex; flex-direction: column; color: var(--fg);
-    background: rgb(var(--pbg) / var(--a)); border-color: var(--line); box-shadow: 0 4px 0 rgb(51 36 26 / var(--a));
+    --a: 1; width: 280px; max-width: 100%; padding: 6px 8px; display: flex; flex-direction: column; color: #fff;
+    background: none; border-color: transparent; box-shadow: none; opacity: var(--a);
+    text-shadow: 0 0 3px #000, 0 0 3px #000, 0 1px 3px #000, 0 0 8px rgba(0, 0, 0, .8);
   }
-  #panels > #chat.t-dark { --pbg: 31 35 43; --lbg: 16 18 23; --fg: #f4efe4; --line: #0b0d11; --me: #ffb08a; --tc: #8fc2ff; --ibg: #2a2f39; box-shadow: 0 4px 0 rgb(0 0 0 / var(--a)); }
-  #panels > #chat.t-min {
-    --fg: #fff; --line: transparent; --me: #ffd0b0; --tc: #b9dcff; --ibg: rgba(0, 0, 0, .28);
-    background: none; box-shadow: none; opacity: var(--a); text-shadow: 0 0 3px #000, 0 0 3px #000, 0 1px 3px #000, 0 0 8px rgba(0, 0, 0, .8);      /* 밝은 벽 앞에서도 읽히게 글씨 둘레를 어둡게 */
-  }
-  #chat[hidden], #chatSet[hidden] { display: none; }
-  #chat .head { display: flex; justify-content: space-between; align-items: center; font-size: 14px; margin-bottom: 6px; }
-  #chat .head button { font: 800 16px var(--font); color: var(--fg); background: none; border: 0; cursor: pointer; text-shadow: inherit; }
-  /* 모양 단추: 글자 없이 반쯤 채운 작은 동그라미 하나 (밝기 · 투명도를 뜻하는 표시) */
-  #chat .head span { display: flex; align-items: center; gap: 8px; }
-  #chat .head #chatSetBtn {
-    width: 15px; height: 15px; padding: 0; border: 2px solid currentColor; border-radius: 50%; opacity: .7;
-    background: linear-gradient(90deg, currentColor 50%, transparent 50%);
-  }
-  #chat .head #chatSetBtn:hover, #chat .head #chatSetBtn[aria-expanded="true"] { opacity: 1; }
-  .touch #chat .head #chatSetBtn { width: 20px; height: 20px; }
-  #chat.t-min .head button { filter: drop-shadow(0 0 2px #000) drop-shadow(0 0 1px #000); }       /* 미니멀: 밝은 벽 앞에서도 단추가 보이게 */
-  #chatSet { display: grid; gap: 6px; margin-bottom: 8px; font-size: 12px; font-weight: 700; }
-  #chatSet .seg { display: flex; gap: 4px; }
-  #chatSet .seg button { flex: 1; padding: 4px 2px; font: 800 12px var(--font); color: var(--fg); background: none; border: 2px solid currentColor; border-radius: 0; cursor: pointer; text-shadow: inherit; }
-  #chatSet .seg button[aria-pressed="true"] { color: #fff; background: var(--coral); border-color: var(--coral); }
-  #chatSet label { display: flex; align-items: center; gap: 8px; }
-  #chatAlpha { flex: 1; min-width: 0; height: 24px; margin: 0; accent-color: var(--coral); cursor: pointer; }
+  #chat[hidden], #chatForm[hidden] { display: none; }
+  #chat .head { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 4px; }
+  #chat .head button { font: 800 16px var(--font); color: #fff; background: none; border: 0; cursor: pointer; text-shadow: inherit; filter: drop-shadow(0 0 2px #000); }
+  #chatAlpha { flex: 1; min-width: 0; height: 18px; margin: 0; accent-color: #fff; cursor: pointer; opacity: .75; filter: drop-shadow(0 0 2px #000); }
   #chatLog {
-    display: grid; align-content: start; gap: 4px; height: 190px; max-height: 40vh; overflow-y: auto; margin-bottom: 6px; padding: 6px;
-    font-size: 13px; line-height: 1.4; background: rgb(var(--lbg) / var(--a)); border: 2px solid var(--line);
-    user-select: text; -webkit-user-select: text;
+    display: grid; align-content: start; gap: 3px; max-height: min(190px, 40vh); overflow-y: auto; padding: 0 2px;
+    font-size: 14px; font-weight: 700; line-height: 1.4; user-select: text; -webkit-user-select: text;
   }
-  #chat.t-min #chatLog { padding: 0 2px; background: none; border: 0; font-size: 14px; font-weight: 700; }
   #chatLog div { overflow-wrap: anywhere; }
   #chatLog b { margin-right: 5px; }
-  #chatLog .me b { color: var(--me); }
-  #chatLog .teacher b { color: var(--tc); }
-  #chatLog p { margin: 0; font-size: 12px; opacity: .6; }
-  #chatForm { display: flex; gap: 6px; }
+  #chatLog .me b { color: #ffd0b0; }
+  #chatLog .teacher b { color: #b9dcff; }
+  #chatForm { display: flex; gap: 6px; margin-top: 6px; }
   #chatForm input { flex: 1; min-width: 0; }
-  #chat #chatText { color: var(--fg); background: var(--ibg); border-color: var(--line); }
-  #chat.t-min #chatText { border-color: rgba(255, 255, 255, .6); text-shadow: none; }
-  #chat #chatText::placeholder { color: var(--fg); opacity: .5; }
-  #chatForm button { padding: 0 10px; font: 800 13px var(--font); color: #fff; background: var(--coral); border: 2px solid var(--line); border-radius: 0; cursor: pointer; text-shadow: none; }
-  #chat.t-min #chatForm button { border-color: transparent; }
+  #chat #chatText { color: #fff; background: rgba(0, 0, 0, .32); border-color: rgba(255, 255, 255, .6); text-shadow: none; }
+  #chat #chatText::placeholder { color: #fff; opacity: .55; }
+  #chatForm button { padding: 0 10px; font: 800 13px var(--font); color: #fff; background: var(--coral); border: 2px solid transparent; border-radius: 0; cursor: pointer; text-shadow: none; }
   #chatBadge { display: inline-block; min-width: 18px; margin-left: 6px; padding: 0 5px; font: 800 11px/18px var(--font); color: #fff; background: #e0503c; border-radius: 9px; text-align: center; }
   #chatBadge[hidden] { display: none; }
   .touch #acts #chatBadge { position: absolute; right: -2px; top: -2px; margin: 0; }
@@ -719,17 +695,9 @@
     </div>
   </div>
   <div id="chat" class="chip" hidden>
-    <div class="head"><b>채팅</b><span><button id="chatSetBtn" type="button" aria-expanded="false" aria-label="채팅 창 모양" title="채팅 창 모양: 테마 · 투명도"></button><button id="chatClose" type="button" aria-label="닫기">×</button></span></div>
-    <div id="chatSet" hidden>
-      <div class="seg" id="chatThemes">
-        <button type="button" data-theme="light" aria-pressed="true">라이트</button>
-        <button type="button" data-theme="dark" aria-pressed="false">다크</button>
-        <button type="button" data-theme="min" aria-pressed="false">미니멀</button>
-      </div>
-      <label>투명도<input id="chatAlpha" type="range" min="10" max="100" step="5" value="93" aria-label="채팅 창 투명도 (왼쪽이 더 투명)"></label>
-    </div>
+    <div class="head"><b>채팅</b><input id="chatAlpha" type="range" min="10" max="100" step="5" value="100" aria-label="채팅 창 투명도 (왼쪽이 더 투명)" title="투명도"><button id="chatClose" type="button" aria-label="채팅 창 닫기">×</button></div>
     <div id="chatLog" aria-live="polite"></div>
-    <form id="chatForm">
+    <form id="chatForm" hidden>
       <input id="chatText" maxlength="120" placeholder="메시지를 적고 Enter" autocomplete="off" spellcheck="false">
       <button type="submit">보내기</button>
     </form>
@@ -797,7 +765,7 @@
       <button id="act" type="button" hidden><kbd>X</kbd><span id="actText">앉기</span></button>
     </div>
     <div class="row">
-      <button id="askBtn" type="button" hidden title="채팅 창 열기 · 닫기 (Q)"><kbd>Q</kbd>채팅<b id="chatBadge" hidden></b></button>
+      <button id="askBtn" type="button" hidden title="채팅: 글 적는 칸 열기 (Q)"><kbd>Q</kbd>채팅<b id="chatBadge" hidden></b></button>
       <button id="okBtn" type="button" hidden aria-haspopup="true" title="반응: 알겠어요 · 모르겠어요 · 잠깐만요 가운데 골라 보내요 (E)"><kbd>E</kbd>반응</button>
       <button id="glanceBtn" type="button" hidden title="학생보기: 누르고 있는 동안 학생들을 봐요"><kbd>G</kbd>학생보기</button>
       <button id="backBtn" type="button" hidden><kbd>Esc</kbd><span id="backText">일어나기</span></button>
@@ -6987,31 +6955,40 @@ function chatAdd(name, text, kind = '') {            // kind: me · teacher · '
   const row = Object.assign(document.createElement('div'), { className: kind });
   row.append(Object.assign(document.createElement('b'), { textContent: name }), text);
   const log = $('chatLog'), stick = log.scrollTop + log.clientHeight >= log.scrollHeight - 30;
-  if (log.firstChild && log.firstChild.tagName === 'P') log.firstChild.remove();       // "아직 대화가 없어요"
   log.append(row);
   while (log.children.length > 200) log.firstChild.remove();
   if (stick || kind === 'me') log.scrollTop = log.scrollHeight;
+  if ($('chat').hidden && !chat.closed) $('chat').hidden = false;       // 대화가 오면 창이 저절로 뜬다 (× 로 닫아 둔 동안에는 뜨지 않는다)
   if ($('chat').hidden && kind !== 'me') { chat.unread++; showChatBadge(); }
+  log.scrollTop = stick || kind === 'me' ? log.scrollHeight : log.scrollTop;
 }
 function showChatBadge() {
   $('chatBadge').hidden = !chat.unread;
   $('chatBadge').textContent = chat.unread > 99 ? '99+' : chat.unread;
 }
+// 글 적는 칸을 연다 (Q · 채팅 단추). 평소에는 대화만 보이고, 적는 칸과 보내기 단추는 이때만 나온다
 function openChat() {
   if (!entered) return;
-  if (!$('chatLog').firstChild) $('chatLog').append(Object.assign(document.createElement('p'), { textContent: '아직 대화가 없어요. 메시지를 적어 보세요.' }));
   $('chat').hidden = false;
+  chat.closed = false;
   chat.unread = 0;
   showChatBadge();
+  $('chatForm').hidden = false;
   $('chatLog').scrollTop = $('chatLog').scrollHeight;
   $('chatText').focus();
 }
-function closeChat() {
-  $('chat').hidden = true;
+function closeChatInput() {          // 적는 칸만 닫는다 (대화는 계속 보인다)
+  $('chatForm').hidden = true;
+  canvas.focus();
+}
+function closeChat() {               // 창을 통째로 닫는다 (× 단추). 그 뒤에 온 말은 채팅 단추의 빨간 숫자로 쌓인다
+  $('chat').hidden = $('chatForm').hidden = true;
+  chat.closed = true;
   canvas.focus();
 }
 function chatReset() {
-  $('chat').hidden = true;
+  $('chat').hidden = $('chatForm').hidden = true;
+  chat.closed = false;
   $('chatLog').replaceChildren();
   $('chatText').value = '';
   chat.unread = 0;
@@ -7026,30 +7003,24 @@ $('chatForm').addEventListener('submit', (e) => {
   $('chatText').value = '';
   if (link) link.send({ t: 'c', id: myId, x: text });
   chatAdd(myName || (isTeacher ? '선생님' : '나'), text, 'me');
+  closeChatInput();                  // 보내면 적는 칸은 다시 닫힌다
 });
-// 채팅 창의 모양: 테마(라이트 · 다크 · 미니멀)와 투명도. 사람마다 취향이 달라서 이 기기(브라우저)에만 적어 둔다
+// 채팅 창의 투명도: 사람마다 취향이 달라서 이 기기(브라우저)에만 적어 둔다
 const CHAT_LOOK = 'classroom-chat-look-v1';
-const chatLook = { theme: 'light', alpha: 93 };
-try { Object.assign(chatLook, JSON.parse(localStorage.getItem(CHAT_LOOK)) || {}); } catch {}
+const chatLook = { alpha: 100 };
+try { chatLook.alpha = (JSON.parse(localStorage.getItem(CHAT_LOOK)) || {}).alpha; } catch {}
 function showChatLook(save) {
-  if (!['light', 'dark', 'min'].includes(chatLook.theme)) chatLook.theme = 'light';
-  chatLook.alpha = clamp(Math.round(Number(chatLook.alpha)) || 93, 10, 100);
-  $('chat').className = `chip t-${chatLook.theme}`;
+  chatLook.alpha = clamp(Math.round(Number(chatLook.alpha)) || 100, 10, 100);
   $('chat').style.setProperty('--a', (chatLook.alpha / 100).toFixed(2));
-  for (const b of $('chatThemes').children) b.setAttribute('aria-pressed', String(b.dataset.theme === chatLook.theme));
   $('chatAlpha').value = chatLook.alpha;
   if (save) { try { localStorage.setItem(CHAT_LOOK, JSON.stringify(chatLook)); } catch {} }
 }
-for (const b of $('chatThemes').children) b.addEventListener('click', () => { chatLook.theme = b.dataset.theme; showChatLook(true); });
 $('chatAlpha').addEventListener('input', () => { chatLook.alpha = Number($('chatAlpha').value); showChatLook(true); });
-$('chatSetBtn').addEventListener('click', () => {
-  $('chatSet').hidden = !$('chatSet').hidden;
-  $('chatSetBtn').setAttribute('aria-expanded', String(!$('chatSet').hidden));
-});
+$('chatAlpha').addEventListener('change', () => { if ($('chatForm').hidden) canvas.focus(); });
 showChatLook(false);
-$('chatText').addEventListener('keydown', (e) => { if (e.code === 'Escape') closeChat(); });
+$('chatText').addEventListener('keydown', (e) => { if (e.code === 'Escape') closeChatInput(); });
 $('chatClose').addEventListener('click', closeChat);
-$('askBtn').addEventListener('click', () => { if ($('chat').hidden) openChat(); else closeChat(); });
+$('askBtn').addEventListener('click', () => { if ($('chatForm').hidden) openChat(); else closeChatInput(); });
 
 /* 반응: 공부하다가 말 대신 보내는 세 가지. 고르면 내 머리 위에 아이콘이 뜨고, 선생님 화면에는 종류별로 몇 명인지도 나온다 */
 function closeReact() {
@@ -7285,7 +7256,7 @@ function keyRows() {
       gap(0.5), k('F3', 'F3', '시스템 정보', '시스템 정보(fps · 그리기 호출 · 내 위치 등)를 켜고 꺼요. F3 이 안 되는 컴퓨터에서는 I 키나 ` 키로도 돼요.', 1.4)],
     '123456789'.split('').map((d) => k(`Digit${d}`, d, d === '1' ? '영역' : ' ', area)),
     [gap(0.5),
-      k('KeyQ', 'Q', '채팅', '채팅 창을 열고 글을 적어요. Enter 로 보내면 모두에게 보이고, 내 머리 위에도 말풍선으로 잠깐 떠요. Esc 로 닫아요.'),
+      k('KeyQ', 'Q', '채팅', '글 적는 칸을 열어요. Enter 로 보내면 모두의 채팅 창에 보이고, 내 머리 위에도 말풍선으로 잠깐 떠요. 보내거나 Esc 를 누르면 적는 칸은 다시 닫혀요.'),
       k('KeyW', 'W', '앞으로', '앞으로 걸어요.'),
       k('KeyE', 'E', T ? '' : '반응', '자리에 앉아 있을 때 반응을 골라 보내요: 알겠어요 · 모르겠어요 · 잠깐만요. 머리 위에 아이콘으로 떠요. E 를 누른 뒤 1 · 2 · 3 으로도 골라요.'),
       k('KeyR', 'R', T ? '리모컨' : '', '리모컨을 꺼내고 넣어요. 리모컨으로 자료를 띄우고, 넘기고, 잠시 감춰요.'),
