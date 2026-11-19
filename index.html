@@ -230,19 +230,47 @@
   @media (max-width: 640px) { #panels { flex-wrap: nowrap; overflow-y: auto; pointer-events: auto; } #panels:not(:has(> .chip:not([hidden]))) { display: none; } }      /* 좁은 화면: 한 줄로 쌓고 넘치면 굴린다 */
   #setup { width: 316px; max-width: 100%; padding: 10px 10px 12px; }
   /* 채팅: 모두가 함께 보는 대화 창 (왼쪽 창 자리에 쌓인다) */
-  #chat { width: 280px; max-width: 100%; padding: 10px 12px; display: flex; flex-direction: column; }
-  #chat[hidden] { display: none; }
+  /* 테마 셋(라이트 · 다크 · 미니멀)과 투명도(--a)는 기기마다 따로 정한다. 라이트 · 다크는 바탕만 비치고 글씨는 또렷하게 남는다.
+     미니멀은 바탕 없이 글씨만 화면 위에 뜨는 투명한 창이고, 투명도는 창 전체(글씨까지)에 걸린다 */
+  #panels > #chat {
+    --a: .93; --pbg: 255 246 227; --lbg: 255 255 255; --fg: #33241a; --line: #33241a; --me: #b4532f; --tc: #2b6cb0; --ibg: #fff;
+    width: 280px; max-width: 100%; padding: 10px 12px; display: flex; flex-direction: column; color: var(--fg);
+    background: rgb(var(--pbg) / var(--a)); border-color: var(--line); box-shadow: 0 4px 0 rgb(51 36 26 / var(--a));
+  }
+  #panels > #chat.t-dark { --pbg: 31 35 43; --lbg: 16 18 23; --fg: #f4efe4; --line: #0b0d11; --me: #ffb08a; --tc: #8fc2ff; --ibg: #2a2f39; box-shadow: 0 4px 0 rgb(0 0 0 / var(--a)); }
+  #panels > #chat.t-min {
+    --fg: #fff; --line: transparent; --me: #ffd0b0; --tc: #b9dcff; --ibg: rgba(0, 0, 0, .28);
+    background: none; box-shadow: none; opacity: var(--a); text-shadow: 0 0 3px #000, 0 0 3px #000, 0 1px 3px #000, 0 0 8px rgba(0, 0, 0, .8);      /* 밝은 벽 앞에서도 읽히게 글씨 둘레를 어둡게 */
+  }
+  #chat[hidden], #chatSet[hidden] { display: none; }
   #chat .head { display: flex; justify-content: space-between; align-items: center; font-size: 14px; margin-bottom: 6px; }
-  #chat .head button { font: 800 16px var(--font); color: var(--ink); background: none; border: 0; cursor: pointer; }
-  #chatLog { display: grid; align-content: start; gap: 4px; height: 190px; max-height: 40vh; overflow-y: auto; margin-bottom: 6px; padding: 6px; font-size: 13px; line-height: 1.4; background: #fff; border: 2px solid var(--ink); user-select: text; -webkit-user-select: text; }
+  #chat .head button { font: 800 16px var(--font); color: var(--fg); background: none; border: 0; cursor: pointer; text-shadow: inherit; }
+  #chat .head #chatSetBtn { margin-right: 6px; padding: 1px 7px; font-size: 11px; border: 2px solid currentColor; opacity: .8; }
+  #chat .head #chatSetBtn[aria-expanded="true"] { opacity: 1; }
+  #chatSet { display: grid; gap: 6px; margin-bottom: 8px; font-size: 12px; font-weight: 700; }
+  #chatSet .seg { display: flex; gap: 4px; }
+  #chatSet .seg button { flex: 1; padding: 4px 2px; font: 800 12px var(--font); color: var(--fg); background: none; border: 2px solid currentColor; border-radius: 0; cursor: pointer; text-shadow: inherit; }
+  #chatSet .seg button[aria-pressed="true"] { color: #fff; background: var(--coral); border-color: var(--coral); }
+  #chatSet label { display: flex; align-items: center; gap: 8px; }
+  #chatAlpha { flex: 1; min-width: 0; height: 24px; margin: 0; accent-color: var(--coral); cursor: pointer; }
+  #chatLog {
+    display: grid; align-content: start; gap: 4px; height: 190px; max-height: 40vh; overflow-y: auto; margin-bottom: 6px; padding: 6px;
+    font-size: 13px; line-height: 1.4; background: rgb(var(--lbg) / var(--a)); border: 2px solid var(--line);
+    user-select: text; -webkit-user-select: text;
+  }
+  #chat.t-min #chatLog { padding: 0 2px; background: none; border: 0; font-size: 14px; font-weight: 700; }
   #chatLog div { overflow-wrap: anywhere; }
   #chatLog b { margin-right: 5px; }
-  #chatLog .me b { color: #b4532f; }
-  #chatLog .teacher b { color: #2b6cb0; }
+  #chatLog .me b { color: var(--me); }
+  #chatLog .teacher b { color: var(--tc); }
   #chatLog p { margin: 0; font-size: 12px; opacity: .6; }
   #chatForm { display: flex; gap: 6px; }
   #chatForm input { flex: 1; min-width: 0; }
-  #chatForm button { padding: 0 10px; font: 800 13px var(--font); color: #fff; background: var(--coral); border: 2px solid var(--ink); border-radius: 0; cursor: pointer; }
+  #chat #chatText { color: var(--fg); background: var(--ibg); border-color: var(--line); }
+  #chat.t-min #chatText { border-color: rgba(255, 255, 255, .6); text-shadow: none; }
+  #chat #chatText::placeholder { color: var(--fg); opacity: .5; }
+  #chatForm button { padding: 0 10px; font: 800 13px var(--font); color: #fff; background: var(--coral); border: 2px solid var(--line); border-radius: 0; cursor: pointer; text-shadow: none; }
+  #chat.t-min #chatForm button { border-color: transparent; }
   #chatBadge { display: inline-block; min-width: 18px; margin-left: 6px; padding: 0 5px; font: 800 11px/18px var(--font); color: #fff; background: #e0503c; border-radius: 9px; text-align: center; }
   #chatBadge[hidden] { display: none; }
   .touch #acts #chatBadge { position: absolute; right: -2px; top: -2px; margin: 0; }
@@ -684,7 +712,15 @@
     </div>
   </div>
   <div id="chat" class="chip" hidden>
-    <div class="head"><b>채팅</b><button id="chatClose" type="button" aria-label="닫기">×</button></div>
+    <div class="head"><b>채팅</b><span><button id="chatSetBtn" type="button" aria-expanded="false" aria-label="채팅 창 모양" title="채팅 창 모양: 테마 · 투명도">모양</button><button id="chatClose" type="button" aria-label="닫기">×</button></span></div>
+    <div id="chatSet" hidden>
+      <div class="seg" id="chatThemes">
+        <button type="button" data-theme="light" aria-pressed="true">라이트</button>
+        <button type="button" data-theme="dark" aria-pressed="false">다크</button>
+        <button type="button" data-theme="min" aria-pressed="false">미니멀</button>
+      </div>
+      <label>투명도<input id="chatAlpha" type="range" min="10" max="100" step="5" value="93" aria-label="채팅 창 투명도 (왼쪽이 더 투명)"></label>
+    </div>
     <div id="chatLog" aria-live="polite"></div>
     <form id="chatForm">
       <input id="chatText" maxlength="120" placeholder="메시지를 적고 Enter" autocomplete="off" spellcheck="false">
@@ -6984,6 +7020,26 @@ $('chatForm').addEventListener('submit', (e) => {
   if (link) link.send({ t: 'c', id: myId, x: text });
   chatAdd(myName || (isTeacher ? '선생님' : '나'), text, 'me');
 });
+// 채팅 창의 모양: 테마(라이트 · 다크 · 미니멀)와 투명도. 사람마다 취향이 달라서 이 기기(브라우저)에만 적어 둔다
+const CHAT_LOOK = 'classroom-chat-look-v1';
+const chatLook = { theme: 'light', alpha: 93 };
+try { Object.assign(chatLook, JSON.parse(localStorage.getItem(CHAT_LOOK)) || {}); } catch {}
+function showChatLook(save) {
+  if (!['light', 'dark', 'min'].includes(chatLook.theme)) chatLook.theme = 'light';
+  chatLook.alpha = clamp(Math.round(Number(chatLook.alpha)) || 93, 10, 100);
+  $('chat').className = `chip t-${chatLook.theme}`;
+  $('chat').style.setProperty('--a', (chatLook.alpha / 100).toFixed(2));
+  for (const b of $('chatThemes').children) b.setAttribute('aria-pressed', String(b.dataset.theme === chatLook.theme));
+  $('chatAlpha').value = chatLook.alpha;
+  if (save) { try { localStorage.setItem(CHAT_LOOK, JSON.stringify(chatLook)); } catch {} }
+}
+for (const b of $('chatThemes').children) b.addEventListener('click', () => { chatLook.theme = b.dataset.theme; showChatLook(true); });
+$('chatAlpha').addEventListener('input', () => { chatLook.alpha = Number($('chatAlpha').value); showChatLook(true); });
+$('chatSetBtn').addEventListener('click', () => {
+  $('chatSet').hidden = !$('chatSet').hidden;
+  $('chatSetBtn').setAttribute('aria-expanded', String(!$('chatSet').hidden));
+});
+showChatLook(false);
 $('chatText').addEventListener('keydown', (e) => { if (e.code === 'Escape') closeChat(); });
 $('chatClose').addEventListener('click', closeChat);
 $('askBtn').addEventListener('click', () => { if ($('chat').hidden) openChat(); else closeChat(); });
