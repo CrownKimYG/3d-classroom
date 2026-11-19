@@ -233,14 +233,16 @@
   /* 채팅 창은 바탕과 테두리가 없는 투명한 창이다: 글씨만 화면 위에 뜬다 (밝은 벽 앞에서도 읽히게 글씨 둘레를 어둡게).
      머리줄에는 투명도 막대가 늘 보인다 (--a, 기기마다 따로 적어 둔다). 글 적는 칸과 보내기 단추는 Q(채팅 단추)를 눌렀을 때만 나온다 */
   #panels > #chat {
-    --a: 1; width: 280px; max-width: 100%; padding: 6px 8px; display: flex; flex-direction: column; color: #fff;
-    background: none; border-color: transparent; box-shadow: none; opacity: var(--a);
+    --a: 1; width: 280px; max-width: calc(100vw - 24px); padding: 6px 8px; display: flex; flex-direction: column; color: #fff;
+    background: none; border-color: transparent; box-shadow: none; opacity: var(--a);       /* (다시 나타날 때는 바로 나타난다) */
     text-shadow: 0 0 3px #000, 0 0 3px #000, 0 1px 3px #000, 0 0 8px rgba(0, 0, 0, .8);
   }
+  /* 한동안 새 말이 없으면 스르르 사라진다 (새 말이 오거나 적는 칸을 열면 다시 나타난다) */
+  #panels > #chat.gone { opacity: 0; pointer-events: none; transition: opacity 1.6s; }
   #chat[hidden], #chatForm[hidden] { display: none; }
   #chat .head { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 4px; }
   #chat .head button { font: 800 16px var(--font); color: #fff; background: none; border: 0; cursor: pointer; text-shadow: inherit; filter: drop-shadow(0 0 2px #000); }
-  #chatAlpha { flex: 1; min-width: 0; height: 18px; margin: 0; accent-color: #fff; cursor: pointer; opacity: .75; filter: drop-shadow(0 0 2px #000); }
+  #chatAlpha { flex: none; width: 64px; height: 18px; margin: 0 0 0 auto; accent-color: #fff; cursor: pointer; opacity: .75; filter: drop-shadow(0 0 2px #000); }       /* 짧게, 오른쪽 끝(닫기 단추 옆)에 */
   #chatLog {
     display: grid; align-content: start; gap: 3px; max-height: min(190px, 40vh); overflow-y: auto; padding: 0 2px;
     font-size: 14px; font-weight: 700; line-height: 1.4; user-select: text; -webkit-user-select: text;
@@ -417,7 +419,7 @@
   #reacts span { display: flex; align-items: center; gap: 3px; }
   #reacts img { width: 24px; height: 24px; image-rendering: pixelated; }
   #say input { width: min(420px, 82vw); }
-  #say input, #whisper input, #chat input {
+  #say input, #whisper input, #chatText {
     width: 100%; font: 600 14px var(--font); color: var(--ink); padding: 7px 9px;
     background: #fff; border: 2px solid var(--ink); border-radius: 0; outline: none;
     -webkit-user-select: text; user-select: text;
@@ -765,7 +767,7 @@
       <button id="act" type="button" hidden><kbd>X</kbd><span id="actText">앉기</span></button>
     </div>
     <div class="row">
-      <button id="askBtn" type="button" hidden title="채팅: 글 적는 칸 열기 (Q)"><kbd>Q</kbd>채팅<b id="chatBadge" hidden></b></button>
+      <button id="askBtn" type="button" hidden title="채팅: 글 적는 칸 열기 (Enter)"><kbd>Enter</kbd>채팅<b id="chatBadge" hidden></b></button>
       <button id="okBtn" type="button" hidden aria-haspopup="true" title="반응: 알겠어요 · 모르겠어요 · 잠깐만요 가운데 골라 보내요 (E)"><kbd>E</kbd>반응</button>
       <button id="glanceBtn" type="button" hidden title="학생보기: 누르고 있는 동안 학생들을 봐요"><kbd>G</kbd>학생보기</button>
       <button id="backBtn" type="button" hidden><kbd>Esc</kbd><span id="backText">일어나기</span></button>
@@ -6959,6 +6961,7 @@ function chatAdd(name, text, kind = '') {            // kind: me · teacher · '
   while (log.children.length > 200) log.firstChild.remove();
   if (stick || kind === 'me') log.scrollTop = log.scrollHeight;
   if ($('chat').hidden && !chat.closed) $('chat').hidden = false;       // 대화가 오면 창이 저절로 뜬다 (× 로 닫아 둔 동안에는 뜨지 않는다)
+  chatWake();                        // 사라져 있었으면 다시 나타나고, 사라지는 때를 다시 센다
   if ($('chat').hidden && kind !== 'me') { chat.unread++; showChatBadge(); }
   log.scrollTop = stick || kind === 'me' ? log.scrollHeight : log.scrollTop;
 }
@@ -6966,9 +6969,22 @@ function showChatBadge() {
   $('chatBadge').hidden = !chat.unread;
   $('chatBadge').textContent = chat.unread > 99 ? '99+' : chat.unread;
 }
-// 글 적는 칸을 연다 (Q · 채팅 단추). 평소에는 대화만 보이고, 적는 칸과 보내기 단추는 이때만 나온다
+// 한동안(8초) 새 말이 없으면 창이 스르르 사라진다. 적는 칸이 열려 있거나 마우스가 창 위에 있는 동안에는 사라지지 않는다
+const CHAT_IDLE = 8000;
+function chatWake() {
+  clearTimeout(chat.idle);
+  $('chat').classList.remove('gone');
+  chat.idle = setTimeout(() => {
+    if (!$('chatForm').hidden || $('chat').matches(':hover') || document.activeElement === $('chatAlpha')) { chatWake(); return; }
+    $('chat').classList.add('gone');
+  }, CHAT_IDLE);
+}
+$('chat').addEventListener('pointerenter', chatWake);
+$('chat').addEventListener('pointerleave', chatWake);
+// 글 적는 칸을 연다 (Enter · 채팅 단추). 평소에는 대화만 보이고, 적는 칸과 보내기 단추는 이때만 나온다
 function openChat() {
   if (!entered) return;
+  chatWake();
   $('chat').hidden = false;
   chat.closed = false;
   chat.unread = 0;
@@ -6977,8 +6993,9 @@ function openChat() {
   $('chatLog').scrollTop = $('chatLog').scrollHeight;
   $('chatText').focus();
 }
-function closeChatInput() {          // 적는 칸만 닫는다 (대화는 계속 보인다)
+function closeChatInput() {          // 적는 칸만 닫는다 (대화는 조금 더 보이다가 사라진다)
   $('chatForm').hidden = true;
+  chatWake();
   canvas.focus();
 }
 function closeChat() {               // 창을 통째로 닫는다 (× 단추). 그 뒤에 온 말은 채팅 단추의 빨간 숫자로 쌓인다
@@ -6989,6 +7006,7 @@ function closeChat() {               // 창을 통째로 닫는다 (× 단추). 
 function chatReset() {
   $('chat').hidden = $('chatForm').hidden = true;
   chat.closed = false;
+  clearTimeout(chat.idle);
   $('chatLog').replaceChildren();
   $('chatText').value = '';
   chat.unread = 0;
@@ -7015,8 +7033,8 @@ function showChatLook(save) {
   $('chatAlpha').value = chatLook.alpha;
   if (save) { try { localStorage.setItem(CHAT_LOOK, JSON.stringify(chatLook)); } catch {} }
 }
-$('chatAlpha').addEventListener('input', () => { chatLook.alpha = Number($('chatAlpha').value); showChatLook(true); });
-$('chatAlpha').addEventListener('change', () => { if ($('chatForm').hidden) canvas.focus(); });
+$('chatAlpha').addEventListener('input', () => { chatLook.alpha = Number($('chatAlpha').value); showChatLook(true); chatWake(); });
+$('chatAlpha').addEventListener('change', () => { if ($('chatForm').hidden) canvas.focus(); chatWake(); });
 showChatLook(false);
 $('chatText').addEventListener('keydown', (e) => { if (e.code === 'Escape') closeChatInput(); });
 $('chatClose').addEventListener('click', closeChat);
@@ -7256,7 +7274,7 @@ function keyRows() {
       gap(0.5), k('F3', 'F3', '시스템 정보', '시스템 정보(fps · 그리기 호출 · 내 위치 등)를 켜고 꺼요. F3 이 안 되는 컴퓨터에서는 I 키나 ` 키로도 돼요.', 1.4)],
     '123456789'.split('').map((d) => k(`Digit${d}`, d, d === '1' ? '영역' : ' ', area)),
     [gap(0.5),
-      k('KeyQ', 'Q', '채팅', '글 적는 칸을 열어요. Enter 로 보내면 모두의 채팅 창에 보이고, 내 머리 위에도 말풍선으로 잠깐 떠요. 보내거나 Esc 를 누르면 적는 칸은 다시 닫혀요.'),
+      k('KeyQ', 'Q'),
       k('KeyW', 'W', '앞으로', '앞으로 걸어요.'),
       k('KeyE', 'E', T ? '' : '반응', '자리에 앉아 있을 때 반응을 골라 보내요: 알겠어요 · 모르겠어요 · 잠깐만요. 머리 위에 아이콘으로 떠요. E 를 누른 뒤 1 · 2 · 3 으로도 골라요.'),
       k('KeyR', 'R', T ? '리모컨' : '', '리모컨을 꺼내고 넣어요. 리모컨으로 자료를 띄우고, 넘기고, 잠시 감춰요.'),
@@ -7267,7 +7285,8 @@ function keyRows() {
       k('KeyD', 'D', '오른쪽', '오른쪽으로 움직여요. 칠판 보기에서는 오른쪽 영역으로 옮겨요.'),
       k('KeyF', 'F', T ? '포인터' : '따라가기', T ? '누르고 있는 동안 포인터(빨간 점)가 켜져요. 리모컨을 넣어 두었으면 꺼내면서 켜요. 판서 화면에서는 빨간 점이 마우스를 따라다녀요.' : '칠판 보기에서 "선생님 따라가기"를 켜고 꺼요. 켜 두면 선생님이 쓰는 곳으로 화면이 따라가요.'),
       k('KeyG', 'G', T ? '학생보기' : '', '판서하는 동안 누르고 있으면 옆으로 서서 고개를 돌려 학생들을 봐요. 누른 채로 방향키나 마우스 끌기로 고개를 더 움직일 수 있어요. 떼면 다시 칠판을 보고 이어서 써요.'),
-      k('KeyH', 'H', '조작법', '이 조작법을 열고 닫아요.')],
+      k('KeyH', 'H', '조작법', '이 조작법을 열고 닫아요.'),
+      k('Enter', 'Enter', '채팅', 'Enter 를 누르면 채팅의 글 적는 칸이 열려요. 글을 적고 다시 Enter 로 보내면 모두의 채팅 창에 보이고, 내 머리 위에도 말풍선으로 잠깐 떠요. 보내거나 Esc 를 누르면 적는 칸은 닫혀요. 새 말이 한동안 없으면 채팅 창은 스르르 사라져요.', 1.7)],
     [k('ShiftLeft', 'Shift', '달리기', '누른 채로 움직이면 달려요.', 1.6),
       k('KeyZ', 'Z', canWrite() ? '되돌리기' : '', '판서 화면에서 방금 쓰거나 지운 것을 되돌려요. Shift 와 함께 누르면 되돌린 것을 다시 해요(앞으로 가기). Ctrl(⌘)+Z 도 돼요.'),
       k('KeyX', 'X', '고르기', T ? '바라보는 것을 골라요. 교탁을 보면 교탁에 서기, 칠판을 가까이에서 보면 판서(멀리서나 앉아서는 크게 보기만), 자리를 보면 앉기, 문을 보면 나가기.' : '바라보는 것을 골라요. 자리를 보면 앉기, 칠판을 보면 크게 보기, 옆 친구를 보면 소곤거리기, 문을 보면 나가기.'),
@@ -7537,7 +7556,7 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyB' && !e.repeat) setZoom(!zoomed);                          // 칠판 보기 (선생님은 판서)
   if (e.code === 'Space') { jumpQueued = true; e.preventDefault(); }
   else if (e.code === 'KeyX' && !e.repeat) { act(); e.preventDefault(); }
-  else if (e.code === 'KeyQ' && !e.repeat) { openChat(); e.preventDefault(); }       // 채팅 창을 열고 글을 적는다 (누구나, 언제나)
+  else if ((e.code === 'Enter' || e.code === 'NumpadEnter') && !e.repeat && !(e.target instanceof HTMLButtonElement)) { openChat(); e.preventDefault(); }       // Enter: 채팅의 글 적는 칸을 연다 (누구나, 언제나)
   else if (e.code === 'KeyE' && !e.repeat) {                                      // 학생 전용: 반응
     if (player.mode === 'seated' && !player.seat.stand && !isTeacher) toggleReact();
     e.preventDefault();
