@@ -623,6 +623,7 @@ try {
 const scene = new THREE.Scene();
 scene.background = new THREE.Color('#241c15');
 const camera = new THREE.PerspectiveCamera(70, 1, 0.05, 80);
+camera.layers.enable(1);             // 1번 층 = 이름표
 
 // 조명은 딱 두 개, 그림자 계산은 하지 않는다
 const hemi = new THREE.HemisphereLight('#fff8ec', '#d9c9b2', 2.7);
@@ -928,6 +929,7 @@ function makeSkin(canvas, { slim = false, blink = false } = {}) {
   return { canvas, slim, blink, ghost: null, mat: new THREE.MeshLambertMaterial({ map: tex, alphaTest: 0.5 }) };
 }
 function dropSkin(skin) {
+  crowd.freeSkin(skin);               // 스킨 모음에서 쓰던 칸을 돌려준다
   skin.mat.map.dispose();
   skin.mat.dispose();
   if (skin.ghost) skin.ghost.dispose();
@@ -1534,12 +1536,15 @@ const SHOW_W = 1280, SHOW_H = 720;             // 자료 화면에 그리는 그
 const showCanvas = document.createElement('canvas');
 showCanvas.width = SHOW_W;
 showCanvas.height = SHOW_H;
-const showCtx = showCanvas.getContext('2d');
+// (시험용) 주소에 ?softcanvas 를 붙이면 2D 캔버스를 그래픽 카드 가속 없이 쓴다. 가속이 안 되는 컴퓨터 · 브라우저를 흉내 내어 재 볼 때 쓴다
+const CANVAS_2D = new URLSearchParams(location.search).has('softcanvas') ? { willReadFrequently: true } : undefined;
+const showCtx = showCanvas.getContext('2d', CANVAS_2D);
 const showTex = new THREE.CanvasTexture(showCanvas);
 showTex.colorSpace = THREE.SRGBColorSpace;
 showTex.anisotropy = screenTex.anisotropy;
-const ink = { canvas: document.createElement('canvas'), ctx: null, used: false };    // 판서: 칠판 위에 손으로 쓴 것
-ink.ctx = ink.canvas.getContext('2d');
+// 판서: 칠판 위에 손으로 쓴 것. 그래픽 카드로는 바뀐 조각만 보낸다 (full = 통째로 다시 보내야 함, dirty = 바뀐 조각 번호)
+const ink = { canvas: document.createElement('canvas'), ctx: null, used: false, full: true, dirty: new Set() };
+ink.ctx = ink.canvas.getContext('2d', CANVAS_2D);
 const strokes = [];                  // 판서한 획들 (그은 순서대로): { key, tool, color, size, pts: [u, v, …] }
 const strokeOf = new Map();          // 획 이름 → 획
 const inkTex = new THREE.CanvasTexture(ink.canvas);
@@ -1560,8 +1565,36 @@ const screen = new THREE.Mesh(quad, new THREE.MeshBasicMaterial({ map: showTex, 
 const inkMesh = new THREE.Mesh(quad, new THREE.MeshBasicMaterial({ map: inkTex, transparent: true, depthWrite: false }));
 screen.visible = false;                        // 자료를 띄웠을 때만 보인다
 screen.renderOrder = 1;
+
+/* 화면 공유를 보여 주는 판. 전에는 영상을 1초에 12번 1280×720 캔버스에 옮겨 그린 다음 그 캔버스를 그래픽 카드로 보냈다
+   (화면이 멈춰 있어도, 칠판을 안 보고 있어도). 이제는
+   · 영상을 캔버스를 거치지 않고 바로 그래픽 카드로 보낸다 → 공유한 화면의 원래 해상도 그대로라 글자가 더 또렷하다
+   · 새 장면이 왔을 때만, 칠판이 화면에 보일 때만 보낸다 (1초에 15번까지) → 멈춘 화면 · 안 보는 화면은 부담이 없다
+   자료 화면(screen)은 그 뒤에서 빈 바탕을 맡고, 이 판은 영상의 비율대로 그 위에 놓인다 */
+const liveVideo = Object.assign(document.createElement('video'), { muted: true, playsInline: true });
+const liveTex = new THREE.Texture(liveVideo);
+liveTex.isVideoTexture = true;                 // three.js 가 영상의 실제 크기로 올리게 한다
+liveTex.update = () => {};                     // 언제 다시 올릴지는 liveThink 가 정한다
+liveTex.colorSpace = THREE.SRGBColorSpace;
+liveTex.anisotropy = screenTex.anisotropy;     // 멀리서 · 비스듬히 봐도 글자가 뭉개지지 않게 (밉맵도 함께 만든다)
+const liveMesh = new THREE.Mesh(quad, new THREE.MeshBasicMaterial({
+  map: liveTex, transparent: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,      // 빈 바탕과 겹쳐 어른거리지 않게 살짝 앞으로
+}));
+liveMesh.visible = false;
+liveMesh.renderOrder = 1.5;                    // 빈 바탕(1) 다음, 판서(2) 앞
+const LIVE_GAP = 66;                           // 새 장면을 올리는 가장 짧은 간격(ms) = 1초에 15번 (컴퓨터가 버거워하면 8번)
+const LIVE_MAX = 2.6e6;                        // 이보다 점이 많은 화면(4K 등)은 바로 올리기엔 무거워서 전처럼 줄여서 올린다
+const live = {
+  fresh: false, at: 0, polled: 0, w: 0, h: 0, handle: 0, seen: new THREE.Frustum(), view: new THREE.Matrix4(),
+  rvfc: 'requestVideoFrameCallback' in liveVideo,          // 브라우저가 "새 장면이 왔다"고 알려 주는지
+};
+function fitLive() {                           // 영상의 비율을 지켜 자료 화면 자리에 맞춘다
+  const k = live.w && live.h ? Math.min(BOARD.sw / live.w, BOARD.sh / live.h) : 0;
+  liveMesh.scale.set(live.w * k || 1, live.h * k || 1, 1);
+  liveMesh.position.set(0, BOARD.y, BOARD.z + 0.005);
+}
 inkMesh.renderOrder = 2;
-scene.add(boardFrame, boardTray, boardBack, screen, inkMesh);
+scene.add(boardFrame, boardTray, boardBack, screen, liveMesh, inkMesh);
 
 function placeBoard() {
   const { w, h, y, z } = BOARD;
@@ -1575,6 +1608,8 @@ function placeBoard() {
   screen.position.set(0, y, z + 0.004);
   inkMesh.scale.set(w, h, 1);
   inkMesh.position.set(0, y, z + 0.008);
+  fitLive();
+  live.w = 0;                                    // 칠판이 바뀌었으니 다음 장면에서 바탕과 크기를 다시 맞춘다
   screenObj.boxes[0].min.set(-w / 2 - 0.15, y - h / 2 - 0.15, z - 0.09);
   screenObj.boxes[0].max.set(w / 2 + 0.15, y + h / 2 + 0.15, z);
   const iw = clamp(Math.round(w * 120), 1536, 3072), ih = Math.round(iw * h / w);     // 긴 칠판은 그만큼 촘촘하게 (1m 에 120점)
@@ -1584,7 +1619,7 @@ function placeBoard() {
     strokes.length = 0;
     strokeOf.clear();
     inkTex.dispose();
-    inkTex.needsUpdate = true;
+    ink.full = true;
   }
   applyBoard();
 }
@@ -1600,11 +1635,15 @@ function applyBoard() {
    거울에 비친 모습은 강의실을 거울 뒤쪽에서 한 번 더 그려서 만든다. 그만큼 그릴 것이 늘어나므로 부하를 이렇게 줄인다:
    · 거울에서 MIRROR.far 안에 있고 거울이 화면에 보일 때만 그린다. 멀어지면 은빛 유리로만 보인다
    · 거울 속은 멀리까지 보이지 않는다. 거울에서 몇 m 너머는 은빛으로 흐려지고, 그보다 먼 것은 아예 그리지 않는다
-   · 작은 그림(640×400)으로 그린다 */
+   · 작은 그림(512×320)으로 그리고, 1초에 스무 번까지만 새로 그린다 (그리는 데 오래 걸리는 컴퓨터에서는 더 드물게)
+   · 이름표는 거울 속에 그리지 않는다
+   · 흐려지는 효과(안개)는 평소에도 켜 둔 채 거리만 아주 멀리 둔다. 켰다 껐다 하면 그릴 때마다 재질을 다시 살피게 되기 때문이다 */
 const MIRROR = { w: 0.9, h: 1.8, near: 3.5, far: 5.5, deep: 3, end: 7 };      // near~far = 유리가 은빛으로 바뀌는 거리, deep~end = 거울 속이 흐려지는 깊이
 const mirrorHaze = new THREE.Color('#b7c6d2');
-const mirrorFog = new THREE.Fog(mirrorHaze, 1, 2);
-const mirrorRT = new THREE.WebGLRenderTarget(640, 400);
+const FOG_OFF = [1e5, 1e6];                      // 평소: 안개가 닿지 않는 거리
+const mirrorFog = new THREE.Fog(mirrorHaze, ...FOG_OFF);
+scene.fog = mirrorFog;
+const mirrorRT = new THREE.WebGLRenderTarget(512, 320);
 const mirrorCam = new THREE.PerspectiveCamera();
 const mirrorMat = keep(new THREE.ShaderMaterial({
   uniforms: { map: { value: mirrorRT.texture }, texMat: { value: new THREE.Matrix4() }, haze: { value: mirrorHaze }, fade: { value: 1 } },
@@ -1648,14 +1687,15 @@ mirrorGlass.visible = false;
 scene.add(mirrorGlass);
 const mirrorBox = new THREE.Box3();
 let mirrorCalls = 0;                             // 거울을 그리느라 늘어난 그리기 호출 수
+let mirrorAt = -1e9, mirrorMs = 0.5, mirrorStale = false;      // 마지막으로 그린 때 · 그리는 데 걸린 시간(평균) · 새로 그릴 것이 밀려 있는지
+const mirrorEvery = () => clamp(mirrorMs * 8, 50, 200);      // 거울을 새로 그리는 간격(ms): 걸린 시간의 8배, 곧 전체의 1/8 까지만 쓴다
 {
   const N = new THREE.Vector3(), P = new THREE.Vector3(), C = new THREE.Vector3(), V = new THREE.Vector3(), T = new THREE.Vector3();
   const rot = new THREE.Matrix4(), view = new THREE.Matrix4(), frustum = new THREE.Frustum(), plane = new THREE.Plane();
   const clip = new THREE.Vector4(), q = new THREE.Vector4();
   // 화면을 그리기 바로 전에 부른다: 거울이 가까이 보이면 거울 속 모습을 새로 그린다
-  var mirrorThink = () => {
-    mirrorCalls = 0;
-    if (!mirrorGlass.visible) return;
+  var mirrorThink = (now) => {
+    if (!mirrorGlass.visible) { mirrorCalls = 0; mirrorStale = false; return; }
     camera.updateMatrixWorld();
     P.setFromMatrixPosition(mirrorGlass.matrixWorld);
     C.setFromMatrixPosition(camera.matrixWorld);
@@ -1664,8 +1704,13 @@ let mirrorCalls = 0;                             // 거울을 그리느라 늘�
     const gap = -V.dot(N), dist = V.length();    // gap = 거울 면에서 카메라까지의 거리 (앞쪽이면 +)
     const fade = gap > 0.01 ? clamp((dist - MIRROR.near) / (MIRROR.far - MIRROR.near), 0, 1) : 1;
     mirrorMat.uniforms.fade.value = fade;
-    if (fade >= 1) return;
-    if (!frustum.setFromProjectionMatrix(view.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)).intersectsBox(mirrorBox)) return;
+    if (fade >= 1 || !frustum.setFromProjectionMatrix(view.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)).intersectsBox(mirrorBox)) {
+      mirrorCalls = 0;
+      mirrorStale = false;
+      return;
+    }
+    if (now - mirrorAt < mirrorEvery()) { mirrorStale = true; return; }      // 방금 그렸으면 그 그림을 조금 더 쓴다
+    const began = performance.now();
 
     // 거울 뒤쪽의 카메라: 내 카메라를 거울 면에 대칭으로 옮긴 것
     rot.extractRotation(camera.matrixWorld);
@@ -1700,17 +1745,20 @@ let mirrorCalls = 0;                             // 거울을 그리느라 늘�
     mirrorGlass.visible = false;
     mirrorFog.near = gap + MIRROR.deep;
     mirrorFog.far = gap + MIRROR.end;
-    scene.fog = mirrorFog;
     scene.background = mirrorHaze;
     renderer.setRenderTarget(mirrorRT);
     renderer.render(scene, mirrorCam);
     renderer.setRenderTarget(null);
     mirrorCalls = renderer.info.render.calls;
-    scene.fog = null;
+    mirrorFog.near = FOG_OFF[0];
+    mirrorFog.far = FOG_OFF[1];
     scene.background = bg;
     head.visible = headWas;
     held.visible = heldWas;
     mirrorGlass.visible = true;
+    mirrorAt = now;
+    mirrorStale = false;
+    mirrorMs += (Math.min(performance.now() - began, 25) - mirrorMs) * 0.2;       // (처음 그릴 때는 준비하느라 오래 걸리므로 25ms 까지만 센다)
   };
 }
 
@@ -2162,78 +2210,258 @@ function armGeos(slim) {
 }
 const armX = (slim) => (slim ? 5.5 : 6) * AV.u;     // 팔의 가운데가 몸 가운데에서 떨어진 거리
 
-function buildAvatar(look, name) {
+// 몸 조각의 도형 (부를 때마다 새로 만든다). 관절을 축으로 움직이도록 머리는 위로, 다리는 아래로 옮겨 둔다
+const AVATAR_GEO = {
+  head: () => atlasBox(AV.head, AV.head, AV.head, {
+    nx: [0, 8, 8, 8], pz: [8, 8, 8, 8], px: [16, 8, 8, 8], nz: [24, 8, 8, 8], py: [8, 0, 8, 8], ny: [16, 0, 8, 8],
+  }).translate(0, AV.head / 2, 0),
+  body: () => atlasBox(8 * AV.u, AV.body, 4 * AV.u, {
+    nx: [16, 20, 4, 12], pz: [20, 20, 8, 12], px: [28, 20, 4, 12], nz: [32, 20, 8, 12], py: [20, 16, 8, 4], ny: [28, 16, 8, 4],
+  }),
+  legL: () => atlasBox(4 * AV.u, AV.leg, 4 * AV.u, limbUV(16, 48)).translate(0, -AV.leg / 2, 0),
+  legR: () => atlasBox(4 * AV.u, AV.leg, 4 * AV.u, limbUV(0, 16)).translate(0, -AV.leg / 2, 0),
+  lids: () => {                      // 눈 깜빡임용 덮개
+    const geo = new THREE.PlaneGeometry(AV.head, AV.head);
+    setFaceUV(geo, 0, [56, 16, 8, 8]);
+    return geo;
+  },
+};
+// 머리 위 이름표 그림 (256×64 를 k 배로, 캔버스의 (x, y) 에)
+function drawTag(g, name, x = 0, y = 0, k = 1) {
+  g.save();
+  g.translate(x, y);
+  g.scale(k, k);
+  g.clearRect(0, 0, 256, 64);
+  g.font = `800 30px ${UI_FONT}`;
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  const w = Math.min(244, g.measureText(name).width + 40);
+  g.fillStyle = 'rgba(51, 36, 26, .82)';
+  g.fillRect(128 - w / 2, 10, w, 44);
+  g.fillStyle = '#fff6e3';
+  g.fillText(name, 128, 33, 220);
+  g.restore();
+}
+
+/* ───────────── 다른 사람들의 캐릭터: 모두 모아서 한 번에 그린다 ─────────────
+   한 명씩 따로 그리면 몸 여섯 조각 + 이름표 + 그림자로 그리기 호출이 여덟 번씩 든다 (100명이면 800번).
+   그래서 같은 조각끼리(머리끼리, 몸통끼리 …) 한 묶음으로 그린다 (InstancedMesh). 사람이 몇 명이든 호출 수는 그대로다.
+   · 스킨은 큰 그림 한 장(16×16칸)에 모아 두고, 사람마다 자기 칸을 쓴다
+   · 이름표도 큰 그림 한 장(8×32칸)에 모아 두고, 늘 화면을 보도록 세워 그린다
+   · 캐릭터마다 뼈대(보이지 않는 틀)만 따로 가지고, 그릴 때 뼈대의 자리를 읽어 온다
+   내 캐릭터와 소개 화면의 캐릭터는 따로 그린다 (머리 숨기기 · 반투명처럼 혼자만의 처리가 있어서) */
+const CROWD_MAX = 320;               // 한 번에 그릴 수 있는 사람 수
+const crowd = (() => {
+  // 스킨 모음: 64×64 스킨을 16×16칸에
+  const skinCanvas = Object.assign(document.createElement('canvas'), { width: 1024, height: 1024 });
+  const skinCtx = skinCanvas.getContext('2d');
+  const skinTex = new THREE.CanvasTexture(skinCanvas);
+  skinTex.colorSpace = THREE.SRGBColorSpace;
+  skinTex.magFilter = skinTex.minFilter = THREE.NearestFilter;
+  skinTex.generateMipmaps = false;
+  const skinSlots = new Map(), skinFree = Array.from({ length: 256 }, (_, n) => 255 - n);
+  const skinSlot = (skin) => {
+    let slot = skinSlots.get(skin);
+    if (slot === undefined) {
+      if (!skinFree.length) return 0;
+      slot = skinFree.pop();
+      skinSlots.set(skin, slot);
+      const x = (slot % 16) * 64, y = (slot >> 4) * 64;
+      skinCtx.clearRect(x, y, 64, 64);
+      skinCtx.drawImage(skin.canvas, x, y);
+      skinTex.needsUpdate = true;
+    }
+    return slot;
+  };
+  const freeSkin = (skin) => {
+    const slot = skinSlots.get(skin);
+    if (slot === undefined) return;
+    skinSlots.delete(skin);
+    skinFree.push(slot);
+  };
+  const skinMat = new THREE.MeshLambertMaterial({ map: skinTex, alphaTest: 0.5 });
+  skinMat.onBeforeCompile = (shader) => {          // 사람마다 스킨 모음의 자기 칸을 쓰게 한다
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute vec2 instAt;')
+      .replace('#include <uv_vertex>', '#include <uv_vertex>\n#ifdef USE_MAP\n  vMapUv = vMapUv * 0.0625 + instAt;\n#endif');
+  };
+
+  // 이름표 모음: 192×48 이름표를 8×32칸에
+  const tagCanvas = Object.assign(document.createElement('canvas'), { width: 1536, height: 1536 });
+  const tagCtx = tagCanvas.getContext('2d');
+  const tagTex = new THREE.CanvasTexture(tagCanvas);
+  tagTex.colorSpace = THREE.SRGBColorSpace;
+  const tagFree = Array.from({ length: 256 }, (_, n) => 255 - n);
+  const tagSlot = (name) => {
+    if (!name || !tagFree.length) return -1;
+    const slot = tagFree.pop();
+    drawTag(tagCtx, name, (slot % 8) * 192, (slot >> 3) * 48, 0.75);
+    tagTex.needsUpdate = true;
+    return slot;
+  };
+  const tagMat = new THREE.ShaderMaterial({
+    uniforms: { map: { value: tagTex } },
+    transparent: true,
+    vertexShader: `
+      attribute vec2 instAt;
+      varying vec2 vUv;
+      void main() {
+        vUv = uv * vec2(0.125, 0.03125) + instAt;
+        vec4 at = modelViewMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);     // 이름표의 가운데
+        at.xy += position.xy * vec2(1.0, 0.25);                                    // 늘 화면을 보도록 세운다
+        gl_Position = projectionMatrix * at;
+      }`,
+    fragmentShader: `
+      uniform sampler2D map;
+      varying vec2 vUv;
+      void main() {
+        vec4 c = texture2D(map, vUv);
+        if (c.a < 0.05) discard;
+        gl_FragColor = c;
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }`,
+  });
+
+  // 묶음: 조각마다 하나씩
+  const batch = {};
+  const make = (key, geo, mat, extra = true) => {
+    const mesh = new THREE.InstancedMesh(geo, mat, CROWD_MAX);
+    mesh.count = 0;
+    mesh.visible = false;
+    mesh.frustumCulled = false;        // 사람들이 강의실 곳곳에 있어서 묶음째로는 가려 내지 않는다
+    const at = extra ? new THREE.InstancedBufferAttribute(new Float32Array(CROWD_MAX * 2), 2) : null;
+    if (at) geo.setAttribute('instAt', at);
+    scene.add(mesh);
+    batch[key] = { mesh, at, n: 0 };
+  };
+  for (const key in AVATAR_GEO) make(key, AVATAR_GEO[key](), skinMat);
+  const [armL, armR] = armGeos(false), [armLs, armRs] = armGeos(true);
+  make('armL', armL, skinMat);
+  make('armR', armR, skinMat);
+  make('armLs', armLs, skinMat);       // 팔이 가는 스킨
+  make('armRs', armRs, skinMat);
+  make('tag', new THREE.PlaneGeometry(1, 1), tagMat);
+  batch.tag.mesh.layers.set(1);        // 이름표는 내 카메라에만 보인다 (거울 속에는 그리지 않는다)
+  make('blob', quad, shadowMat, false);
+
+  const models = new Set();
+  const at = new THREE.Vector3(), move = new THREE.Matrix4();
+  const put = (key, matrix, u = 0, v = 0) => {
+    const B = batch[key], n = B.n;
+    if (n >= CROWD_MAX) return;
+    matrix.toArray(B.mesh.instanceMatrix.array, n * 16);
+    if (B.at) { B.at.array[n * 2] = u; B.at.array[n * 2 + 1] = v; }
+    B.n = n + 1;
+  };
+  const send = (attr, count) => {      // 쓴 만큼만 그래픽 카드로 보낸다
+    attr.clearUpdateRanges();
+    attr.addUpdateRange(0, count);
+    attr.needsUpdate = true;
+  };
+  // 화면을 그리기 전에: 뼈대들의 자리를 묶음으로 옮겨 적는다
+  function fill() {
+    for (const key in batch) batch[key].n = 0;
+    for (const m of models) {
+      if (!m.root.visible) continue;
+      m.root.updateMatrixWorld(true);
+      const slot = skinSlot(m.skin), u = (slot % 16) / 16, v = 1 - ((slot >> 4) + 1) / 16, slim = m.skin.slim;
+      if (m.head.visible) put('head', m.head.matrixWorld, u, v);
+      put('body', m.body.matrixWorld, u, v);
+      put(slim ? 'armLs' : 'armL', m.armL.matrixWorld, u, v);
+      put(slim ? 'armRs' : 'armR', m.armR.matrixWorld, u, v);
+      put('legL', m.legL.matrixWorld, u, v);
+      put('legR', m.legR.matrixWorld, u, v);
+      if (m.lids.visible) put('lids', m.lids.matrixWorld, u, v);
+      if (m.tag.visible && m.tagSlot >= 0) {
+        at.setFromMatrixPosition(m.tag.matrixWorld);
+        put('tag', move.makeTranslation(at.x, at.y, at.z), (m.tagSlot % 8) / 8, 1 - ((m.tagSlot >> 3) + 1) / 32);
+      }
+      if (m.blob.visible) {
+        m.blob.updateMatrix();
+        put('blob', m.blob.matrix);
+      }
+    }
+    for (const key in batch) {
+      const B = batch[key];
+      B.mesh.count = B.n;
+      B.mesh.visible = B.n > 0;
+      if (!B.n) continue;
+      send(B.mesh.instanceMatrix, B.n * 16);
+      if (B.at) send(B.at, B.n * 2);
+    }
+  }
+  return {
+    models, fill, tagSlot, freeSkin,
+    freeTag: (slot) => { if (slot >= 0) tagFree.push(slot); },
+  };
+})();
+
+// batched = 다른 사람의 캐릭터: 뼈대만 만들고, 그리는 것은 위의 묶음(crowd)에 맡긴다
+function buildAvatar(look, name, batched = false) {
   // 같은 기본 캐릭터끼리는 스킨 한 장을 함께 쓴다
   const skin = look.skin || (look.skin = defaultSkin(look)), mat = skin.mat, U = AV.u;
   const root = new THREE.Group();     // 위치·몸 방향
   const rig = new THREE.Group();      // 걸을 때 통통, 앉을 때 위로
   root.add(rig);
   const part = (geo, x, y, z) => {
-    const m = new THREE.Mesh(geo, mat);
+    const m = batched ? new THREE.Object3D() : new THREE.Mesh(geo(), mat);
     m.position.set(x, y, z);
     rig.add(m);
     return m;
   };
 
-  // 머리. 목을 축으로 끄덕이도록 도형을 위로 올려 둔다
-  const headGeo = atlasBox(AV.head, AV.head, AV.head, {
-    nx: [0, 8, 8, 8], pz: [8, 8, 8, 8], px: [16, 8, 8, 8], nz: [24, 8, 8, 8], py: [8, 0, 8, 8], ny: [16, 0, 8, 8],
-  });
-  headGeo.translate(0, AV.head / 2, 0);
-  const head = part(headGeo, 0, AV.leg + AV.body, 0);
+  const head = part(AVATAR_GEO.head, 0, AV.leg + AV.body, 0);     // 목을 축으로 끄덕인다
   head.rotation.order = 'YXZ';        // 좌우로 돌린 다음 위아래로 끄덕인다
-
-  const body = part(atlasBox(8 * U, AV.body, 4 * U, {
-    nx: [16, 20, 4, 12], pz: [20, 20, 8, 12], px: [28, 20, 4, 12], nz: [32, 20, 8, 12], py: [20, 16, 8, 4], ny: [28, 16, 8, 4],
-  }), 0, AV.leg + AV.body / 2, 0);
+  const body = part(AVATAR_GEO.body, 0, AV.leg + AV.body / 2, 0);
 
   // 팔·다리는 위쪽 끝(어깨·골반)을 축으로 흔들린다. 캐릭터의 왼쪽이 +x, 오른쪽이 -x
-  const [armGeoL, armGeoR] = armGeos(skin.slim), ax = armX(skin.slim);
-  const armL = part(armGeoL, ax, AV.shoulder, 0), armR = part(armGeoR, -ax, AV.shoulder, 0);
-  const legGeo = (x, y) => atlasBox(4 * U, AV.leg, 4 * U, limbUV(x, y)).translate(0, -AV.leg / 2, 0);
-  const legL = part(legGeo(16, 48), 2 * U, AV.leg, 0), legR = part(legGeo(0, 16), -2 * U, AV.leg, 0);
+  const arms = batched ? [] : armGeos(skin.slim), ax = armX(skin.slim);
+  const armL = part(() => arms[0], ax, AV.shoulder, 0), armR = part(() => arms[1], -ax, AV.shoulder, 0);
+  const legL = part(AVATAR_GEO.legL, 2 * U, AV.leg, 0), legR = part(AVATAR_GEO.legR, -2 * U, AV.leg, 0);
   legL.rotation.order = legR.rotation.order = 'YXZ';   // 앉을 때 다리를 앞으로 뻗고 살짝 벌린다
 
   // 눈 깜빡임용 덮개 (평소엔 숨김. 기본 캐릭터의 스킨에만 그림이 있다)
-  const lidGeo = new THREE.PlaneGeometry(AV.head, AV.head);
-  setFaceUV(lidGeo, 0, [56, 16, 8, 8]);
-  const lids = new THREE.Mesh(lidGeo, mat);
+  const lids = batched ? new THREE.Object3D() : new THREE.Mesh(AVATAR_GEO.lids(), mat);
   lids.position.set(0, AV.head / 2, AV.head / 2 + 0.003);
   lids.visible = false;
   head.add(lids);
-  const parts = [head, body, armL, armR, legL, legR, lids];
+  const parts = batched ? [] : [head, body, armL, armR, legL, legR, lids];
 
   // 머리 위 이름표
-  const tag = new THREE.Sprite(new THREE.SpriteMaterial({
+  const tag = batched ? new THREE.Object3D() : new THREE.Sprite(new THREE.SpriteMaterial({
     depthWrite: false,
-    map: makeTex(256, 64, (g) => {
-      g.font = `800 30px ${UI_FONT}`;
-      g.textAlign = 'center';
-      g.textBaseline = 'middle';
-      const w = Math.min(244, g.measureText(name).width + 40);
-      g.fillStyle = 'rgba(51, 36, 26, .82)';
-      g.fillRect(128 - w / 2, 10, w, 44);
-      g.fillStyle = '#fff6e3';
-      g.fillText(name, 128, 33, 220);
-    }, { smooth: true }),
+    map: makeTex(256, 64, (g) => drawTag(g, name), { smooth: true }),
   }));
   tag.scale.set(1.0, 0.25, 1);
   tag.visible = !!name;               // 이름이 없으면 이름표도 없다
+  tag.layers.set(1);                  // 이름표는 내 카메라에만 보인다 (거울 속에는 그리지 않는다)
   root.add(tag);
 
-  const blob = new THREE.Mesh(quad, shadowMat);     // 발밑 그림자
+  const blob = batched ? new THREE.Object3D() : new THREE.Mesh(quad, shadowMat);     // 발밑 그림자
   blob.rotation.x = -Math.PI / 2;
   blob.position.y = 0.014;
 
-  scene.add(root, blob);
-  // 나간 사람의 캐릭터를 치울 때 쓴다
-  const dispose = () => {
-    scene.remove(root, blob);
-    rig.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
-    tag.material.map.dispose();
-    tag.material.dispose();
-  };
-  return { root, rig, head, armL, armR, legL, legR, lids, tag, blob, look, skin, parts, dispose };
+  const model = { root, rig, head, body, armL, armR, legL, legR, lids, tag, blob, look, skin, parts, batched, tagSlot: -1, dispose: null };
+  if (batched) {
+    scene.add(root);
+    model.tagSlot = crowd.tagSlot(name);
+    crowd.models.add(model);
+    model.dispose = () => {           // 나간 사람의 캐릭터를 치울 때 쓴다
+      scene.remove(root);
+      crowd.models.delete(model);
+      crowd.freeTag(model.tagSlot);
+    };
+  } else {
+    scene.add(root, blob);
+    model.dispose = () => {
+      scene.remove(root, blob);
+      rig.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
+      tag.material.map.dispose();
+      tag.material.dispose();
+    };
+  }
+  return model;
 }
 
 /* ───────────── 캐릭터 한 명의 움직임 (나 · 친구가 같은 규칙을 쓴다) ─────────────
@@ -2243,9 +2471,9 @@ function buildAvatar(look, name) {
           seated    앉아 있음
           standing  일어나는 동작 중                                                */
 class Actor {
-  constructor(look, name = '') {
+  constructor(look, name = '', batched = false) {
     this.name = name;
-    this.model = buildAvatar(look, name);
+    this.model = buildAvatar(look, name, batched);
     this.pos = new THREE.Vector3();
     this.vel = { x: 0, z: 0 };
     this.vy = 0;
@@ -2569,12 +2797,15 @@ class Actor {
     const m = this.model;
     skin = skin || m.look.skin;
     if (skin === m.skin) return;
-    if (skin.slim !== m.skin.slim) {             // 팔 폭이 다른 스킨이면 팔 도형도 바꾼다
-      const [geoL, geoR] = armGeos(skin.slim), ax = armX(skin.slim);
-      m.armL.geometry.dispose();
-      m.armR.geometry.dispose();
-      m.armL.geometry = geoL;
-      m.armR.geometry = geoR;
+    if (skin.slim !== m.skin.slim) {             // 팔 폭이 다른 스킨이면 팔 도형도 바꾼다 (묶어서 그리는 캐릭터는 자리만)
+      const ax = armX(skin.slim);
+      if (!m.batched) {
+        const [geoL, geoR] = armGeos(skin.slim);
+        m.armL.geometry.dispose();
+        m.armR.geometry.dispose();
+        m.armL.geometry = geoL;
+        m.armR.geometry = geoR;
+      }
       m.armL.position.x = ax;
       m.armR.position.x = -ax;
     }
@@ -3405,7 +3636,7 @@ function netReceive(m) {
   if (!peer) {
     if (peers.size >= MAX_PEERS) return;
     const look = Object.hasOwn(CHARACTERS, m.c) ? CHARACTERS[m.c] : CHARACTERS.roy;
-    const actor = new Actor(look, `${String(m.n || (m.tc ? '' : '학생')).slice(0, 12)}${m.tc ? ' 선생님' : ''}`.trim());
+    const actor = new Actor(look, `${String(m.n || (m.tc ? '' : '학생')).slice(0, 12)}${m.tc ? ' 선생님' : ''}`.trim(), true);
     actor.peerId = m.id;
     if (peerSkins.get(m.id)?.skin) actor.setSkin(peerSkins.get(m.id).skin);
     if (m.tc) actor.setRemote(true);
@@ -3617,7 +3848,7 @@ const show = {
   by: '',                            // 띄운 사람의 id
   page: 0, total: 0, source: null, ticket: 0,
   stream: null, pcs: new Map(), lastFrame: 0,
-  video: Object.assign(document.createElement('video'), { muted: true, playsInline: true }),
+  video: liveVideo,
 };
 const presenting = () => show.mode !== 'off' && show.by === myId;
 
@@ -3625,6 +3856,7 @@ function setShow(mode, by) {
   show.mode = mode;
   show.by = by;
   screen.visible = mode !== 'off';   // 끄면 칠판 바탕만 보인다
+  if (mode !== 'live') liveMesh.visible = false;
   showLed();
   dirty = true;
 }
@@ -3668,6 +3900,11 @@ function endShow(announce = true) {
   for (const pc of show.pcs.values()) pc.close();
   show.pcs.clear();
   if (mine && show.stream) for (const track of show.stream.getTracks()) track.stop();
+  if (live.handle) show.video.cancelVideoFrameCallback(live.handle);       // 새 장면 알림 그만 받기
+  live.handle = 0;
+  live.fresh = false;
+  live.w = live.h = 0;
+  liveMesh.visible = false;
   show.video.pause();
   show.video.srcObject = null;
   show.stream = show.source = null;
@@ -3814,8 +4051,50 @@ function resendShow() {
 
 /* ── 화면 공유 (선생님 쪽) ── */
 function playLive(stream) {
-  show.video.srcObject = stream;
-  show.video.play().catch(() => {});
+  const v = show.video;
+  v.srcObject = stream;
+  v.play().catch(() => {});
+  if (!live.rvfc) return;
+  if (live.handle) v.cancelVideoFrameCallback(live.handle);
+  const tick = () => {               // 새 장면이 올 때마다 불린다 (화면이 멈춰 있으면 불리지 않는다)
+    live.fresh = true;
+    live.handle = v.requestVideoFrameCallback(tick);
+  };
+  live.handle = v.requestVideoFrameCallback(tick);
+}
+// 매 프레임: 새 장면이 왔고 칠판이 화면에 보이면 그래픽 카드로 보낸다
+function liveThink(now) {
+  const v = show.video;
+  if (!(v.readyState >= 2 && v.videoWidth)) return;
+  if (!live.rvfc && now - live.polled > 80) {  // 새 장면을 알려 주지 않는 브라우저에서는 전처럼 정해진 간격으로 올린다
+    live.polled = now;
+    live.fresh = true;
+  }
+  const big = v.videoWidth * v.videoHeight > LIVE_MAX;
+  if (!live.fresh || now - live.at < (pixels.level > 0 ? 125 : big ? 80 : LIVE_GAP)) return;      // 자동 해상도가 내려가 있으면(버거운 컴퓨터) 더 드물게
+  live.seen.setFromProjectionMatrix(live.view.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+  if (!live.seen.intersectsBox(screenObj.boxes[0])) return;       // 칠판이 안 보이면 미뤄 둔다 (다시 보이면 바로 올린다)
+  live.fresh = false;
+  live.at = now;
+  if (big) {                         // 아주 큰 화면: 1280×720 캔버스에 줄여 그려서 올린다
+    liveMesh.visible = false;
+    live.w = live.h = 0;
+    drawFit(v, v.videoWidth, v.videoHeight);
+    lap.upN++;
+    lap.upPx += SHOW_W * SHOW_H;
+    return;
+  }
+  if (live.w !== v.videoWidth || live.h !== v.videoHeight || !liveMesh.visible) {
+    live.w = v.videoWidth;
+    live.h = v.videoHeight;
+    drawFit();                       // 자료 화면은 빈 바탕으로 (영상 양옆 · 위아래의 남는 곳)
+    fitLive();
+    liveMesh.visible = true;
+  }
+  liveTex.needsUpdate = true;
+  lap.upN++;
+  lap.upPx += live.w * live.h;
+  dirty = true;
 }
 function startLive(stream) {
   endShow(false);
@@ -3834,7 +4113,7 @@ async function shareScreen() {
   const asked = performance.now();
   try {
     startLive(await navigator.mediaDevices.getDisplayMedia({
-      video: { frameRate: { max: 15 }, width: { max: 1920 } }, audio: false,
+      video: { frameRate: { max: 15 }, width: { max: 1920 }, height: { max: 1200 } }, audio: false,       // 보는 쪽이 감당할 만한 크기와 빠르기로
     }));
   } catch (err) {
     console.warn('화면 공유 실패', err);
@@ -4252,7 +4531,76 @@ function inkDraw(st, from) {
     for (let i = i0 + 1; i < n; i++) c.lineTo(X(i), Y(i));
     c.stroke();
   }
+  // 방금 그린 곳을 감싸는 네모 (선 굵기의 절반 + 가장자리 번짐만큼 넉넉하게) → 그 조각들만 그래픽 카드로 다시 보낸다
+  if (!ink.full) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (let i = n === 1 ? 0 : Math.max(0, from - 1); i < n; i++) {
+      const x = X(i), y = Y(i);
+      if (x < x0) x0 = x;
+      if (x > x1) x1 = x;
+      if (y < y0) y0 = y;
+      if (y > y1) y1 = y;
+    }
+    const pad = (st.tool === 2 ? base * 7 : base * 1.7) / 2 + 2;
+    inkMark(x0 - pad, y0 - pad, x1 + pad, y1 + pad);
+  }
 }
+
+/* 판서 그림을 그래픽 카드로 보내기.
+   전에는 점 하나만 찍어도 칠판 그림 전체(100만 점 이상)를 다시 보냈다. 캔버스가 그래픽 카드로 가속되는 컴퓨터에서는
+   그래도 빠르지만, 가속되지 않는 컴퓨터 · 브라우저에서는 한 장에 10ms 넘게 걸려서 쓰는 동안 화면이 끊긴다.
+   그래서 그림을 256×256 조각으로 나눠, 바뀐 조각만 작은 캔버스에 옮겨 담아 그 자리에 덮어쓴다 (texSubImage2D).
+   · 올라간 그림은 통째로 보낼 때와 한 점도 다르지 않다 (큰 캔버스에서 일부만 바로 보내는 방식은 뒤집기 처리 때문에 달라져서 쓰지 않는다)
+   · three.js 의 copyTextureToTexture 는 부를 때마다 그래픽 카드에 상태를 물어봐서 느리므로, 직접 보낸다
+   획을 통째로 지우거나 칠판 크기가 바뀌거나 바뀐 조각이 많을 때는 전처럼 통째로 보낸다 */
+// 걸린 시간과 그림 올리기 기록 (시스템 정보에 보여 주고, 자동 해상도가 판단하는 데 쓴다). upN · upPx = 그래픽 카드로 보낸 그림의 횟수와 점 수
+const lap = { think: 0, mirror: 0, draw: 0, n: 0, gapSum: 0, gapN: 0, gapMax: 0, lastDraw: 0, mirrorN: 0, sumGap: 0, sumN: 0, tick: 0, upN: 0, upPx: 0 };
+const INK_TILE = 256;
+const inkScratch = new Map();        // 조각 크기별 작은 캔버스 (가장자리 조각은 크기가 다르다)
+function inkMark(x0, y0, x1, y1) {   // 캔버스의 이 네모가 바뀌었다
+  const W = ink.canvas.width, H = ink.canvas.height, cols = Math.ceil(W / INK_TILE);
+  const c0 = Math.max(0, Math.floor(x0 / INK_TILE)), c1 = Math.min(cols - 1, Math.floor(x1 / INK_TILE));
+  const r0 = Math.max(0, Math.floor(y0 / INK_TILE)), r1 = Math.min(Math.ceil(H / INK_TILE) - 1, Math.floor(y1 / INK_TILE));
+  for (let r = r0; r <= r1; r++) for (let col = c0; col <= c1; col++) ink.dirty.add(r * cols + col);
+}
+function inkFlush() {                // 화면을 그리기 전에 부른다
+  if ((!ink.full && !ink.dirty.size) || !inkMesh.visible) return;
+  const W = ink.canvas.width, H = ink.canvas.height, cols = Math.ceil(W / INK_TILE), rows = Math.ceil(H / INK_TILE);
+  const target = renderer.properties.get(inkTex).__webglTexture;       // 그래픽 카드에 올라가 있는 판서 그림
+  if (ink.full || !target || ink.dirty.size > cols * rows * 0.4) {
+    inkTex.needsUpdate = true;       // 통째로
+    lap.upN++;
+    lap.upPx += W * H;
+  } else {
+    const gl = renderer.getContext();
+    renderer.state.activeTexture(gl.TEXTURE0);
+    renderer.state.bindTexture(gl.TEXTURE_2D, target);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, inkTex.flipY);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, inkTex.premultiplyAlpha);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, inkTex.unpackAlignment);
+    gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE);
+    for (const tile of ink.dirty) {
+      const x = (tile % cols) * INK_TILE, y = Math.floor(tile / cols) * INK_TILE;
+      const w = Math.min(INK_TILE, W - x), h = Math.min(INK_TILE, H - y);
+      let piece = inkScratch.get(w * 4096 + h);
+      if (!piece) {
+        const canvas = Object.assign(document.createElement('canvas'), { width: w, height: h });
+        piece = { canvas, ctx: canvas.getContext('2d', CANVAS_2D) };
+        piece.ctx.globalCompositeOperation = 'copy';       // 투명한 곳까지 그대로 옮겨 담는다
+        inkScratch.set(w * 4096 + h, piece);
+      }
+      piece.ctx.drawImage(ink.canvas, x, y, w, h, 0, 0, w, h);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, x, H - y - h, gl.RGBA, gl.UNSIGNED_BYTE, piece.canvas);     // 그래픽 카드의 그림은 아래가 0 이다
+      lap.upN++;
+      lap.upPx += w * h;
+    }
+    if (inkTex.generateMipmaps) gl.generateMipmap(gl.TEXTURE_2D);       // 작게 보일 때 쓰는 그림(밉맵)도 다시 만든다
+    renderer.state.unbindTexture();
+  }
+  ink.full = false;
+  ink.dirty.clear();
+}
+
 // 획에 점을 이어 붙인다 (없던 획이면 새로 만든다)
 function inkAdd(key, tool, color, size, pts) {
   let st = strokeOf.get(key);
@@ -4270,17 +4618,18 @@ function inkAdd(key, tool, color, size, pts) {
     st.box[3] = Math.max(st.box[3], pts[i + 1]);
   }
   inkDraw(st, from);
-  inkTex.needsUpdate = true;
   dirty = true;
 }
 function inkRedraw() {
+  ink.full = true;
   ink.ctx.globalCompositeOperation = 'source-over';
   ink.ctx.clearRect(0, 0, ink.canvas.width, ink.canvas.height);
   for (const st of strokes) {
     st.w = 0;
     inkDraw(st, 0);
   }
-  inkTex.needsUpdate = true;
+  ink.full = true;                   // 통째로 다시 그렸으니 통째로 보낸다
+  ink.dirty.clear();
   dirty = true;
 }
 // 획을 통째로 지운다
@@ -5098,18 +5447,28 @@ function placeCamera() {
 
 /* ───────────── 입력: 키보드 · 마우스/터치 · 조이스틱 ───────────── */
 /* ───────────── 시스템 정보: F3 (안 되면 I 나 ` 키)로 켜고 끈다. 마인크래프트의 F3 화면처럼 ───────────── */
-let perfOn = false, perfFps = 0;
+let perfOn = false, perfFps = 0, gpuName = '';
 function showPerf() {
   const el = $('perf');
   el.hidden = !perfOn;
   if (!perfOn) return;
-  const mem = renderer.info.memory, p = player.pos;
+  const mem = renderer.info.memory, p = player.pos, ms = (v) => v.toFixed(1);
+  if (!gpuName) {                    // 그래픽 카드 이름 (브라우저가 알려 줄 때만)
+    const gl = renderer.getContext(), ext = gl.getExtension('WEBGL_debug_renderer_info');
+    gpuName = String((ext && gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) || gl.getParameter(gl.RENDERER) || '알 수 없음')
+      .replace(/^ANGLE \((.*)\)$/, '$1').slice(0, 70);
+  }
+  const size = renderer.domElement, auto = Math.round(PIXEL_STEPS[pixels.level] * 100);
   const deg = Math.round((wrap(player.lookYaw) * 180 / Math.PI + 360) % 360);
   const lines = [
     '시스템 정보',
     `${perfFps > 4 ? `${perfFps} fps` : '쉬는 중 (바뀐 것이 없어 그리지 않음)'}`,
     `그리기 호출 ${info.calls}${mirrorCalls ? ` (그중 거울 ${mirrorCalls})` : ''} · 삼각형 ${(info.triangles / 1000).toFixed(1)}k`,
-    `도형 ${mem.geometries} · 그림 ${mem.textures} · 화면 ${renderer.domElement.width}×${renderer.domElement.height}`,
+    `한 장에 든 시간: 계산 ${ms(lapShown.think)}ms · 그리기 ${ms(lapShown.draw)}ms · 거울 ${ms(lapShown.mirror)}ms${lapShown.mirrorHz ? ` (1초에 ${lapShown.mirrorHz}번)` : ''}`,
+    `장 사이 간격: 평균 ${ms(lapShown.gap)}ms · 가장 긴 것 ${ms(lapShown.gapMax)}ms`,
+    `그림 올리기(판서 · 스크린): 1초에 ${lapShown.upN}번 · ${Math.round(lapShown.upPx / 1000)}천 점`,
+    `화면 ${size.width}×${size.height} · 자동 해상도 ${auto}%${pixels.trial ? ' (낮춰 보는 중)' : ''}`,
+    `도형 ${mem.geometries} · 그림 ${mem.textures} · ${gpuName}`,
     `강의실 ${FORMS[cfg.form].name} · 자리 ${seatCount()} · 사람 ${peers.size + 1}`,
     `위치 X ${p.x.toFixed(1)} · Y ${p.y.toFixed(1)} · Z ${p.z.toFixed(1)} · 방향 ${deg}°`,
     'F3 으로 닫기',
@@ -5566,9 +5925,45 @@ $('enterForm').addEventListener('submit', (e) => {
 });
 
 /* ───────────── 화면 크기 ───────────── */
-function resize() {
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO));
+/* 자동 해상도: 계속 그리는 중인데 한 장에 24ms 넘게 걸리면(초당 40장 아래) 해상도를 한 단계 낮춰 본다.
+   낮춰도 나아지지 않으면 해상도 탓이 아니므로 되돌리고 한동안 다시 해 보지 않는다. 한참 여유가 있으면 한 단계씩 되돌린다 */
+const PIXEL_STEPS = [1, 0.85, 0.7, 0.55];
+const pixels = { level: 0, trial: null, hold: 0, upHold: 0, wait: 60000, good: 0 };
+function applyPixels() {
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO) * PIXEL_STEPS[pixels.level]);
   renderer.setSize(window.innerWidth, window.innerHeight, false);
+  dirty = true;
+}
+function pixelThink(gap, busy) {     // 1초마다: 잇달아 그린 장들의 평균 간격(ms)과 그렇게 그린 시간의 합(ms)
+  if (busy < 600 || document.hidden) { pixels.good = 0; return; }        // 그 1초의 대부분을 계속 그렸을 때만 판단한다
+  const now = performance.now();
+  if (pixels.trial) {                // 방금 낮춰 봤다: 나아졌는지
+    if (gap > pixels.trial.gap * 0.9) {
+      pixels.level = pixels.trial.from;
+      pixels.hold = now + pixels.wait;
+      pixels.wait = Math.min(pixels.wait * 2, 600000);
+      applyPixels();
+    } else pixels.upHold = now + 90000;
+    pixels.trial = null;
+    return;
+  }
+  if (gap > 24 && pixels.level < PIXEL_STEPS.length - 1) {
+    if (now < pixels.hold) return;
+    pixels.trial = { from: pixels.level, gap };
+    pixels.level++;
+    pixels.good = 0;
+    applyPixels();
+  } else if (gap < 17.5 && pixels.level > 0 && now > pixels.upHold) {
+    if (++pixels.good >= 8) {        // 8초 내내 여유가 있었다
+      pixels.level--;
+      pixels.good = 0;
+      pixels.upHold = now + 30000;
+      applyPixels();
+    }
+  } else pixels.good = 0;
+}
+function resize() {
+  applyPixels();
   camera.aspect = (window.innerWidth || 1) / (window.innerHeight || 1);      // 창이 가려져 있으면 크기가 0 으로 나온다
   camera.fov = camera.aspect < 1 ? 82 : 70;      // 세로 화면(휴대폰)에서는 조금 넓게
   camera.updateProjectionMatrix();
@@ -5587,6 +5982,8 @@ resize();
 /* ───────────── 메인 루프 ───────────── */
 let last = performance.now();
 let drawn = 0;
+// 시스템 정보에 보여 주는 값 (0.5초마다 lap 에서 옮겨 적는다)
+const lapShown = { think: 0, mirror: 0, draw: 0, gap: 0, gapMax: 0, mirrorHz: 0, upN: 0, upPx: 0 };
 const info = { calls: 0, triangles: 0 };
 
 // 계산만 한 걸음 진행 (그리기는 따로)
@@ -5607,6 +6004,7 @@ function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min((now - last) / 1000, 0.05);
   last = now;
+  const t0 = performance.now();
   advance(dt);
   if (actors.roy.blink(now)) dirty = true;
   if (actors.stella.blink(now)) dirty = true;
@@ -5614,17 +6012,28 @@ function frame(now) {
     if (peer.actor.blink(now)) dirty = true;
     if (peer.actor.tickBubble(now)) dirty = true;
   }
-  // 화면 공유는 초당 12장 정도만 스크린에 옮겨 그린다
-  if (show.mode === 'live' && now - show.lastFrame > 80 && show.video.readyState >= 2 && show.video.videoWidth) {
-    show.lastFrame = now;
-    drawFit(show.video, show.video.videoWidth, show.video.videoHeight);
-  }
-  if (!dirty) return;                 // 바뀐 게 없으면 그리지 않는다 → 그래픽 카드가 쉰다
+  if (show.mode === 'live') liveThink(now);       // 화면 공유: 새 장면만 그래픽 카드로 보낸다
+  if (!dirty && mirrorStale && now - mirrorAt >= mirrorEvery()) dirty = true;     // 미뤄 둔 거울 그림을 마저 그린다
+  if (!dirty) { lap.lastDraw = 0; return; }       // 바뀐 게 없으면 그리지 않는다 → 그래픽 카드가 쉰다
   dirty = false;
   placeCamera();
   updateTarget();
-  mirrorThink();                      // 거울이 가까이 보이면 거울 속 모습부터 그린다
+  crowd.fill();                       // 다른 사람들의 캐릭터를 묶음에 옮겨 적는다
+  inkFlush();                         // 판서에서 바뀐 조각을 그래픽 카드로 보낸다
+  const t1 = performance.now(), before = mirrorAt;
+  mirrorThink(now);                   // 거울이 가까이 보이면 거울 속 모습부터 그린다
+  const t2 = performance.now();
   renderer.render(scene, camera);
+  lap.think += t1 - t0;
+  lap.mirror += t2 - t1;
+  lap.draw += performance.now() - t2;
+  lap.n++;
+  if (mirrorAt !== before) lap.mirrorN++;
+  if (lap.lastDraw && !document.hidden) {         // 잇달아 그린 두 장 사이의 간격
+    const gap = now - lap.lastDraw;
+    if (gap < 250) { lap.gapSum += gap; lap.gapN++; lap.gapMax = Math.max(lap.gapMax, gap); }
+  }
+  lap.lastDraw = now;
   info.calls = renderer.info.render.calls + mirrorCalls;
   info.triangles = renderer.info.render.triangles;
   drawn++;
@@ -5699,6 +6108,19 @@ setInterval(() => {
   const fps = drawn * 2;
   drawn = 0;
   perfFps = fps;
+  const n = lap.n || 1;
+  Object.assign(lapShown, {
+    think: lap.think / n, mirror: lap.mirror / n, draw: lap.draw / n,
+    gap: lap.gapN ? lap.gapSum / lap.gapN : 0, gapMax: lap.gapMax, mirrorHz: lap.mirrorN * 2,
+    upN: lap.upN * 2, upPx: lap.upPx * 2,
+  });
+  lap.sumGap += lap.gapSum;
+  lap.sumN += lap.gapN;
+  if (++lap.tick % 2 === 0) {         // 1초마다 자동 해상도를 살핀다
+    pixelThink(lap.sumN ? lap.sumGap / lap.sumN : 0, lap.sumGap);
+    lap.sumGap = lap.sumN = 0;
+  }
+  lap.think = lap.mirror = lap.draw = lap.n = lap.gapSum = lap.gapN = lap.gapMax = lap.mirrorN = lap.upN = lap.upPx = 0;
   showPerf();
   tickAttendance();
   sweepPeers();
@@ -5717,7 +6139,7 @@ window.classroom = {
   cfg, cfgAt, setConfig: (kind, key) => setConfig(kind, key, true), askConfig: setConfig, back, ink, pen, inviteLink, teacherKey,
   get role() { return [role, creator, isTeacher]; }, strokes, inkAdd, FORMS, BOARD, spawn, nearestFree, playBgm, gotoArea, boardCam,
   get areas() { return [areas, areaAt, zoomX]; },
-  get zoom() { return [zoomed, zoomAmt]; }, get mirror() { return { on: mirrorGlass.visible, pos: mirrorGlass.position.toArray(), calls: mirrorCalls, all: info.calls, fade: mirrorMat.uniforms.fade.value }; }, get mySkin() { return mySkin; }, peerSkins, actors, get follow() { return { on: follow.on, can: canFollow(), x: zoomX, to: follow.to, area: areaAt }; }, setZoom, get bgm() { return bgmNow; }, get audio() { return ac; },
+  get zoom() { return [zoomed, zoomAmt]; }, frame, liveTex, liveMesh, live, inkTex, showTex, startLive, endShow, inkClear, inkErase, get show() { return show; }, get lap() { return { ...lapShown, level: pixels.level, trial: !!pixels.trial, hold: Math.round(Math.max(0, pixels.hold - performance.now()) / 1000), mirrorMs, every: mirrorEvery() }; }, get mirror() { return { on: mirrorGlass.visible, pos: mirrorGlass.position.toArray(), calls: mirrorCalls, all: info.calls, fade: mirrorMat.uniforms.fade.value }; }, get mySkin() { return mySkin; }, peerSkins, actors, get follow() { return { on: follow.on, can: canFollow(), x: zoomX, to: follow.to, area: areaAt }; }, setZoom, get bgm() { return bgmNow; }, get audio() { return ac; },
   get room() { return { ROOM, HW, HD, floorAt, obstacles, blocked, cellH, NX, NZ }; },
   net: { peers, myId, tick: netTick, receive: netReceive, pace: netPace, openSupabase,
     get link() { return link; }, get state() { return linkState; }, get seatAt() { return mySeatAt; } },
