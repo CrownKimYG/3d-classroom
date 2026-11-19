@@ -478,7 +478,21 @@
   .touch #whisper { bottom: 228px; }
   .touch #stick, .touch #jump { display: block; }
   .touch body.zoom #stick, .touch body.zoom #jump { display: none; }       /* 판서 뷰에서는 걷지 않는다 */
-  .touch #remote { top: 68px; transform: none; }
+  /* 리모컨도 오른손 엄지가 닿는 곳에: 오른쪽 아래 둥근 단추들 바로 위에, 두 줄로 납작하게 놓는다.
+     자주 쓰는 것이 엄지에 가깝게 아래로 온다: (위) 표시창 → 띄우기 · 더보기 → 포인터 · 감추기 → ◀ ▶ (아래) */
+  .touch #remote {
+    top: auto; bottom: 222px; right: 12px; transform: none; width: 200px;
+    grid-template-columns: 1fr 1fr; gap: 6px; padding: 10px 10px 12px; border-radius: 18px;
+  }
+  .touch #remote button { min-height: 44px; }
+  .touch #remote #remoteLed { grid-column: 1 / -1; order: 0; }
+  .touch #remote #showMenu { order: 1; }
+  .touch #remote #moreMenu { order: 2; }
+  .touch #remote #laserBtn { order: 3; }
+  .touch #remote #hideBtn { order: 4; }
+  .touch #remote .arrows { grid-column: 1 / -1; order: 5; gap: 6px; }
+  .touch #remote .arrows button { aspect-ratio: auto; border-radius: 10px; }
+  .touch #remote .menu { position: static; }       /* 하위 메뉴는 리모컨 전체의 왼쪽에 열린다 (옆 단추를 가리지 않게) */
   /* 판서 뷰: 펜 도구는 가운데 아래 한 줄 (마인크래프트의 아이템 칸 자리), 영역 단추는 왼쪽 아래, 학생보기 · 돌아가기는 오른쪽 아래 */
   .touch body.zoom #pens { bottom: 12px; }
   .touch #pens .slot { width: 44px; height: 44px; }
@@ -496,7 +510,7 @@
   .touch body.zoom #areas { top: auto; bottom: 12px; left: 12px; transform: none; width: auto; max-width: none; flex-wrap: nowrap; }
   .touch #areas button { min-width: 38px; padding: 11px 6px; }
   @media (max-height: 560px) {                 /* 작은 화면(휴대폰 가로): 리모컨을 줄이고, 판서 뷰에서는 접어 둔다 */
-    .touch #remote { top: 64px; transform: scale(.72); transform-origin: top right; }
+    .touch #remote { bottom: 8px; right: 216px; transform: scale(.85); transform-origin: right bottom; }       /* 휴대폰: 둥근 단추들의 왼쪽 옆, 바닥에 */
     .touch body.zoom #remote { display: none; }
   }
 
@@ -583,7 +597,7 @@
       <button id="nextBtn" type="button" title="다음 장 (PageDown · 교탁에서는 →)" aria-label="다음 장">▶</button>
     </div>
     <button id="laserBtn" class="wide" type="button" aria-pressed="false" title="포인터: 누르고 있는 동안 칠판에 빨간 점이 찍혀요 (F)">포인터<kbd>F</kbd></button>
-    <div class="menu">
+    <div class="menu" id="showMenu">
       <button id="showBtn" type="button" class="more" aria-haspopup="true" aria-expanded="false" title="칠판에 띄울 것 고르기">띄우기</button>
       <div class="pop" id="showPop" hidden>
         <button id="textBtn" type="button">문구<small>적은 글을 크게</small></button>
@@ -593,7 +607,7 @@
       </div>
     </div>
     <button id="hideBtn" type="button" aria-pressed="false" title="띄운 것을 잠시 감추기. 한 번 더 누르면 그대로 다시 보여요" disabled>감추기</button>
-    <div class="menu">
+    <div class="menu" id="moreMenu">
       <button id="moreBtn" type="button" class="more" aria-haspopup="true" aria-expanded="false" title="강의실 설정 · 초대 링크">더보기</button>
       <div class="pop" id="morePop" hidden>
         <button id="setupBtn" type="button">강의실 설정<small>강의실 · 자리 · 칠판 · BGM</small></button>
@@ -3205,7 +3219,7 @@ function screenLooked() {            // 시선이 칠판에 닿으면 (거리에
 }
 
 // 판서 뷰에서 화면 오른쪽을 차지하는 단추들의 폭(px): 선생님의 리모컨, 터치 기기의 학생보기 · 돌아가기 단추. 칠판은 그 왼쪽의 빈 곳에 맞춘다
-const zoomInset = () => Math.max(remoteOut ? 172 : 0, COARSE ? 116 : 0);
+const zoomInset = () => Math.max(!remoteOut ? 0 : !COARSE ? 172 : innerHeight < 560 ? 0 : 224, COARSE ? 116 : 0);      // 리모컨(터치 기기에서는 더 넓고, 눕힌 휴대폰의 판서 화면에서는 숨는다) · 둥근 단추들이 차지하는 폭
 /* 판서 뷰의 카메라 자리: 칠판 높이가 (위아래 단추 자리를 뺀) 화면 높이에 꼭 맞는 거리와 높이.
    vis = 단추에 가리지 않고 보이는 가로 폭(m), shift = 그 빈 곳의 가운데에 칠판이 오도록 카메라를 옆으로 옮길 만큼, per = 화면 1px 이 칠판에서 몇 m 인지.
    터치 기기는 판서 뷰에서 조이스틱 · 점프를 숨기고 단추를 아래 양옆으로 보내서, 위아래를 조금만 남기고 칠판을 크게 보여 준다 */
@@ -6467,7 +6481,7 @@ function miniParts(board) {
       ? '필요할 때만 아이콘이 생기는 자리예요. 리모컨 꺼내기 · 넣기, 배경 음악이 있으면 소리 켜기 · 끄기.'
       : '필요할 때만 아이콘이 생기는 자리예요. 배경 음악이 있으면 소리 켜기 · 끄기, 칠판을 크게 볼 때는 눈 모양의 "선생님 따라가기".'],
     ...icons.map(([part, icon, title, about], i) => [part, 'icon', icon, title, about, { right: `${4.5 + 9.5 * i}%` }]),
-    ...(T ? [['remote', 'remote', '리모컨', '리모컨', '◀ ▶ 장 넘기기 · 포인터(누르고 있는 동안 빨간 점) · 띄우기(문구 · 자료 · 화면 공유) · 감추기 · 더보기.']] : []),
+    ...(T ? [['remote', 'remote', '리모컨', '리모컨', '오른쪽 아래 단추들 바로 위에 있어서 오른손 엄지로 눌러요. ◀ ▶ 장 넘기기 · 포인터(누르고 있는 동안 빨간 점) · 띄우기(문구 · 자료 · 화면 공유) · 감추기 · 더보기.']] : []),
   ];
   const acts = T ? '교탁 서기 · 판서 · 앉기 · 돌아가기' : '앉기 · 일어나기 · 질문 · 반응(알겠어요 · 모르겠어요 · 잠깐만요) · 돌아가기';
   if (!board) return [
