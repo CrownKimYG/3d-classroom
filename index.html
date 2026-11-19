@@ -171,6 +171,11 @@
     background: #8b8b8b; border: 2px solid var(--ink); border-radius: 0;
     box-shadow: inset 2px 2px 0 #4a4a4a, inset -2px -2px 0 #d8d8d8;
   }
+  #lobbySound {
+    position: fixed; right: 12px; top: 12px; width: 44px; height: 44px; padding: 0; display: grid; place-items: center; cursor: pointer;
+    background: #8b8b8b; border: 2px solid var(--ink); border-radius: 0; box-shadow: inset 2px 2px 0 #4a4a4a, inset -2px -2px 0 #d8d8d8;
+  }
+  #lobbySound img { width: 32px; height: 32px; image-rendering: pixelated; pointer-events: none; display: block; }
   #corner button[aria-pressed="true"] { background: #b9b9b9; border-color: var(--coral); box-shadow: inset 0 0 0 3px #fff; }
   #corner img { width: 32px; height: 32px; image-rendering: pixelated; pointer-events: none; display: block; }
   .touch #corner button { width: 46px; height: 46px; }
@@ -547,6 +552,7 @@
 <canvas id="view" tabindex="0"></canvas>
 
 <div id="entry">
+  <button id="lobbySound" type="button" aria-pressed="true" aria-label="로비 음악"></button>
   <form class="card" id="enterForm">
     <h1>3D 강의실</h1>
     <p class="note" id="roleNote"></p>
@@ -634,7 +640,7 @@
       <button id="moreBtn" type="button" class="more" aria-haspopup="true" aria-expanded="false" title="강의실 · 마이크 · 학생 초대">더보기</button>
       <div class="pop" id="morePop" hidden>
         <button id="setupBtn" type="button">강의실<small>강의실 · 자리 · 칠판 · BGM</small></button>
-        <button id="voicesBtn" type="button">마이크<small>내 목소리 · 전체 · 개별 음소거</small></button>
+        <button id="voicesBtn" type="button">마이크<small>내 목소리 · 학생 음소거 풀기</small></button>
         <button id="inviteBtn" type="button">학생 초대<small>학생에게 보낼 링크 복사</small></button>
       </div>
     </div>
@@ -663,7 +669,7 @@
   <div id="voices" class="chip" hidden>
     <div class="head"><b>마이크</b><button id="voicesClose" type="button" aria-label="닫기">×</button></div>
     <label><input type="checkbox" id="voiceGlobal" checked> 내 목소리를 교실 전체에<small>끄면 가까이 있는 사람에게만 들려요</small></label>
-    <label><input type="checkbox" id="voiceMuteAll"> 학생 전체 음소거<small>켜 두면 학생은 마이크를 켤 수 없어요</small></label>
+    <label><input type="checkbox" id="voiceMuteAll" checked> 학생 전체 음소거<small>풀어 주면 학생도 마이크를 켤 수 있어요</small></label>
     <h3>학생별 음소거</h3>
     <div id="voiceList"></div>
   </div>
@@ -1480,18 +1486,21 @@ const LOOKS = {
    fixed       고정 좌석 (계단 · 무대 · 2층도 여기서 만든다)   floorAt  바닥 높이 */
 const FORMS = {
   small: {
+    bgm: 'calm',                     // 기본 BGM — 작은 방: 잔잔한 분산 화음
     name: '소형', note: '10명', look: 'seminar', w: 9, d: 9, h: 3.8, dais: 0.2,
     board: [4.4, 2.475, 1.15], doorZ: 3.2, win: [-1.9, 1.9], cork: [-1.4, 2.2, 2.8, 1.4],
     spawn: [-3.4, 2.2, 2.7, 3.9], area: [-3.7, 3.7, -1.7, 2.6], cap: 10,
     solo: { cols: [-3.2, -1.6, 0, 1.6, 3.2], rows: [-1.2, 0.6] },          // 개인 책상은 사이사이를 띄워 놓는다
   },
   mid: {
+    bgm: 'bright',                     // 기본 BGM — 보통 교실: 가볍고 활기찬 박자
     name: '중형', note: '24명', look: 'classroom', w: 12, d: 16, h: 4.6, dais: 0.3,       // dais = 칠판 아래에 놓는 단상(교단)의 높이
     board: [6.0, 3.375, 1.25], doorZ: 5.7, win: [-4.5, 0, 4.5], cork: [-2.2, 2.4, 3.6, 1.8],
     spawn: [-4, 3.5, 3.7, 6.7], area: [-4.6, 4.6, -3.9, 3.3], cap: 24,
     solo: { cols: [-4.0, -2.4, -0.8, 0.8, 2.4, 4.0], rows: [-3.4, -1.6, 0.2, 2.0] },
   },
   large: {
+    bgm: 'focus',                     // 기본 BGM — 큰 강의실: 길게 깔리는 집중용 화음
     // 가로로 긴 방: 긴 벽(24m)에 칠판을 걸어서, 줄 수가 적고 맨 뒷자리도 칠판에서 가깝다
     name: '대형', note: '100명', look: 'lecture', w: 24, d: 18, h: 5.4, dais: 0.5,
     board: [16, 3.2, 1.45], doorZ: 7.8, win: [-5.2, -1.75, 1.75, 5.2], cork: [-3, 2.5, 4.4, 2.0],
@@ -1503,6 +1512,7 @@ const FORMS = {
     },
   },
   tier: {
+    bgm: 'rain',                     // 기본 BGM — 계단식 강의실: 창밖의 빗소리
     name: '계단식', note: '96명', look: 'wood', w: 15, d: 16, h: 5.8,
     board: [7.2, 4.05, 1.2], doorZ: 7.3, spawn: [-5.5, 4.5, 6.95, 7.55], lectern: [5.2, -5.8],
     // 앞쪽 5m 는 평평하고, 그 뒤로 1.6m 마다 24cm 씩 여섯 단이 올라간다
@@ -1525,6 +1535,7 @@ const FORMS = {
     },
   },
   hall: {
+    bgm: 'dream',                     // 기본 BGM — 강당: 넓게 울리는 종소리
     name: '강당', note: '220명', look: 'theater', w: 20, d: 26, h: 8.6, curtains: true,
     board: [9.6, 5.4, 1.65], doorZ: -1.2, spawn: [-7, 7, 3.4, 5.6], lectern: [6, -10.6],
     floorAt(x, z) {
@@ -3889,6 +3900,7 @@ function leave() {
   paused = entered = false;
   showMic();
   resetConfig();                     // 강의실 · 칠판 · BGM 을 처음 모습으로
+  playBgm(LOBBY);                    // 로비로 돌아오면 로비 음악이 다시 흐른다 (강의실 BGM 은 서서히 꺼진다)
   $('setup').hidden = true;
   setRemoteOut(false);
   $('exit').hidden = true;
@@ -4601,7 +4613,7 @@ const voice = {
   in: new Map(),                     // 말하는 사람 id → { pc, el, src, gain }
   asked: new Map(),                  // 말하는 사람 id → 연결을 부탁한 때
   global: true,                      // (선생님) 내 목소리를 교실 전체에
-  muteAll: false, muted: new Set(),  // (선생님) 학생 전체 음소거 · 따로 음소거한 사람들
+  muteAll: true, muted: new Set(),   // (선생님) 학생 전체 음소거(처음에는 켜져 있다: 학생은 선생님이 풀어 줘야 말할 수 있다) · 따로 음소거한 사람들
   thought: 0,
 };
 let micMat = null;
@@ -4610,20 +4622,25 @@ function micBadge() {                 // 이름 위에 뜨는 작은 마이크 �
   return micMat;
 }
 // 선생님이 나를 음소거해 두었는지
-const voiceBlocked = () => !isTeacher && [...peers.values()].some((p) => p.teacher && (p.muteAll || (p.mutes && p.mutes.includes(myId))));
+// 학생은 처음에는 마이크를 쓸 수 없다. 선생님 가운데 누군가 "학생 전체 음소거"를 풀어 줘야 하고, 따로 음소거당하지 않았어야 한다
+function voiceBlocked() {
+  if (isTeacher) return false;
+  const teachers = [...peers.values()].filter((p) => p.teacher);
+  return !teachers.some((p) => p.muteAll === false) || teachers.some((p) => p.mutes && p.mutes.includes(myId));
+}
 function showMic() {
   const can = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.RTCPeerConnection);
   $('micBtn').hidden = !(entered && can);
   $('micBtn').setAttribute('aria-pressed', String(voice.on));
   $('micBtn').setAttribute('aria-disabled', String(voiceBlocked()));
   micImg.src = iconURL[voice.on ? 'mic' : 'micOff'];
-  $('micBtn').title = voiceBlocked() ? '선생님이 마이크를 꺼 두었어요' : voice.on ? '마이크 켬 (누르면 꺼요 · V)' : '마이크 끔 (누르면 켜요 · V)';
+  $('micBtn').title = voiceBlocked() ? '선생님이 허락하면 마이크를 켤 수 있어요' : voice.on ? '마이크 켬 (누르면 꺼요 · V)' : '마이크 끔 (누르면 켜요 · V)';
 }
 async function setMic(on) {
   if (on === voice.on || voice.asking) return;
   if (on) {
     if (!entered) return;
-    if (voiceBlocked()) { toast('선생님이 마이크를 꺼 두었어요'); return; }
+    if (voiceBlocked()) { toast('선생님이 허락하면 마이크를 켤 수 있어요'); return; }
     voice.asking = true;
     let stream = null;
     try {
@@ -4666,7 +4683,7 @@ function voiceDrop(id, tell) {
 function voiceReset() {
   if (voice.on) setMic(false);
   for (const id of [...voice.in.keys()]) voiceDrop(id);
-  voice.muteAll = false;
+  voice.muteAll = true;
   voice.muted.clear();
   $('voices').hidden = true;
   showMic();
@@ -4769,7 +4786,7 @@ function onVoiceState(peer, m) {
   }
   if (peer.teacher) {
     const all = !!m.vm, list = Array.isArray(m.vx) ? m.vx.filter((id) => typeof id === 'string').slice(0, 120) : [];
-    if (all !== !!peer.muteAll || list.join() !== (peer.mutes || []).join()) {
+    if (all !== peer.muteAll || list.join() !== (peer.mutes || []).join()) {
       peer.muteAll = all;
       peer.mutes = list;
       if (voice.on && voiceBlocked()) { setMic(false); toast('선생님이 마이크를 껐어요'); }
@@ -4812,7 +4829,7 @@ $('voiceGlobal').addEventListener('change', () => {
 $('voiceMuteAll').addEventListener('change', () => {
   voice.muteAll = $('voiceMuteAll').checked;
   lastSent = '';
-  toast(voice.muteAll ? '학생 전체를 음소거했어요' : '학생 전체 음소거를 풀었어요');
+  toast(voice.muteAll ? '학생 전체를 음소거했어요' : '학생 전체 음소거를 풀었어요 · 이제 학생도 마이크를 켤 수 있어요');
   canvas.focus();
 });
 
@@ -5195,6 +5212,50 @@ const MOODS = {
   },
 };
 
+/* 로비(입장 화면)의 음악: 느긋하게 통통 튀는 마을 분위기. 가락과 화음은 이 프로젝트를 위해 새로 지은 것이다.
+   · 96박, 8분음표 한 칸 0.3125초. 엇박(둘째 칸)을 조금 늦춰서 어깨가 들썩이는 느낌을 낸다
+   · 낮은 줄(첫 박 · 셋째 박) + 뒷박의 짧은 화음 + 마림바 같은 통통 소리 가락 + 가벼운 쉐이커 · 딱 소리
+   · 여덟 마디가 한 바퀴. 둘째 바퀴에는 가락 아래에 3도 화음을 살짝 얹는다 */
+const LOBBY_CHORDS = [               // [낮은 음, 화음 세 음]
+  [36, 64, 67, 71], [33, 64, 67, 72], [41, 64, 69, 72], [43, 62, 65, 71],
+  [40, 62, 67, 71], [33, 60, 64, 67], [38, 60, 65, 69], [43, 59, 62, 65],
+];
+const LOBBY_TUNE = [                 // 마디마다 여덟 칸 (0 = 쉼)
+  [76, 0, 79, 0, 84, 0, 83, 81], [79, 0, 76, 0, 0, 74, 76, 0], [81, 0, 84, 0, 81, 0, 77, 79], [81, 79, 0, 74, 0, 0, 0, 0],
+  [79, 0, 83, 0, 86, 0, 83, 79], [81, 0, 84, 0, 88, 0, 86, 84], [81, 0, 77, 0, 74, 77, 81, 0], [79, 0, 0, 83, 86, 0, 84, 0],
+];
+const LOBBY = {
+  name: '로비', step: 0.3125, echo: [0.47, 0.18],
+  play(bus, i, t0) {
+    const s = i & 7, bar = (i >> 3) & 7, again = (i >> 6) & 1, ch = LOBBY_CHORDS[bar];
+    const t = t0 + (s & 1 ? 0.055 : 0);                    // 엇박을 조금 늦춘다 (스윙)
+    if (s === 0 || s === 4) {                              // 낮은 줄: 첫 박에 밑음, 셋째 박에 5도
+      const low = ch[0] + (s === 4 ? 7 : 0);
+      tone(bus, low, t, 0.5, 0.2, 'triangle', 0.008);
+      tone(bus, low, t, 0.6, 0.12, 'sine', 0.008);
+    }
+    if (s === 7 && bar % 2) tone(bus, ch[0] + 5, t, 0.22, 0.1, 'triangle', 0.008);       // 다음 마디로 넘어가는 디딤음
+    if (s === 2 || s === 6) {                              // 뒷박의 짧은 화음 + 딱 소리
+      for (let k = 1; k < 4; k++) tone(bus, ch[k], t, 0.2, 0.034, 'triangle', 0.006);
+      hit(bus, t, 0.035, 0.03, 1900, 5, 'bandpass');
+    }
+    hit(bus, t, 0.03, s & 1 ? 0.022 : 0.012, 7500);        // 쉐이커
+    const n = LOBBY_TUNE[bar][s];
+    if (n) {                                               // 가락: 마림바처럼 짧게 울리는 소리 (한 옥타브 위 · 두 옥타브 위의 배음을 살짝)
+      tone(bus, n, t, 0.55, 0.12, 'sine', 0.004);
+      tone(bus, n + 12, t, 0.2, 0.035, 'sine', 0.004);
+      tone(bus, n + 24, t, 0.07, 0.014, 'sine', 0.004);
+      if (again) tone(bus, n - (ch.slice(1).some((c) => (n - 4 - c) % 12 === 0) ? 4 : 3), t, 0.4, 0.045, 'sine', 0.004);      // 둘째 바퀴: 3도 아래 화음
+    }
+  },
+};
+function playLobby() {               // 입장 화면에서 무언가를 처음 누를 때부터 흐른다 (브라우저는 그 전에는 소리를 허락하지 않는다)
+  if (entered || bgmNow || !soundOn) return;
+  playBgm(LOBBY);
+}
+addEventListener('pointerdown', playLobby, true);
+addEventListener('keydown', playLobby, true);
+
 function playBgm(key) {
   if (bgmNow) {                      // 흐르던 음악은 서서히 줄여서 끈다
     const old = bgmNow;
@@ -5206,8 +5267,8 @@ function playBgm(key) {
       for (const n of old.fx) n.disconnect();
     }, 900);
   }
-  const mood = MOODS[key];
-  if (!mood || !mood.play || !entered || !audioReady()) return;
+  const mood = key === LOBBY ? LOBBY : MOODS[key];
+  if (!mood || !mood.play || (!entered && mood !== LOBBY) || !audioReady()) return;
   const out = ac.createGain(), bus = ac.createGain();
   out.gain.value = 0;
   out.gain.setTargetAtTime(1, ac.currentTime, 0.4);
@@ -5247,12 +5308,20 @@ function showSound() {
   $('soundBtn').setAttribute('aria-pressed', String(soundOn));
   $('soundBtn').title = `배경 음악 "${MOODS[cfg.bgm].name}" · 소리 ${soundOn ? '켬 (누르면 꺼요)' : '끔 (누르면 켜요)'} · 내 기기에서만`;
 }
-$('soundBtn').addEventListener('click', () => {
+function toggleSound() {
   soundOn = !soundOn;
   if (master) master.gain.setTargetAtTime(soundOn ? VOL : 0, ac.currentTime, 0.05);
   showSound();
-  canvas.focus();
-});
+  showLobbySound();
+}
+$('soundBtn').addEventListener('click', () => { toggleSound(); canvas.focus(); });
+// 입장 화면 오른쪽 위의 음표 단추: 로비 음악 켜기 · 끄기 (내 기기에서만)
+function showLobbySound() {
+  $('lobbySound').setAttribute('aria-pressed', String(soundOn));
+  $('lobbySound').title = `로비 음악 ${soundOn ? '켬 (누르면 꺼요)' : '끔 (누르면 켜요)'}`;
+  if ($('lobbySound').firstChild) $('lobbySound').firstChild.src = iconURL[soundOn ? 'note' : 'mute'];
+}
+$('lobbySound').addEventListener('click', () => { toggleSound(); if (soundOn) playLobby(); });
 
 /* ───────────── 판서: 칠판을 정면에서 보면서(크게 보기) 끌어서 쓴다 ─────────────
    화이트 · 그린보드에는 선생님만, 자유 보드에는 앉아 있는 학생도 쓸 수 있다.
@@ -6039,6 +6108,8 @@ const iconImg = (name) => Object.assign(new Image(), { src: iconURL[name], alt: 
 $('remoteBtn').append(iconImg('remote'));
 const soundImg = $('soundBtn').appendChild(iconImg('note'));
 const micImg = $('micBtn').appendChild(iconImg('micOff'));
+$('lobbySound').append(iconImg('note'));
+showLobbySound();
 /* 펜만 쓰기 (손바닥 막기): 켜 두면 손가락 · 손바닥으로는 써지지도 지워지지도 않고, 펜(애플 펜슬 · S펜 같은 스타일러스)으로만 써진다.
    손 모양(이동) 도구로 칠판을 옮기는 것과 단추 누르기는 손으로 그대로 된다.
    · 켜고 끄는 단추는 펜 도구 줄의 맨 끝에 있다 (연필 + 손가락 그림. 켜져 있으면 손가락에 빨간 빗금)
@@ -6302,9 +6373,15 @@ function setConfig(kind, key, sure = false) {
       return;
     }
   }
+  const ch = { [kind]: true };
+  if (kind === 'form' && cfg.bgm === FORMS[cfg.form].bgm && cfg.bgm !== FORMS[key].bgm) {      // 강의실을 바꾸면 BGM 도 그 강의실의 것으로 (BGM 을 따로 골라 두었으면 그대로 둔다)
+    cfg.bgm = FORMS[key].bgm;
+    cfgAt.bgm = Date.now();
+    ch.bgm = true;
+  }
   cfg[kind] = key;
   cfgAt[kind] = Date.now();
-  applyConfig({ [kind]: true });
+  applyConfig(ch);
   if (creator && kind in preset) {   // 다음에 "지난번처럼" 들어올 때도 이 강의실로 시작한다
     preset[kind] = key;
     showPreset();
@@ -6793,7 +6870,7 @@ function keyRows() {
     [k('ShiftLeft', 'Shift', '달리기', '누른 채로 움직이면 달려요.', 1.6),
       k('KeyZ', 'Z', canWrite() ? '되돌리기' : '', '판서 화면에서 방금 쓰거나 지운 것을 되돌려요. Shift 와 함께 누르면 되돌린 것을 다시 해요(앞으로 가기). Ctrl(⌘)+Z 도 돼요.'),
       k('KeyX', 'X', '고르기', T ? '바라보는 것을 골라요. 교탁을 보면 교탁에 서기, 칠판을 보면 판서, 자리를 보면 앉기, 문을 보면 나가기.' : '바라보는 것을 골라요. 자리를 보면 앉기, 칠판을 보면 크게 보기, 옆 친구를 보면 소곤거리기, 문을 보면 나가기.'),
-      k('KeyC', 'C'), k('KeyV', 'V', '마이크', T ? '마이크를 켜고 꺼요. 선생님 목소리는 교실 전체에 들려요(리모컨의 더보기 → 마이크에서 바꿀 수 있어요).' : '마이크를 켜고 꺼요. 목소리는 가까이 있는 사람에게 들리고, 멀수록 작게 들려요.'),
+      k('KeyC', 'C'), k('KeyV', 'V', '마이크', T ? '마이크를 켜고 꺼요. 선생님 목소리는 교실 전체에 들려요(리모컨의 더보기 → 마이크에서 바꿀 수 있어요).' : '선생님이 허락하면 마이크를 켜고 끌 수 있어요. 목소리는 가까이 있는 사람에게 들리고, 멀수록 작게 들려요.'),
       k('KeyB', 'B', T ? '판서' : '칠판 보기', T ? '판서 화면을 열고 닫아요. 펜 · 지우개 · 색을 골라 칠판에 써요.' : '칠판을 크게 봐요. 한 번 더 누르면 돌아와요.')],
     [gap(1.6), k('Space', 'Space', '점프', T ? '제자리에서 뛰어요. 판서 화면에서는 누르고 있는 동안 학생들을 돌아봐요.' : '제자리에서 뛰어요.', 3.6), gap(0.6),
       k('ArrowLeft', '←', T ? '왼쪽·이전' : '왼쪽', side('왼쪽', '이전')),
@@ -6966,7 +7043,12 @@ function setKeys(on) {
   $('keysTitle').textContent = isTeacher ? '선생님 조작법' : '학생 조작법';
   $('keys').hidden = !on;
   $('keysBtn').hidden = on;
+  if (!on && keysIntro) {            // 입장하자마자 떴던 조작법을 처음 닫으면, 선생님에게는 이어서 강의실 창이 열린다 (강의실 · 자리 · 칠판 고르기)
+    keysIntro = false;
+    if (isTeacher && entered) $('setup').hidden = false;
+  }
 }
+let keysIntro = false;               // 입장할 때 저절로 뜬 조작법이 아직 한 번도 닫히지 않았는지
 const closeKeys = () => { if ($('keys').hidden) return false; setKeys(false); return true; };
 const KEY_ALIAS = { ShiftRight: 'ShiftLeft', Backquote: 'F3', KeyI: 'F3' };
 function lightKey(code, on) {        // 누른 키에 불을 켠다
@@ -7417,6 +7499,8 @@ function enter() {
       cfgAt[kind] = now;
       if (cfg[kind] !== preset[kind]) { cfg[kind] = preset[kind]; ch[kind] = true; }
     }
+    cfgAt.bgm = now;                            // BGM 은 그 강의실에 어울리는 것으로 시작한다 (선생님이 "강의실" 창에서 바꾸거나 끌 수 있다)
+    if (cfg.bgm !== FORMS[cfg.form].bgm) { cfg.bgm = FORMS[cfg.form].bgm; ch.bgm = true; }
     if (Object.keys(ch).length) applyConfig(ch);
   }
   player.wave = mate.wave = 0;
@@ -7432,6 +7516,7 @@ function enter() {
   netJoin();
   entered = true;
   audioReady();                       // 선생님이 BGM 을 틀면 바로 들리도록 소리를 준비해 둔다
+  playBgm(cfg.bgm);                   // 로비 음악은 서서히 꺼지고, 강의실의 BGM(있으면)이 흐른다
   showSetup();
   showSound();
   attending = true;                   // 지금부터 출석 시간이 쌓인다
@@ -7451,6 +7536,7 @@ function enter() {
   $('keysSkip').checked = skipKeys;
   setKeys(false);
   showMic();                                    // 마이크 단추 (오른쪽 위)
+  keysIntro = !skipKeys;
   if (!skipKeys) setKeys(true);                 // 조작법을 화면 가운데에 띄운다 (PC = 가상 키보드, 터치 기기 = 손가락 안내)
   else {                                        // 조작법을 띄우지 않을 때는 짧은 안내만
     toast(isTeacher ? '리모컨으로 칠판을 조작하고, 리모컨의 "더보기 → 강의실"에서 강의실 · 자리 · 칠판 · BGM을 바꿔요'
