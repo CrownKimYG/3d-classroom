@@ -245,8 +245,15 @@
   #chat[hidden], #chatSet[hidden] { display: none; }
   #chat .head { display: flex; justify-content: space-between; align-items: center; font-size: 14px; margin-bottom: 6px; }
   #chat .head button { font: 800 16px var(--font); color: var(--fg); background: none; border: 0; cursor: pointer; text-shadow: inherit; }
-  #chat .head #chatSetBtn { margin-right: 6px; padding: 1px 7px; font-size: 11px; border: 2px solid currentColor; opacity: .8; }
-  #chat .head #chatSetBtn[aria-expanded="true"] { opacity: 1; }
+  /* 모양 단추: 글자 없이 반쯤 채운 작은 동그라미 하나 (밝기 · 투명도를 뜻하는 표시) */
+  #chat .head span { display: flex; align-items: center; gap: 8px; }
+  #chat .head #chatSetBtn {
+    width: 15px; height: 15px; padding: 0; border: 2px solid currentColor; border-radius: 50%; opacity: .7;
+    background: linear-gradient(90deg, currentColor 50%, transparent 50%);
+  }
+  #chat .head #chatSetBtn:hover, #chat .head #chatSetBtn[aria-expanded="true"] { opacity: 1; }
+  .touch #chat .head #chatSetBtn { width: 20px; height: 20px; }
+  #chat.t-min .head button { filter: drop-shadow(0 0 2px #000) drop-shadow(0 0 1px #000); }       /* 미니멀: 밝은 벽 앞에서도 단추가 보이게 */
   #chatSet { display: grid; gap: 6px; margin-bottom: 8px; font-size: 12px; font-weight: 700; }
   #chatSet .seg { display: flex; gap: 4px; }
   #chatSet .seg button { flex: 1; padding: 4px 2px; font: 800 12px var(--font); color: var(--fg); background: none; border: 2px solid currentColor; border-radius: 0; cursor: pointer; text-shadow: inherit; }
@@ -712,7 +719,7 @@
     </div>
   </div>
   <div id="chat" class="chip" hidden>
-    <div class="head"><b>채팅</b><span><button id="chatSetBtn" type="button" aria-expanded="false" aria-label="채팅 창 모양" title="채팅 창 모양: 테마 · 투명도">모양</button><button id="chatClose" type="button" aria-label="닫기">×</button></span></div>
+    <div class="head"><b>채팅</b><span><button id="chatSetBtn" type="button" aria-expanded="false" aria-label="채팅 창 모양" title="채팅 창 모양: 테마 · 투명도"></button><button id="chatClose" type="button" aria-label="닫기">×</button></span></div>
     <div id="chatSet" hidden>
       <div class="seg" id="chatThemes">
         <button type="button" data-theme="light" aria-pressed="true">라이트</button>
