@@ -214,12 +214,18 @@
   #remote .pop button { display: grid; gap: 1px; padding: 8px 10px; text-align: left; }
   #remote .pop small { font-size: 10.5px; font-weight: 600; opacity: .72; }
   /* ── 강의실 설정 창 · 소리 단추 · 펜 고르기 ── */
-  #setup {
-    left: 12px; top: 120px; width: 316px; max-width: calc(100% - 24px); max-height: calc(100% - 136px);
-    overflow-y: auto; padding: 10px 10px 12px; background: var(--paper); box-shadow: 0 4px 0 var(--ink);
+  /* 왼쪽의 창 자리: 그때그때 열리는 창(강의실 설정 · 마이크 관리)이 위에서부터 차례로 쌓인다.
+     아래에 자리가 모자라면 오른쪽에 둘째 줄을 만들어 거기에 놓인다 (세로로 쌓다가 넘치면 옆으로 넘어가는 배치) */
+  #panels {
+    position: absolute; left: 12px; top: 120px; height: calc(100% - 136px); max-width: calc(100% - 24px);
+    display: flex; flex-flow: column wrap; align-content: flex-start; align-items: flex-start; gap: 8px 10px; pointer-events: none;
   }
+  #panels > .chip { position: static; transform: none; flex: none; max-height: 100%; overflow-y: auto; pointer-events: auto; background: var(--paper); box-shadow: 0 4px 0 var(--ink); }
+  #panels > [hidden] { display: none; }
+  @media (max-width: 640px) { #panels { flex-wrap: nowrap; overflow-y: auto; pointer-events: auto; } #panels:not(:has(> .chip:not([hidden]))) { display: none; } }      /* 좁은 화면: 한 줄로 쌓고 넘치면 굴린다 */
+  #setup { width: 316px; max-width: 100%; padding: 10px 10px 12px; }
   /* 마이크 관리 (선생님): 강의실 설정과 같은 모양의 창 */
-  #voices { right: 176px; top: 50%; transform: translateY(-50%); width: 250px; max-height: calc(100% - 24px); overflow-y: auto; padding: 10px 12px; pointer-events: auto; }
+  #voices { width: 250px; max-width: 100%; padding: 10px 12px; }
   #voices[hidden] { display: none; }
   #voices .head { display: flex; justify-content: space-between; align-items: center; font-size: 14px; margin-bottom: 6px; }
   #voices .head button { font: 800 16px var(--font); color: var(--ink); background: none; border: 0; cursor: pointer; }
@@ -233,7 +239,6 @@
   #voiceList button { padding: 3px 8px; font: 800 12px var(--font); color: var(--ink); background: #fff; border: 2px solid var(--ink); border-radius: 0; cursor: pointer; }
   #voiceList button[aria-pressed="true"] { color: #fff; background: var(--coral); }
   #voiceList p { margin: 0; font-size: 12px; opacity: .7; }
-  .touch #voices { right: 12px; top: 68px; transform: none; max-height: calc(100% - 300px); }
   #corner #micBtn[aria-disabled="true"] { opacity: .45; }
   #setup .head { display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
   #setup .head button { font: 800 16px var(--font); color: var(--ink); background: none; border: 0; cursor: pointer; }
@@ -626,17 +631,18 @@
     </div>
     <button id="hideBtn" type="button" aria-pressed="false" title="띄운 것을 잠시 감추기. 한 번 더 누르면 그대로 다시 보여요" disabled>감추기</button>
     <div class="menu" id="moreMenu">
-      <button id="moreBtn" type="button" class="more" aria-haspopup="true" aria-expanded="false" title="강의실 설정 · 초대 링크">더보기</button>
+      <button id="moreBtn" type="button" class="more" aria-haspopup="true" aria-expanded="false" title="강의실 · 마이크 · 학생 초대">더보기</button>
       <div class="pop" id="morePop" hidden>
-        <button id="setupBtn" type="button">강의실 설정<small>강의실 · 자리 · 칠판 · BGM</small></button>
-        <button id="voicesBtn" type="button">마이크 관리<small>내 목소리 · 전체 · 개별 음소거</small></button>
-        <button id="inviteBtn" type="button">초대 링크 복사<small>학생에게 보낼 주소</small></button>
+        <button id="setupBtn" type="button">강의실<small>강의실 · 자리 · 칠판 · BGM</small></button>
+        <button id="voicesBtn" type="button">마이크<small>내 목소리 · 전체 · 개별 음소거</small></button>
+        <button id="inviteBtn" type="button">학생 초대<small>학생에게 보낼 링크 복사</small></button>
       </div>
     </div>
     <input id="file" type="file" accept=".pdf,application/pdf,image/*,.ppt,.pptx" multiple hidden>
   </div>
+  <div id="panels">
   <div id="setup" class="chip" hidden>
-    <div class="head"><b>강의실 설정</b><button id="setupClose" type="button" aria-label="닫기">×</button></div>
+    <div class="head"><b>강의실</b><button id="setupClose" type="button" aria-label="닫기">×</button></div>
     <h3>강의실</h3>
     <div class="seg" id="segForm"></div>
     <h3>자리 배치</h3>
@@ -648,11 +654,19 @@
     <div class="seg" id="segSize"></div>
     <h3>BGM</h3>
     <div class="seg" id="segBgm"></div>
-    <h3>초대 링크 복사</h3>
+    <h3>초대</h3>
     <div class="seg">
       <button id="linkStudent" type="button">학생용<small>학생으로 들어와요</small></button>
       <button id="linkTeacher" type="button">선생님용<small>함께 가르칠 선생님만</small></button>
     </div>
+  </div>
+  <div id="voices" class="chip" hidden>
+    <div class="head"><b>마이크</b><button id="voicesClose" type="button" aria-label="닫기">×</button></div>
+    <label><input type="checkbox" id="voiceGlobal" checked> 내 목소리를 교실 전체에<small>끄면 가까이 있는 사람에게만 들려요</small></label>
+    <label><input type="checkbox" id="voiceMuteAll"> 학생 전체 음소거<small>켜 두면 학생은 마이크를 켤 수 없어요</small></label>
+    <h3>학생별 음소거</h3>
+    <div id="voiceList"></div>
+  </div>
   </div>
   <div id="areas" class="chip" hidden></div>
   <div id="eraseRing" hidden></div>
@@ -696,13 +710,6 @@
     <div class="grp" id="penPalm" hidden>
       <button type="button" class="slot" id="palmBtn" aria-pressed="false" aria-label="펜만 쓰기"></button>
     </div>
-  </div>
-  <div id="voices" class="chip" hidden>
-    <div class="head"><b>마이크 관리</b><button id="voicesClose" type="button" aria-label="닫기">×</button></div>
-    <label><input type="checkbox" id="voiceGlobal" checked> 내 목소리를 교실 전체에<small>끄면 가까이 있는 사람에게만 들려요</small></label>
-    <label><input type="checkbox" id="voiceMuteAll"> 학생 전체 음소거<small>켜 두면 학생은 마이크를 켤 수 없어요</small></label>
-    <h3>학생별 음소거</h3>
-    <div id="voiceList"></div>
   </div>
   <div id="react" class="chip" hidden role="group" aria-label="반응 고르기"></div>
   <div id="reacts" class="chip" hidden aria-live="polite" title="방금 학생들이 보낸 반응"></div>
@@ -6786,7 +6793,7 @@ function keyRows() {
     [k('ShiftLeft', 'Shift', '달리기', '누른 채로 움직이면 달려요.', 1.6),
       k('KeyZ', 'Z', canWrite() ? '되돌리기' : '', '판서 화면에서 방금 쓰거나 지운 것을 되돌려요. Shift 와 함께 누르면 되돌린 것을 다시 해요(앞으로 가기). Ctrl(⌘)+Z 도 돼요.'),
       k('KeyX', 'X', '고르기', T ? '바라보는 것을 골라요. 교탁을 보면 교탁에 서기, 칠판을 보면 판서, 자리를 보면 앉기, 문을 보면 나가기.' : '바라보는 것을 골라요. 자리를 보면 앉기, 칠판을 보면 크게 보기, 옆 친구를 보면 소곤거리기, 문을 보면 나가기.'),
-      k('KeyC', 'C'), k('KeyV', 'V', '마이크', T ? '마이크를 켜고 꺼요. 선생님 목소리는 교실 전체에 들려요(리모컨의 더보기 → 마이크 관리에서 바꿀 수 있어요).' : '마이크를 켜고 꺼요. 목소리는 가까이 있는 사람에게 들리고, 멀수록 작게 들려요.'),
+      k('KeyC', 'C'), k('KeyV', 'V', '마이크', T ? '마이크를 켜고 꺼요. 선생님 목소리는 교실 전체에 들려요(리모컨의 더보기 → 마이크에서 바꿀 수 있어요).' : '마이크를 켜고 꺼요. 목소리는 가까이 있는 사람에게 들리고, 멀수록 작게 들려요.'),
       k('KeyB', 'B', T ? '판서' : '칠판 보기', T ? '판서 화면을 열고 닫아요. 펜 · 지우개 · 색을 골라 칠판에 써요.' : '칠판을 크게 봐요. 한 번 더 누르면 돌아와요.')],
     [gap(1.6), k('Space', 'Space', '점프', T ? '제자리에서 뛰어요. 판서 화면에서는 누르고 있는 동안 학생들을 돌아봐요.' : '제자리에서 뛰어요.', 3.6), gap(0.6),
       k('ArrowLeft', '←', T ? '왼쪽·이전' : '왼쪽', side('왼쪽', '이전')),
@@ -7446,7 +7453,7 @@ function enter() {
   showMic();                                    // 마이크 단추 (오른쪽 위)
   if (!skipKeys) setKeys(true);                 // 조작법을 화면 가운데에 띄운다 (PC = 가상 키보드, 터치 기기 = 손가락 안내)
   else {                                        // 조작법을 띄우지 않을 때는 짧은 안내만
-    toast(isTeacher ? '리모컨으로 칠판을 조작하고, 리모컨의 "더보기 → 강의실 설정"에서 강의실 · 자리 · 칠판 · BGM을 바꿔요'
+    toast(isTeacher ? '리모컨으로 칠판을 조작하고, 리모컨의 "더보기 → 강의실"에서 강의실 · 자리 · 칠판 · BGM을 바꿔요'
       : '자리를 바라보고 X를 누르면 앉아요 · 칠판을 바라보고 X를 누르면 크게 볼 수 있어요', 7000);
   }
   canvas.focus();
