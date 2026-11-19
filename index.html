@@ -114,18 +114,35 @@
   #aim::after { left: 0; top: 7px; width: 16px; height: 2px; }
 
   #room { left: 12px; top: 48px; cursor: pointer; border-radius: 0; }
+  /* 입장 화면: 지난번처럼 들어가기 · 처음으로 · 강의실 미리 고르기, 입장 직후의 초대 링크 안내 */
+  #entry .card { max-height: calc(100vh - 40px); overflow-y: auto; }      /* 화면이 낮으면 카드 안에서 스크롤 */
+  #roleNote { margin: 6px 0 0; font-weight: 800; opacity: 1; }
+  .again { margin-top: 10px; font-size: 15px; }
+  .again small { display: block; font-size: 11px; font-weight: 600; opacity: .75; }
+  .linkish {
+    margin-top: 12px; padding: 0; font: 700 12px var(--font); color: var(--ink); opacity: .7;
+    background: none; border: 0; text-decoration: underline; cursor: pointer;
+  }
+  #stepRoom label small { font-weight: 600; opacity: .7; margin-left: 4px; }
+  #stepRoom .seg + .seg { margin-top: 6px; }
+  #invite {
+    left: 50%; top: 12px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px;
+    padding: 6px 8px 6px 12px; font-size: 13px; font-weight: 800; background: var(--paper); box-shadow: 0 4px 0 var(--ink); white-space: nowrap;
+  }
+  #invite button { font: 800 13px var(--font); color: var(--ink); background: #fff; border: 2px solid var(--ink); border-radius: 0; cursor: pointer; padding: 5px 10px; }
+  #inviteCopy { color: #fff !important; background: var(--coral) !important; }
   #toast {
     left: 50%; top: 18%; transform: translateX(-50%); max-width: min(560px, 90vw); text-align: center; line-height: 1.5;
     font-size: 14px; font-weight: 800; background: var(--paper); box-shadow: 0 4px 0 var(--ink);
   }
 
   /* ── 퇴장 확인창 ── */
-  #exit {
+  #exit, #confirm {
     position: fixed; inset: 0; display: grid; place-items: center; padding: 16px;
     background: rgba(36, 24, 14, .55);
   }
-  #exit h2 { margin: 0 0 8px; font-size: 24px; letter-spacing: -.02em; }
-  #exit p { margin: 0; font-size: 14px; line-height: 1.6; }
+  #exit h2, #confirm h2 { margin: 0 0 8px; font-size: 24px; letter-spacing: -.02em; }
+  #exit p, #confirm p { margin: 0; font-size: 14px; line-height: 1.6; }
   #exit b { font-variant-numeric: tabular-nums; }
 
   /* ── 선생님: 입장 화면의 체크 칸, 큰 스크린을 조작하는 리모컨 ── */
@@ -241,6 +258,7 @@
     #perf { top: 120px; left: 12px; right: auto; }   /* 좁은 화면에서는 출석·수업·리모컨 표시 아래로 */
     #soundBtn { top: 12px; }
     #areas { top: 122px; }
+    #invite { top: 122px; }
   }
   @media (pointer: coarse) {
     .keys { display: none; }
@@ -266,39 +284,46 @@
 <div id="entry">
   <form class="card" id="enterForm">
     <h1>3D 강의실</h1>
-    <section class="step" id="stepCode">
-      <label for="code">1. 수업 코드</label>
+    <p class="note" id="roleNote"></p>
+    <section class="step" id="stepStart" hidden>
+      <div class="pick" role="group" aria-label="들어가는 방법 고르기">
+        <button type="button" id="startTeach"><span>수업 만들기<small>선생님</small></span></button>
+        <button type="button" id="startJoin"><span>수업 들어가기<small>학생 · 수업 코드</small></span></button>
+      </div>
+      <button type="button" id="again" class="go ghost again" hidden></button>
+    </section>
+    <section class="step" id="stepCode" hidden>
+      <label for="code" id="codeLabel">수업 코드</label>
       <div class="line">
         <input id="code" maxlength="20" placeholder="예: 수학1반" autocomplete="off" autocapitalize="off" spellcheck="false">
         <button id="codeNext" class="mini" type="button">다음</button>
       </div>
       <p class="note" id="netNote"></p>
     </section>
-    <section class="step" id="stepWho" hidden>
-    <label>2. 캐릭터</label>
-    <div class="pick" role="group" aria-label="캐릭터 고르기">
-      <button type="button" data-who="roy" style="--c:#5fc46b" aria-pressed="true"><i></i><span>로이<small>초록 옷</small><small id="rec-roy">출석 00:00:00</small></span></button>
-      <button type="button" data-who="stella" style="--c:#ff9cc2" aria-pressed="false"><i></i><span>스텔라<small>분홍 옷</small><small id="rec-stella">출석 00:00:00</small></span></button>
-    </div>
-    </section>
     <section class="step" id="stepName" hidden>
-      <label for="nick">3. 이름</label>
+      <label for="nick">이름</label>
       <div class="line">
         <input id="nick" maxlength="12" autocomplete="off" spellcheck="false">
         <button id="nameNext" class="mini" type="button">다음</button>
       </div>
     </section>
-    <section class="step" id="stepRole" hidden>
-      <label>4. 역할</label>
-      <div class="pick" role="group" aria-label="역할 고르기">
-        <button type="button" data-role="student" aria-pressed="false"><span>학생<small>자리에 앉아 수업 듣기</small></span></button>
-        <button type="button" data-role="teacher" aria-pressed="false"><span>선생님<small>칠판 조작 · 강의실 설정</small></span></button>
+    <section class="step" id="stepWho" hidden>
+      <label>캐릭터</label>
+      <div class="pick" role="group" aria-label="캐릭터 고르기">
+        <button type="button" data-who="roy" style="--c:#5fc46b" aria-pressed="true"><i></i><span>로이<small>초록 옷</small><small id="rec-roy">출석 00:00:00</small></span></button>
+        <button type="button" data-who="stella" style="--c:#ff9cc2" aria-pressed="false"><i></i><span>스텔라<small>분홍 옷</small><small id="rec-stella">출석 00:00:00</small></span></button>
       </div>
-      <input type="checkbox" id="teacher" hidden>
+    </section>
+    <section class="step" id="stepRoom" hidden>
+      <label>강의실 미리 고르기 <small>들어간 뒤에도 바꿀 수 있어요</small></label>
+      <div class="seg" id="preForm"></div>
+      <div class="seg" id="preTable"></div>
+      <div class="seg" id="preBoard"></div>
     </section>
     <section class="step" id="stepGo" hidden>
-    <button class="go" type="submit">입장하기</button>
+      <button class="go" type="submit">입장하기</button>
     </section>
+    <button type="button" id="restart" class="linkish" hidden>← 처음으로</button>
   </form>
 </div>
 
@@ -319,8 +344,8 @@
     <button id="boardBtn" type="button" title="칠판을 정면에서 크게 보기 · 쓰기 (B)">판서</button>
     <button id="setupBtn" type="button" title="강의실 · 자리 배치 · 칠판 · BGM 고르기">강의실 설정</button>
     <div class="arrows">
-      <button id="prevBtn" type="button" title="이전 장 (Q)">◀</button>
-      <button id="nextBtn" type="button" title="다음 장 (E)">▶</button>
+      <button id="prevBtn" type="button" title="이전 장 (PageUp · 교탁에서는 ←)">◀</button>
+      <button id="nextBtn" type="button" title="다음 장 (PageDown · 교탁에서는 →)">▶</button>
     </div>
     <input id="file" type="file" accept=".pdf,application/pdf,image/*,.ppt,.pptx" multiple hidden>
   </div>
@@ -338,10 +363,16 @@
     <div class="seg" id="segSize"></div>
     <h3>BGM</h3>
     <div class="seg" id="segBgm"></div>
+    <h3>초대 링크 복사</h3>
+    <div class="seg">
+      <button id="linkStudent" type="button">학생용<small>학생으로 들어와요</small></button>
+      <button id="linkTeacher" type="button">선생님용<small>함께 가르칠 선생님만</small></button>
+    </div>
   </div>
   <div id="areas" class="chip" hidden></div>
   <div id="pens" class="chip" hidden>
     <div class="grp" id="penTools">
+      <button type="button" data-tool="hand" aria-pressed="false" title="끌어서 칠판을 옆으로 옮기기">이동</button>
       <button type="button" data-tool="ball" aria-pressed="true" title="굵기가 고른 펜">볼펜</button>
       <button type="button" data-tool="fount" aria-pressed="false" title="긋는 방향에 따라 획이 가늘어지고 굵어지는 펜">만년필</button>
       <button type="button" data-tool="rub" aria-pressed="false" title="문지른 곳만 지우기">지우개</button>
@@ -361,10 +392,16 @@
     </div>
     <button type="button" id="wipeBtn">모두 지우기</button>
   </div>
+  <div id="invite" class="chip" hidden>
+    <span>학생들에게 보낼 초대 링크</span>
+    <button id="inviteCopy" type="button">복사</button>
+    <button id="inviteClose" type="button" aria-label="닫기">×</button>
+  </div>
   <div id="acts">
     <button id="askBtn" type="button" hidden><kbd>Q</kbd>질문</button>
     <button id="okBtn" type="button" hidden><kbd>E</kbd>이해했어요</button>
     <button id="act" type="button" hidden><kbd>X</kbd><span id="actText">앉기</span></button>
+    <button id="backBtn" type="button" hidden><kbd>Esc</kbd><span id="backText">일어나기</span></button>
   </div>
   <form id="ask" class="chip" hidden>
     <input id="askText" maxlength="60" placeholder="질문을 적고 Enter (Esc 취소)" autocomplete="off" spellcheck="false">
@@ -379,9 +416,20 @@
       <input id="whisperText" maxlength="60" placeholder="소곤소곤… Enter로 쪽지 보내기" autocomplete="off" spellcheck="false">
     </form>
   </div>
-  <div id="help" class="chip">WASD·방향키 이동 · 드래그 둘러보기 · 자리를 바라보고 X 앉기 · 문으로 가면 나가기</div>
+  <div id="help" class="chip"></div>
   <div id="stick"><i></i></div>
   <button id="jump" type="button">점프</button>
+</div>
+
+<div id="confirm" hidden>
+  <div class="card" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <h2 id="confirmTitle"></h2>
+    <p id="confirmText"></p>
+    <div class="row">
+      <button id="confirmNo" class="go ghost" type="button">취소</button>
+      <button id="confirmYes" class="go" type="button">바꾸기</button>
+    </div>
+  </div>
 </div>
 
 <div id="exit" hidden>
@@ -1015,19 +1063,19 @@ const LOOKS = {
    fixed       고정 좌석 (계단 · 무대 · 2층도 여기서 만든다)   floorAt  바닥 높이 */
 const FORMS = {
   small: {
-    name: '소형', note: '10명', look: 'seminar', w: 9, d: 9, h: 3.8,
+    name: '소형', note: '10명', look: 'seminar', w: 9, d: 9, h: 3.8, dais: true,
     board: [4.4, 2.475, 2.25], doorZ: 3.2, win: [-1.9, 1.9], cork: [-1.4, 2.2, 2.8, 1.4],
     spawn: [-3.4, 2.2, 2.7, 3.9], area: [-3.7, 3.7, -1.7, 2.6], cap: 10,
     solo: { cols: [-3.2, -1.6, 0, 1.6, 3.2], rows: [-1.2, 0.6] },          // 개인 책상은 사이사이를 띄워 놓는다
   },
   mid: {
-    name: '중형', note: '24명', look: 'classroom', w: 12, d: 16, h: 4.6,
+    name: '중형', note: '24명', look: 'classroom', w: 12, d: 16, h: 4.6, dais: true,      // dais = 칠판 아래에 단상(교단)을 놓는다
     board: [6.0, 3.375, 2.64], doorZ: 5.7, win: [-4.5, 0, 4.5], cork: [-2.2, 2.4, 3.6, 1.8],
     spawn: [-4, 3.5, 3.7, 6.7], area: [-4.6, 4.6, -3.9, 3.3], cap: 24,
     solo: { cols: [-4.0, -2.4, -0.8, 0.8, 2.4, 4.0], rows: [-3.4, -1.6, 0.2, 2.0] },
   },
   large: {
-    name: '대형', note: '100명', look: 'lecture', w: 18, d: 24, h: 5.4,
+    name: '대형', note: '100명', look: 'lecture', w: 18, d: 24, h: 5.4, dais: true,
     board: [12.8, 3.2, 2.85], doorZ: 10.6, win: [-8, -4, 0, 4, 8], cork: [-3, 2.5, 4.4, 2.0],
     spawn: [-7, 6.5, 10.3, 11.3], area: [-7.9, 7.9, -6.9, 9.6], cap: 100,
     solo: {
@@ -1124,6 +1172,7 @@ let ROOM = FORMS.mid, HW = 6, HD = 8;          // HW · HD = 가로 · 깊이의
 const flatFloor = () => 0;
 let floorAt = flatFloor;                       // (x, z) 위치의 바닥 높이
 let roomGroup = null;                          // 지금 강의실의 고정 물체를 모두 담은 묶음
+let TEACH_Z = -5;                              // 선생님이 처음 서는 곳 (칠판 앞, 단상 계단 바로 아래)
 let ARM_SIT = -1.25;                           // 앉았을 때 팔 각도 (책상이 있으면 책상 위로, 없으면 무릎 위로)
 const obstacles = [];                          // 지나갈 수 없는 네모 영역 (위에서 본 모양)
 const seats = [];                              // 앉을 수 있는 자리 목록
@@ -1373,6 +1422,7 @@ function boardSize(F) {
   if (cfg.size === 'x') return [max, h, y];
   return [w, h, y];
 }
+const BOARD_LIFT = 0.6;              // 칠판을 얼마나 올릴지 (1 = 어느 자리에서도 전혀 가리지 않는 높이까지, 0 = 올리지 않음)
 // 모든 자리에 사람이 앉았을 때, 어느 자리에서 봐도 앞사람 머리에 칠판이 가리지 않으려면 칠판 아래쪽이 얼마나 높아야 하는지.
 // 눈에서 앞사람 머리 위를 스쳐 칠판까지 그은 선의 높이 가운데 가장 높은 값이다 (같은 테이블에 바짝 붙어 앉은 사람은 빼고 센다)
 function clearHeight(bw) {
@@ -1391,6 +1441,8 @@ function clearHeight(bw) {
   return need;
 }
 
+const DAIS = { d: 2.0, chest: 0.95, tread: 0.3 };     // 칠판 아래 단상: 깊이 · 캐릭터의 가슴 높이(단상 높이를 정하는 기준) · 계단 한 단의 깊이
+
 /* ── 강의실을 지금 설정대로 새로 짓는다 ── */
 function buildRoom() {
   clearRoom();
@@ -1405,8 +1457,7 @@ function buildRoom() {
 
   // 바닥 높이: 강의실의 바닥 + 교탁 뒤의 낮은 단상 (단상도 바닥의 일부라서 걸어서 올라설 수 있다)
   const ground = F.floorAt || flatFloor;
-  const [lx, lz] = F.lectern || [HW - 1.8, -HD + 2.1], ly = ground(lx, lz);
-  floorAt = (x, z) => (Math.abs(x - lx) < 0.65 && z > lz - 1.25 && z < lz - 0.4 ? ly + 0.14 : ground(x, z));
+  floorAt = ground;                  // 단상은 칠판 높이를 정한 뒤에 얹는다
 
   // 분위기: 무늬 · 색 · 조명
   floorMat.map = L.floor[0];
@@ -1434,10 +1485,25 @@ function buildRoom() {
   }
   ARM_SIT = F.fixed ? -0.45 : -1.25;
 
-  // 칠판: 크기를 정하고, 모두 앉아도 가리지 않을 만큼 아래쪽을 올린다. 천장도 그만큼 높아진다
+  // 칠판: 크기를 정하고, 모두 앉았을 때 앞사람 머리에 덜 가리도록 아래쪽을 올린다. 천장도 그만큼 높아진다.
+  // 하나도 가리지 않을 높이까지 다 올리면 칠판이 너무 높아져서, 그 60% 만큼만 올리고 2.6m 를 넘기지 않는다
   const [bw, bh, by] = boardSize(F);
-  const bottom = Math.min(4.2, Math.max(by - bh / 2, Math.ceil(clearHeight(bw) * 20) / 20));
+  const low = by - bh / 2;
+  const bottom = Math.min(2.6, Math.round((low + Math.max(0, clearHeight(bw) - low) * BOARD_LIFT) * 20) / 20);
   const H = Math.max(F.h, bottom + bh + (F.curtains ? 1.5 : 0.55));
+
+  // 칠판 아래 단상(교단): 방 앞쪽을 벽에서 벽까지 가로지른다. 높이는 캐릭터의 키에 맞춰,
+  // 올라서면 칠판 아래쪽이 가슴께에 오도록 정한다. 한 걸음에 오르기엔 높아서 앞쪽에 계단을 둔다.
+  // 교탁은 단상 위 오른쪽 끝에 놓는다. 단상이 없는 강의실에서는 교탁 뒤에 낮은 발판을 따로 둔다
+  const daisH = F.dais ? clamp(Math.round((bottom - DAIS.chest) * 20) / 20, 0.2, 0.9) : 0;
+  const steps = Math.ceil(daisH / 0.3), stepH = steps ? daisH / steps : 0, edge = -HD + DAIS.d;
+  const [lx, lz] = F.dais ? [HW - 1.3, -HD + 1.5] : F.lectern || [HW - 1.8, -HD + 2.1];
+  const ly = F.dais ? daisH : ground(lx, lz), pod = F.dais ? 0 : 0.14;
+  TEACH_Z = -HD + (daisH ? DAIS.d + (steps - 1) * DAIS.tread + 0.45 : 3.0);
+  floorAt = (x, z) => {
+    if (daisH && z < edge + (steps - 1) * DAIS.tread) return z < edge ? daisH : daisH - Math.ceil((z - edge) / DAIS.tread) * stepH;
+    return pod && Math.abs(x - lx) < 0.65 && z > lz - 1.25 && z < lz - 0.4 ? ly + pod : ground(x, z);
+  };
   BOARD.w = bw;
   BOARD.h = bh;
   BOARD.y = bottom + bh / 2;
@@ -1473,6 +1539,16 @@ function buildRoom() {
     instanced(quad, windowMat, F.win.map((z) => ({ p: [-HW + 0.02, 2.45, z], r: [0, Math.PI / 2, 0], s: [2.6, 1.9, 1] })));
     instanced(box, sillMat, F.win.map((z) => ({ p: [-HW + 0.09, 1.47, z], s: [0.18, 0.07, 2.8] })));
     instanced(quad, sunMat, F.win.map((z) => ({ p: [-HW + 0.95, 0.01, z + 0.35], r: FLAT, s: [1.5, 2.3, 1] })));
+  }
+
+  // 단상의 윗면과 계단
+  if (daisH) {
+    slab(-HW, HW, -HD, edge, daisH, woodMat, 1.5);
+    for (let i = 0; i < steps; i++) {
+      const z = edge + i * DAIS.tread, y = daisH - i * stepH;
+      riser(-HW, HW, z, y - stepH, y);
+      if (i < steps - 1) slab(-HW, HW, z, z + DAIS.tread, y - stepH, woodMat, 1.5);
+    }
   }
 
   // 칠판 옆: 벽시계 (자리가 있을 때) 또는 커튼 (강당)
@@ -1517,23 +1593,23 @@ function buildRoom() {
     addStatic(cork);
   }
 
-  // 교탁과 그 뒤의 단상. 교탁을 바라보고 X 를 누르면 단상에 올라서서 강의실을 마주 본다 (자리에 앉는 것과 같은 방식)
+  // 교탁. 교탁을 바라보고 X 를 누르면 그 뒤에 서서 강의실을 마주 본다 (자리에 앉는 것과 같은 방식)
   solid(lx, ly + 0.4, lz, 0.9, 0.8, 0.55, lecternMat);
   const lecternTop = new THREE.Mesh(box, lecternTopMat);
   lecternTop.scale.set(1.06, 0.06, 0.72);
   lecternTop.position.set(lx, ly + 0.84, lz);
   lecternTop.rotation.x = -0.13;                    // 선생님 쪽으로 살짝 기울인 윗판
   addStatic(lecternTop);
-  solid(lx, ly + 0.07, lz - 0.825, 1.3, 0.14, 0.85, lecternTopMat);
+  if (pod) solid(lx, ly + pod / 2, lz - 0.825, 1.3, pod, 0.85, lecternTopMat);     // 교탁 뒤 발판
   obstacles.push({ x0: lx - 0.53, x1: lx + 0.53, z0: lz - 0.36, z1: lz + 0.36 });
   P.shadow.push({ p: [lx, ly + 0.012, lz - 0.3], r: FLAT, s: [1.9, 2.0, 1] });
-  const sz = lz - 0.8, sy = ly + 0.14;
+  const sz = lz - 0.8, sy = ly + pod;
   seats.push({
-    kind: 'seat', stand: true, x: lx, y: sy, z: sz, yaw: 0, g: null, reach: 0,
+    kind: 'seat', stand: true, x: lx, y: sy, z: sz, yaw: 0, g: null, reach: 0, level: ly,
     sit: { x: lx, z: sz },
     cand: [{ x: lx - 0.95, z: sz }, { x: lx + 0.95, z: sz }, { x: lx, z: lz - 1.5 }],
     sides: [], chairBox: null,
-    boxes: [boxOf(lx - 0.53, lx + 0.53, ly, ly + 0.9, lz - 0.36, lz + 0.36), boxOf(lx - 0.65, lx + 0.65, ly, sy, lz - 1.25, lz - 0.4)],
+    boxes: [boxOf(lx - 0.53, lx + 0.53, ly, ly + 0.9, lz - 0.36, lz + 0.36), boxOf(lx - 0.65, lx + 0.65, ly, sy + 0.02, lz - 1.25, lz - 0.4)],
     body: boxOf(lx - 0.36, lx + 0.36, sy, sy + 1.4, sz - 0.3, sz + 0.3),
     near: [], taken: null, whisper: null,
   });
@@ -1547,7 +1623,7 @@ function buildRoom() {
   // 길찾기 칸을 새로 만들고, 자리마다 설 곳과 이웃 자리를 정한다
   buildNav();
   for (const s of seats) {
-    const level = s.stand ? s.y - 0.14 : s.y;
+    const level = s.stand ? s.level : s.y;
     const ok = s.cand.filter((c) => !blocked[cellAt(c.x, c.z)] && Math.abs(floorAt(c.x, c.z) - level) < 0.05);
     s.sides = ok.length ? ok : s.cand;
   }
@@ -1937,7 +2013,10 @@ class Actor {
   // 앉지 않고 그냥 걸어가기 (판서하러 칠판 앞으로)
   walkTo(x, z) {
     if (this.mode !== 'free' && this.mode !== 'path') return false;
-    if (Math.hypot(x - this.pos.x, z - this.pos.z) < 0.08) return true;
+    if (Math.hypot(x - this.pos.x, z - this.pos.z) < 0.08) {       // 이미 그 자리다: 다른 데로 가던 중이었다면 멈춘다
+      if (this.mode === 'path' && !this.seat) this.cancel();
+      return true;
+    }
     const path = findPath(this.pos.x, this.pos.z, x, z);
     if (!path) return false;
     this.cancel();
@@ -2279,8 +2358,8 @@ let ghostOn = false;                 // 판서 뷰에서 내 캐릭터를 반투
 const pan = { from: 0, to: 0, t: 1, span: 0.6 };      // 옆 영역으로 옮겨 가는 카메라 이동
 const WRITE_Z = 0.55;                // 판서할 때 칠판에서 떨어져 서는 거리
 const COARSE = matchMedia('(pointer: coarse)').matches;
-// 학생은 앉아서, 선생님은 서서도 (판서하러 걸어가는 중에도) 크게 볼 수 있다
-const canZoom = () => player.mode === 'seated' || (isTeacher && (player.mode === 'free' || (player.mode === 'path' && !player.seat)));
+// 칠판 보기는 누구나, 앉아서도 서서도 할 수 있다 (판서하러 걸어가는 중에도)
+const canZoom = () => player.mode === 'seated' || player.mode === 'free' || (player.mode === 'path' && !player.seat);
 const canWrite = () => cfg.board !== 'video' && (isTeacher || cfg.board === 'free');         // 화이트 · 그린은 선생님만, 자유 보드는 누구나
 // 자리에서 칠판을 보려면 고개를 어느 쪽으로 돌려야 하는지 (돌릴 수 있는 범위 안에서)
 const boardYaw = (s) => s.yaw + clamp(wrap(Math.atan2(BOARD.x - s.sit.x, BOARD.z - s.sit.z) - s.yaw), -SEAT_LOOK, SEAT_LOOK);
@@ -2297,8 +2376,9 @@ function screenLooked() {            // 시선이 칠판에 닿으면 (거리에
 // 판서 뷰의 카메라 자리: 칠판 높이가 (위아래 단추 자리를 뺀) 화면 높이에 꼭 맞는 거리와 높이, 그때 보이는 가로 폭
 function boardCam() {
   const tan = Math.tan(camera.fov * Math.PI / 360);
-  const top = (window.innerWidth < 640 ? 170 : 58) / window.innerHeight;       // 화면 위쪽 단추들이 차지하는 몫
-  const under = (COARSE ? 350 : 176) / window.innerHeight;                     // 화면 아래쪽 단추들이 차지하는 몫
+  const vh = Math.max(window.innerHeight, 320);                                // (창이 가려져 크기가 0 으로 나올 때를 대비)
+  const top = (window.innerWidth < 640 ? 170 : 58) / vh;                       // 화면 위쪽 단추들이 차지하는 몫
+  const under = (COARSE ? 350 : 176) / vh;                                     // 화면 아래쪽 단추들이 차지하는 몫
   const fill = clamp(1 - top - under, 0.4, 0.92);
   const half = BOARD.h / (2 * fill);                                           // 화면 높이의 절반이 칠판에서 몇 m 인지
   return { dist: half / tan, y: BOARD.y + BOARD.h / 2 - half * (1 - 2 * top), vis: 2 * half * camera.aspect };
@@ -2306,7 +2386,7 @@ function boardCam() {
 // 칠판을 화면 폭에 맞춰 영역으로 나눈다 (이웃한 영역은 조금씩 겹친다)
 function layoutAreas() {
   const vis = boardCam().vis, span = Math.max(0, BOARD.w + 0.3 - vis);
-  const n = span < 0.05 ? 1 : Math.ceil(span / (vis * 0.8)) + 1;
+  const n = span > 0.05 ? Math.ceil(span / (vis * 0.8)) + 1 : 1;
   areas = Array.from({ length: n }, (_, i) => (n === 1 ? 0 : -span / 2 + i * span / (n - 1)));
   areaAt = clamp(areaAt, 0, n - 1);
 }
@@ -2350,7 +2430,7 @@ function setZoom(on, hint) {
     pan.t = 1;
     goWrite();
     const move = areas.length > 1 ? ' · ← → 옆으로 이동' : '';
-    toast(canWrite() ? `칠판을 끌어서 써 보세요${move} · X 또는 Esc로 돌아가기` : `X 또는 Esc로 돌아가기${move}`, 5000);
+    toast(canWrite() ? `펜을 들고 끌어서 써 보세요${move} · Esc로 돌아가기` : `Esc로 돌아가기${move}`, 5000);
   }
   if (!zoomed) {
     penUp();
@@ -2487,26 +2567,22 @@ function isNeighbor(a, b) {
   return !!a && !!b && a.near.includes(b);
 }
 
-// X 키가 가리킬 것: 바라보고 있는 가까운 책상·문 → 없으면 바로 옆 책상
+/* ── 상호작용 규칙 ──
+   X        바라본 것(테두리가 뜬 것)에 하는 행동 하나. 바라본 것이 없으면 아무 일도 하지 않는다
+            자리 · 교탁 · 문은 손이 닿을 만큼 가까이서, 칠판은 멀리서도 고를 수 있다
+   Esc      한 단계 뒤로: 설정 창 닫기 → 칠판 보기에서 돌아가기 → 일어나기 · 교탁에서 내려오기 → 가던 길 멈추기
+   ← →      이전 · 다음: 칠판 보기에서는 옆 영역, 자리나 교탁에 있는 선생님에게는 슬라이드
+   Q · E    학생 전용: 질문 · 이해했어요
+   끌기     시야 움직이기. 칠판 보기에서 펜을 들고 있을 때만 쓰기가 된다 */
 function updateTarget() {
   let t = null;
   takenSeat = null;
-  if (entered && player.mode === 'free' && !zoomed) {
+  if (entered && !zoomed && player.mode === 'free') {
     const seen = lookedAt();
     if (seen && seen.taken) takenSeat = seen;      // 이미 누가 앉은 자리는 고를 수 없다
-    else t = seen;
-    if (!t && !takenSeat && isTeacher) t = screenLooked();       // 선생님은 서서도 칠판을 크게 보거나 쓸 수 있다
-    if (!t && !takenSeat) {
-      let best = 1.25 * 1.25;
-      for (const s of seats) {
-        if (s.taken || Math.abs(s.y - player.pos.y) > 0.5) continue;
-        const dx = s.x - player.pos.x, dz = s.z - player.pos.z, d = dx * dx + dz * dz;
-        if (d < best) { best = d; t = s; }
-      }
-    }
-  } else if (entered && player.mode === 'seated') {
-    // 앉아 있을 땐 바라본 옆자리 친구와 소곤거리거나, 칠판을 정면에서 크게 볼 수 있다
-    t = zoomed ? null : whisperLooked() || screenLooked();
+    else t = seen || screenLooked();               // 칠판 보기는 누구나, 어디서나
+  } else if (entered && !zoomed && player.mode === 'seated') {
+    t = whisperLooked() || screenLooked();         // 앉아서는 옆자리 친구와 소곤거리거나 칠판을 본다
   }
   const seated = entered && player.mode === 'seated' && !player.seat.stand;      // 교탁에 서 있는 것은 학생 메뉴와 상관없다
   if ($('askBtn').hidden === seated) $('askBtn').hidden = $('okBtn').hidden = !seated;     // 앉으면 학생 메뉴가 뜬다
@@ -2514,7 +2590,7 @@ function updateTarget() {
   else if (!seatHinted) {                              // 앉으면 할 수 있는 일을 한 번 알려 준다
     seatHinted = true;
     whisperHinted = whisperNear;
-    toast(whisperNear ? '칠판을 보고 X: 크게 보기 · 옆 친구를 보고 X: 소곤거리기' : '칠판을 바라보고 X를 누르면 크게 볼 수 있어요', 6000);
+    toast(whisperNear ? '칠판을 보고 X: 칠판 보기 · 옆 친구를 보고 X: 소곤거리기 · Esc: 일어나기' : '칠판을 보고 X: 칠판 보기 · Esc: 일어나기', 6000);
   } else if (whisperNear && !whisperHinted) {          // 나중에 옆에 친구가 앉으면 그때 알려 준다
     whisperHinted = true;
     toast('옆자리 친구를 바라보면 X 키로 소곤거릴 수 있어요', 5000);
@@ -2525,37 +2601,68 @@ function updateTarget() {
     showOutline(t ? t.boxes : []);
   }
 
-  const boardLabel = canWrite() ? '칠판에 쓰기' : '크게 보기';
-  const label = !entered ? ''
-    : zoomed ? '돌아가기'
-    : player.mode === 'seated' ? (!target ? (player.seat.stand ? '내려오기' : '일어나기') : target.kind === 'screen' ? boardLabel : '소곤거리기')
-    : player.mode === 'path' ? '그만두기'
-    : !target ? ''
-    : target.kind === 'door' ? '나가기' : target.kind === 'screen' ? boardLabel : target.stand ? '교탁에 서기' : '앉기';
+  // X 단추: 바라본 것에 하는 행동
+  const label = !target ? ''
+    : target.kind === 'door' ? '나가기'
+    : target.kind === 'screen' ? (canWrite() ? '칠판에 쓰기' : '칠판 보기')
+    : target.kind === 'whisper' ? '소곤거리기'
+    : target.stand ? '교탁에 서기' : '앉기';
   if (label !== actLabel) {
     actLabel = label;
     $('act').hidden = !label;
     $('actText').textContent = label;
   }
-}
-
-// X 키 · 버튼: 앉기 / 일어나기 / (문을 보고 있으면) 나가기
-function act() {
-  if (!entered) return;
-  if (zoomed) setZoom(false);
-  else if (player.mode === 'seated') {
-    if (target && target.kind === 'whisper') openWhisper(target.seat.taken.peerId || 'mate');
-    else if (target && target.kind === 'screen') setZoom(true, boardHitX);
-    else player.stand();
-  } else if (player.mode === 'path') player.cancel();
-  else if (player.mode === 'free' && target) {
-    if (target.kind === 'door') askExit();
-    else if (target.kind === 'screen') setZoom(true, boardHitX);
-    else if (player.goSit(target)) mySeatAt = Date.now();     // 자리를 고른 시각 (둘이 동시에 고르면 빠른 쪽이 앉는다)
-  } else if (player.mode === 'free' && takenSeat) {
-    toast(takenSeat.stand ? `${polite(takenSeat.taken.name)}이 교탁에 서 있어요` : `${polite(takenSeat.taken.name)}이 앉은 자리예요`);
+  // Esc 단추: 한 단계 뒤로
+  const back = !entered ? ''
+    : zoomed ? '돌아가기'
+    : player.mode === 'seated' ? (player.seat.stand ? '내려오기' : '일어나기')
+    : player.mode === 'path' ? '멈추기' : '';
+  if (back !== backLabel) {
+    backLabel = back;
+    $('backBtn').hidden = !back;
+    $('backText').textContent = back;
   }
+  // 아래 안내 줄: 지금 상태에서 쓸 수 있는 키만 보여 준다
+  const many = areas.length > 1 ? ' · ← → 옆 영역' : '';
+  const help = !entered ? ''
+    : zoomed ? (canWrite() ? `펜을 들고 끌어서 쓰기 · "이동"을 들고 끌면 옆으로${many} · Esc 돌아가기` : `끌어서 옆으로${many} · Esc 돌아가기`)
+    : player.mode === 'seated' ? (player.seat.stand
+      ? `끌어서 둘러보기 · 칠판을 보고 X 칠판 보기${slidesMine() ? ' · ← → 슬라이드' : ''} · Esc 내려오기`
+      : '끌어서 둘러보기 · 칠판을 보고 X 칠판 보기 · 옆 친구를 보고 X 소곤거리기 · Q 질문 · E 이해했어요 · Esc 일어나기')
+    : player.mode === 'path' ? 'Esc 멈추기'
+    : `WASD·방향키 이동 · 끌어서 둘러보기 · 바라보고 X: 자리 앉기 · 교탁 서기 · 문 나가기 · 칠판 보기${isTeacher ? ' · R 리모컨' : ''}`;
+  if (help !== helpShown) {
+    helpShown = help;
+    $('help').textContent = help;
+  }
+}
+let backLabel = '', helpShown = '';
+const slidesMine = () => presenting() && show.mode === 'slides';      // 내가 슬라이드를 띄워 둔 중인지
+
+// X: 바라본 것에 하는 행동
+function act() {
+  if (!entered || zoomed) return;
+  if (!target) {
+    if (takenSeat) toast(takenSeat.stand ? `${polite(takenSeat.taken.name)}이 교탁에 서 있어요` : `${polite(takenSeat.taken.name)}이 앉은 자리예요`);
+    return;
+  }
+  if (target.kind === 'door') askExit();
+  else if (target.kind === 'screen') setZoom(true, boardHitX);
+  else if (target.kind === 'whisper') openWhisper(target.seat.taken.peerId || 'mate');
+  else if (player.goSit(target)) mySeatAt = Date.now();       // 자리를 고른 시각 (둘이 동시에 고르면 빠른 쪽이 앉는다)
   dirty = true;
+}
+// Esc: 한 단계 뒤로. 뒤로 갈 것이 있었으면 true
+function back() {
+  if (!entered) return false;
+  if (!$('setup').hidden) $('setup').hidden = true;
+  else if (zoomed) setZoom(false);
+  else if (player.mode === 'seated') player.stand();
+  else if (player.mode === 'path') player.cancel();
+  else return false;
+  canvas.focus();
+  dirty = true;
+  return true;
 }
 
 const polite = (name) => (name.endsWith('선생님') ? name : `${name} 님`);     // "지영 님", "김 선생님"
@@ -2598,10 +2705,9 @@ function autoLook(dt) {
   else if (player.mode === 'sitting') {
     const s = player.seat;
     if (s.stand) want = s.yaw;                                 // 교탁에 서면 강의실을 마주 본다
-    else {                                                     // 앉으면 칠판 쪽을 본다. 눈길은 칠판 바로 아래에 둔다 (X = 일어나기)
+    else {                                                     // 앉으면 칠판 한가운데를 본다
       want = boardYaw(s);
-      const up = Math.atan2(BOARD.y - BOARD.h / 2 - 0.15 - (s.y + EYE_H + SEAT_RISE), Math.hypot(BOARD.x - s.sit.x, BOARD.z - s.sit.z));
-      pitch = -clamp(up - 0.1, -0.1, 0.45);
+      pitch = -clamp(Math.atan2(BOARD.y - (s.y + EYE_H + SEAT_RISE), Math.hypot(BOARD.x - s.sit.x, BOARD.z - s.sit.z)), -0.1, 0.6);
     }
   }
   if (want === null) return false;
@@ -2688,10 +2794,8 @@ addEventListener('pagehide', () => {            // 창을 닫아도 기록이 �
   if (link) link.send({ t: 'b', id: myId });
 });
 
-/* ───────────── 문: 다가가면 나갈지 물어본다 ───────────── */
+/* ───────────── 문: 바라보고 X 를 누르면 나갈지 물어본다 ───────────── */
 let paused = false;                  // 확인창이 떠 있는 동안 움직임을 멈춘다
-let doorAsked = false;               // 문 앞에 서 있는 동안 한 번만 묻는다
-const atDoor = () => player.pos.x > HW - 0.8 && Math.abs(player.pos.z - DOOR.z) < 0.45;
 
 function askExit() {
   paused = true;
@@ -2730,7 +2834,7 @@ function leave() {
   player.reachAmt = 0;
   $('remoteBtn').hidden = true;
   netLeave();                        // 함께 있던 사람들에게 나갔다고 알리고 연결을 끊는다
-  paused = entered = doorAsked = false;
+  paused = entered = false;
   resetConfig();                     // 강의실 · 칠판 · BGM 을 처음 모습으로
   $('setup').hidden = true;
   setRemoteOut(false);
@@ -3159,7 +3263,7 @@ async function openFiles(files) {
     show.page = 0;
     setShow('slides', myId);
     await gotoPage(0);
-    toast(`자료를 띄웠어요 · ${total}장 (리모컨 ◀ ▶ 또는 Q · E)`);
+    toast(`자료를 띄웠어요 · ${total}장 (리모컨 ◀ ▶ · PageUp/PageDown · 교탁에서는 ← →)`, 6000);
   } catch (err) {
     console.warn('강의 자료 열기 실패', err);
     toast('자료를 열지 못했어요');
@@ -3872,14 +3976,14 @@ function sendInk(to) {
 function showPens() {
   const on = zoomed && canWrite();
   $('pens').hidden = !on;
-  canvas.classList.toggle('pen', on);
+  canvas.classList.toggle('pen', on && pen.tool !== 'hand');
   if (!on) return;
   $('wipeBtn').hidden = !isTeacher;
   for (const b of $('penTools').children) b.setAttribute('aria-pressed', String(b.dataset.tool === pen.tool));
   for (const b of $('penColors').children) {
     const n = Number(b.dataset.color);
     b.style.setProperty('--c', BOARDS[cfg.board].pens[n]);
-    b.setAttribute('aria-pressed', String(n === pen.color && pen.tool !== 'rub' && pen.tool !== 'wipe'));
+    b.setAttribute('aria-pressed', String(n === pen.color && (pen.tool === 'ball' || pen.tool === 'fount')));
   }
   for (const b of $('penSizes').children) b.setAttribute('aria-pressed', String(Number(b.dataset.size) === pen.size));
 }
@@ -3890,7 +3994,7 @@ for (const b of $('penTools').children) b.addEventListener('click', () => {
 });
 for (const b of $('penColors').children) b.addEventListener('click', () => {
   pen.color = Number(b.dataset.color);
-  if (pen.tool === 'rub' || pen.tool === 'wipe') pen.tool = 'ball';      // 색을 고르면 다시 펜을 든다
+  if (pen.tool !== 'ball' && pen.tool !== 'fount') pen.tool = 'ball';    // 색을 고르면 다시 펜을 든다
   showPens();
   canvas.focus();
 });
@@ -3922,7 +4026,7 @@ function freeActor(a) {
 }
 // 들어왔을 때 서는 곳: 여럿이 겹쳐 서지 않게 정해진 구역의 빈 곳 아무 데나
 function spawn(a) {
-  const [x0, x1, z0, z1] = ROOM.spawn;
+  const [x0, x1, z0, z1] = a === player && isTeacher ? [-1.5, 1.5, TEACH_Z, TEACH_Z + 0.4] : ROOM.spawn;     // 선생님은 칠판 앞에서 시작한다
   const c = nearestFree(x0 + Math.random() * (x1 - x0), z0 + Math.random() * (z1 - z0));
   const x = c < 0 ? (x0 + x1) / 2 : cellX(c), z = c < 0 ? (z0 + z1) / 2 : cellZ(c);
   a.pos.set(x, floorAt(x, z), z);
@@ -3962,7 +4066,7 @@ function rebuild(moved, keep = false) {
   } else if (entered) {
     if (moved) {
       spawn(player);
-      player.bodyYaw = player.lookYaw = FRONT;
+      player.bodyYaw = player.lookYaw = isTeacher ? 0 : FRONT;
       player.lookPitch = 0.05;
     } else settle(player);
   }
@@ -3992,12 +4096,49 @@ function applyConfig(ch) {           // ch = 바뀐 항목들
 }
 const cfgText = (kind) => `${CFG_TITLE[kind]} · ${CFG_SETS[kind][cfg[kind]].name}`;
 
-// 선생님이 고름
-function setConfig(kind, key) {
+// 바꿀지 묻는 창
+let confirmGo = null;                // "바꾸기"를 누르면 할 일
+function askConfirm(title, text, go) {
+  confirmGo = go;
+  $('confirmTitle').textContent = title;
+  $('confirmText').textContent = text;
+  $('confirm').hidden = false;
+  keys.clear();
+  $('confirmNo').focus();
+}
+function closeConfirm(yes) {
+  const go = confirmGo;
+  confirmGo = null;
+  $('confirm').hidden = true;
+  canvas.focus();
+  if (yes && go) go();
+}
+$('confirmNo').addEventListener('click', () => closeConfirm(false));
+$('confirmYes').addEventListener('click', () => closeConfirm(true));
+
+// 선생님이 고름. 다른 사람에게 영향을 주는 변경은 먼저 묻는다 (sure = 이미 물어봤다)
+function setConfig(kind, key, sure = false) {
   if (!isTeacher || cfg[kind] === key || !Object.hasOwn(CFG_SETS[kind], key)) return;
+  if (!sure) {
+    const moves = (kind === 'form' || kind === 'table') && (peers.size > 0 || seats.some((s) => s.taken));
+    const wipes = (kind === 'form' || kind === 'board' || kind === 'size') && strokes.length > 0;
+    const warn = [
+      moves && (kind === 'form' ? '모두 새 강의실의 입구에서 다시 시작해요.' : '앉아 있던 사람이 모두 일어서요.'),
+      wipes && '칠판에 쓴 것이 지워져요.',
+    ].filter(Boolean).join(' ');
+    if (warn) {
+      askConfirm(`${CFG_TITLE[kind]} → ${CFG_SETS[kind][key].name}`, `${warn} 바꿀까요?`, () => setConfig(kind, key, true));
+      return;
+    }
+  }
   cfg[kind] = key;
   cfgAt[kind] = Date.now();
   applyConfig({ [kind]: true });
+  if (creator && kind in preset) {   // 다음에 "지난번처럼" 들어올 때도 이 강의실로 시작한다
+    preset[kind] = key;
+    showPreset();
+    saveProfile();
+  }
   lastSent = '';
   lastSentAt = 0;                    // 곧바로 모두에게 알린다
   toast(kind === 'form' || kind === 'table' ? `${cfgText(kind)} · 자리 ${seatCount()}개` : cfgText(kind));
@@ -4377,26 +4518,45 @@ function placeCamera() {
 /* ───────────── 입력: 키보드 · 마우스/터치 · 조이스틱 ───────────── */
 addEventListener('keydown', (e) => {
   if (e.target instanceof HTMLInputElement) return;      // 질문·쪽지를 적는 동안에는 글자 입력으로만 쓴다
-  if (paused) {                        // 확인창이 떠 있을 땐 Esc = 계속 있기
+  if (!$('confirm').hidden) {          // 바꿀지 묻는 창이 떠 있을 땐 Esc = 취소
+    if (e.code === 'Escape') closeConfirm(false);
+    return;
+  }
+  if (paused) {                        // 나갈지 묻는 창이 떠 있을 땐 Esc = 계속 있기
     if (e.code === 'Escape') stay();
     return;
   }
   if (!entered) return;
-  if (zoomed && /^(ArrowLeft|ArrowRight|KeyA|KeyD)$/.test(e.code)) {            // 판서 뷰: 옆 영역으로 옮겨 가기
-    if (!e.repeat || pan.t >= 1) gotoArea(areaAt + (e.code === 'ArrowRight' || e.code === 'KeyD' ? 1 : -1));
+  if (e.code === 'Escape') {           // 한 단계 뒤로
+    if (!e.repeat) back();
     e.preventDefault();
     return;
   }
-  if (e.code === 'Escape' && zoomed) setZoom(false);                             // 크게 보기에서 돌아오기
+  // ← → = 이전 · 다음
+  const step = e.code === 'ArrowRight' || (zoomed && e.code === 'KeyD') ? 1 : e.code === 'ArrowLeft' || (zoomed && e.code === 'KeyA') ? -1 : 0;
+  if (step && zoomed) {                // 칠판 보기: 옆 영역으로 (영역이 하나뿐이면 슬라이드)
+    if (areas.length > 1) { if (!e.repeat || pan.t >= 1) gotoArea(areaAt + step); }
+    else if (slidesMine() && !e.repeat) gotoPage(show.page + step);
+    e.preventDefault();
+    return;
+  }
+  if (step && player.mode === 'seated' && slidesMine()) {      // 자리나 교탁에 있는 선생님: 슬라이드 넘기기
+    if (!e.repeat) gotoPage(show.page + step);
+    e.preventDefault();
+    return;
+  }
+  if ((e.code === 'PageUp' || e.code === 'PageDown') && slidesMine()) {      // 걸어 다니는 중에도 슬라이드를 넘길 수 있는 키
+    gotoPage(show.page + (e.code === 'PageDown' ? 1 : -1));
+    e.preventDefault();
+    return;
+  }
   if (e.code === 'KeyR' && !e.repeat && isTeacher) setRemoteOut(!remoteOut);     // 선생님: 리모컨 꺼내기 · 넣기
   if (e.code === 'KeyF' && !e.repeat && isTeacher && remoteOut) setLaser(!laserOn);   // 레이저 켜기 · 끄기
-  if (e.code === 'KeyB' && !e.repeat && isTeacher) setZoom(!zoomed);                   // 선생님: 칠판 정면 보기 (판서)
+  if (e.code === 'KeyB' && !e.repeat) setZoom(!zoomed);                          // 칠판 보기 (선생님은 판서)
   if (e.code === 'Space') { jumpQueued = true; e.preventDefault(); }
   else if (e.code === 'KeyX' && !e.repeat) { act(); e.preventDefault(); }
-  else if ((e.code === 'KeyQ' || e.code === 'KeyE') && !e.repeat) {
-    const next = e.code === 'KeyE';
-    if (presenting() && show.mode === 'slides') gotoPage(show.page + (next ? 1 : -1));   // 선생님: 슬라이드 이전 · 다음
-    else if (player.mode === 'seated' && !player.seat.stand) { if (next) sendOk(); else openAsk(); }           // 학생: 질문 · 이해했어요
+  else if ((e.code === 'KeyQ' || e.code === 'KeyE') && !e.repeat) {              // 학생 전용: 질문 · 이해했어요
+    if (player.mode === 'seated' && !player.seat.stand) { if (e.code === 'KeyE') sendOk(); else openAsk(); }
     e.preventDefault();
   }
   else if (e.code.startsWith('Arrow')) e.preventDefault();
@@ -4405,11 +4565,22 @@ addEventListener('keydown', (e) => {
 addEventListener('keyup', (e) => keys.delete(e.code));
 addEventListener('blur', () => keys.clear());
 
-// 마우스(손가락)는 끌어서 둘러보는 데만 쓴다. 눌러서 걸어가거나 앉는 기능은 없다
+// 끌기 = 시야 움직이기. 평소에는 둘러보고, 칠판 보기에서는 옆으로 옮겨 간다. 펜을 들고 있을 때만 칠판에 쓴다
 let lookId = null, lookX = 0, lookY = 0;
+let slideId = null, slideX = 0, slideFrom = 0;       // 칠판 보기에서 끌어서 옆으로 옮기는 중
 canvas.addEventListener('pointerdown', (e) => {
-  if (!entered || lookId !== null) return;
-  if (zoomed) { penDown(e); return; }                // 칠판을 크게 보는 중에는 끌어서 쓴다
+  if (!entered || lookId !== null || slideId !== null) return;
+  if (zoomed) {
+    if (canWrite() && pen.tool !== 'hand') penDown(e);
+    else if (zoomAmt > 0.97) {
+      slideId = e.pointerId;
+      slideX = e.clientX;
+      slideFrom = zoomX;
+      try { canvas.setPointerCapture(e.pointerId); } catch {}
+      canvas.classList.add('drag');
+    }
+    return;
+  }
   lookId = e.pointerId;
   lookX = e.clientX;
   lookY = e.clientY;
@@ -4418,7 +4589,15 @@ canvas.addEventListener('pointerdown', (e) => {
 });
 canvas.addEventListener('pointermove', (e) => {
   if (e.pointerId === pen.id) { penMove(e); return; }
-  if (e.pointerId !== lookId || zoomed) return;      // 크게 보는 동안에는 시선을 고정한다
+  if (e.pointerId === slideId) {                     // 칠판 보기: 끈 만큼 옆으로 (칠판 끝에서 멈춘다)
+    zoomX = clamp(slideFrom - (e.clientX - slideX) * boardCam().vis / canvas.clientWidth, areas[0], areas[areas.length - 1]);
+    pan.t = 1;
+    areaAt = nearestArea(zoomX);
+    showAreas();
+    dirty = true;
+    return;
+  }
+  if (e.pointerId !== lookId || zoomed) return;      // 칠판을 보는 동안에는 시선을 고정한다
   player.lookYaw -= (e.clientX - lookX) * 0.005;
   player.lookPitch = clamp(player.lookPitch + (e.clientY - lookY) * 0.004, -1.3, 1.3);
   if (player.mode !== 'free' && player.mode !== 'path' && player.seat) {     // 앉아 있을 땐 고개가 돌아가는 만큼만
@@ -4431,6 +4610,12 @@ canvas.addEventListener('pointermove', (e) => {
 });
 const lookEnd = (e) => {
   if (e.pointerId === pen.id) { penUp(); return; }
+  if (e.pointerId === slideId) {
+    slideId = null;
+    canvas.classList.remove('drag');
+    goWrite(zoomX);                                  // 판서하는 선생님은 옮겨 간 곳으로 걸어간다
+    return;
+  }
   if (e.pointerId !== lookId) return;
   lookId = null;
   canvas.classList.remove('drag');
@@ -4441,6 +4626,7 @@ canvas.addEventListener('pointercancel', lookEnd);
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
 $('act').addEventListener('click', () => { act(); canvas.focus(); });
+$('backBtn').addEventListener('click', () => { back(); canvas.focus(); });
 $('jump').addEventListener('pointerdown', (e) => { e.preventDefault(); jumpQueued = true; });
 
 const stick = $('stick'), knob = stick.firstElementChild;
@@ -4465,73 +4651,153 @@ const stickEnd = (e) => {
 stick.addEventListener('pointerup', stickEnd);
 stick.addEventListener('pointercancel', stickEnd);
 
-/* ───────────── 캐릭터 고르기 · 입장 ───────────── */
-/* 입장 순서: 수업 코드 → 캐릭터 → 이름 → 역할 → 입장하기. 한 항목을 정하면 다음 항목이 나타난다 */
-const STEPS = ['stepCode', 'stepWho', 'stepName', 'stepRole', 'stepGo'];
-const showStep = (n) => STEPS.forEach((id, i) => { if (i <= n) $(id).hidden = false; });
-const codeValue = () => $('code').value.trim().toLowerCase().normalize('NFC').slice(0, 20);
+/* ───────────── 입장 화면 ─────────────
+   들어오는 주소가 역할을 정한다. 그래서 학생 화면에는 "선생님"을 고르는 곳이 없다.
+     기본 주소               "수업 만들기(선생님)"와 "수업 들어가기(학생)" 가운데 고른다
+     ?code=수업코드          학생 초대 링크: 이름 → 캐릭터 → 입장
+     ?code=수업코드&t=열쇠   선생님용 링크: 함께 가르칠 선생님이 이름 → 캐릭터 → 입장
+   수업을 만드는 선생님은 수업 코드를 정하고, 강의실 · 자리 배치 · 칠판을 미리 골라서 들어간다 */
+let role = '';                       // 'student' | 'teacher'
+let creator = false;                 // 수업을 만드는 선생님인지 (강의실을 미리 고른다)
+const preset = { form: 'mid', table: 'solo', board: 'video' };      // 미리 고른 강의실
+const STEP_IDS = ['stepStart', 'stepCode', 'stepName', 'stepWho', 'stepRoom', 'stepGo'];
+const showOnly = (...ids) => { for (const id of STEP_IDS) $(id).hidden = !ids.includes(id); };
+const reveal = (id) => { $(id).hidden = false; };
+const normalCode = (text) => String(text).trim().toLowerCase().normalize('NFC').slice(0, 20);
+const codeValue = () => normalCode($('code').value);
 
+// 선생님용 링크의 열쇠: 수업 코드로 만든 짧은 값.
+// 따로 서버가 없어서 진짜 잠금은 아니다. 학생 초대 링크와 구분해서, 학생이 실수로 선생님이 되지 않게 하는 표시다
+function teacherKey(code) {
+  let h = 2166136261;
+  for (const ch of `${normalCode(code)}|3d-classroom-teacher`) h = Math.imul(h ^ ch.codePointAt(0), 16777619) >>> 0;
+  return h.toString(36);
+}
+const inviteLink = (forTeacher) =>
+  `${location.href.split(/[?#]/)[0]}?code=${encodeURIComponent(roomCode)}${forTeacher ? `&t=${teacherKey(roomCode)}` : ''}`;
+async function copyLink(forTeacher) {
+  const url = inviteLink(forTeacher);
+  try {
+    await navigator.clipboard.writeText(url);
+    toast(forTeacher ? '선생님용 링크를 복사했어요. 함께 가르칠 선생님에게만 보내세요.' : '학생 초대 링크를 복사했어요. 이 링크로 들어오면 학생으로 입장해요.', 5000);
+  } catch {
+    window.prompt(forTeacher ? '선생님용 링크예요. 복사해서 함께 가르칠 선생님에게만 보내세요' : '학생 초대 링크예요. 복사해서 보내세요', url);
+  }
+  canvas.focus();
+}
+$('room').addEventListener('click', () => copyLink(false));
+$('linkStudent').addEventListener('click', () => copyLink(false));
+$('linkTeacher').addEventListener('click', () => copyLink(true));
+$('inviteCopy').addEventListener('click', () => { $('invite').hidden = true; copyLink(false); });
+$('inviteClose').addEventListener('click', () => { $('invite').hidden = true; canvas.focus(); });
+
+// 처음 화면: 선생님 · 학생 가운데 고른다
+function showStart() {
+  role = '';
+  creator = false;
+  $('roleNote').textContent = '';
+  $('restart').hidden = true;
+  showOnly('stepStart');
+}
+// 역할이 정해졌다 → 그 역할의 입장 순서를 시작한다
+//   locked = 초대 링크로 받은 수업 코드 (바꿀 수 없다)   create = 수업을 만드는 선생님
+function beginEntry(newRole, { code = '', locked = false, create = false } = {}) {
+  role = newRole;
+  creator = create;
+  $('roleNote').textContent = role === 'teacher' ? (create ? '선생님 · 수업 만들기' : '선생님으로 들어가요') : '학생으로 들어가요';
+  $('restart').hidden = locked;                 // 초대 링크로 온 사람에게는 처음 화면이 없다
+  $('code').value = code;
+  $('code').readOnly = locked;
+  $('codeNext').hidden = locked;
+  $('codeLabel').textContent = create ? '수업 코드 정하기' : '수업 코드';
+  $('netNote').textContent = locked ? '초대 링크로 받은 코드'
+    : create ? '학생들에게 알려 줄 코드예요. 원하는 대로 바꿔도 돼요.' : '선생님이 알려 준 코드를 적어 주세요.';
+  showOnly('stepCode');
+  if (locked) reveal('stepName');
+  (locked ? $('nick') : $('code')).focus();
+}
 function codeDone() {
   if (!codeValue()) {                           // 수업 코드는 꼭 있어야 한다
-    $('netNote').textContent = '수업 코드를 입력해 주세요. 선생님이 알려 준 코드를 그대로 적으면 돼요.';
+    $('netNote').textContent = creator ? '수업 코드를 정해 주세요. 예: 수학1반' : '수업 코드를 입력해 주세요. 선생님이 알려 준 코드를 그대로 적으면 돼요.';
     $('code').focus();
     return;
   }
-  if (!$('code').readOnly) $('netNote').textContent = '';
-  showStep(1);
+  reveal('stepName');
+  $('nick').focus();
 }
 function nameDone() {
   if (!$('nick').value.trim()) $('nick').value = CHARACTERS[chosen].name;
-  showStep(2);
-  showStep(3);
+  reveal('stepWho');
 }
+function whoDone() {
+  if (creator) reveal('stepRoom');
+  reveal('stepGo');
+}
+$('startTeach').addEventListener('click', () => beginEntry('teacher', {
+  create: true,
+  code: profile.role === 'teacher' && profile.code ? profile.code : `수업-${1000 + Math.floor(Math.random() * 9000)}`,
+}));
+$('startJoin').addEventListener('click', () => beginEntry('student', { code: profile.role === 'student' && profile.code ? profile.code : '' }));
+$('restart').addEventListener('click', showStart);
 $('codeNext').addEventListener('click', codeDone);
 $('nameNext').addEventListener('click', nameDone);
 $('code').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); codeDone(); } });
 $('nick').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); nameDone(); } });
 document.querySelectorAll('.pick [data-who]').forEach((b) => b.addEventListener('click', () => {
   choose(b.dataset.who);
-  showStep(2);
-}));
-document.querySelectorAll('.pick [data-role]').forEach((b) => b.addEventListener('click', () => {
-  $('teacher').checked = b.dataset.role === 'teacher';
-  document.querySelectorAll('.pick [data-role]').forEach((o) => o.setAttribute('aria-pressed', String(o === b)));
-  showStep(4);
+  whoDone();
 }));
 
-// 수업 코드가 든 초대 링크 (주소 끝에 ?code=수업코드)
-const inviteLink = () => `${location.href.split(/[?#]/)[0]}?code=${encodeURIComponent(roomCode)}`;
-$('room').addEventListener('click', async () => {
-  const url = inviteLink();
-  try {
-    await navigator.clipboard.writeText(url);
-    toast('초대 링크를 복사했어요. 붙여 넣어 보내면 수업 코드가 채워진 채로 열려요.', 5000);
-  } catch {
-    window.prompt('이 링크를 복사해서 보내세요', url);
+// 강의실 미리 고르기 (수업을 만드는 선생님)
+const PRESETS = [['form', 'preForm', FORMS], ['table', 'preTable', TABLES], ['board', 'preBoard', BOARDS]];
+function showPreset() {
+  for (const [kind, id] of PRESETS) {
+    for (const b of $(id).children) b.setAttribute('aria-pressed', String(b.dataset.k === preset[kind]));
   }
-  canvas.focus();
-});
+  for (const b of $('preTable').children) b.disabled = !!FORMS[preset.form].fixed;       // 계단식 · 강당은 고정 좌석
+}
+for (const [kind, id, set] of PRESETS) {
+  for (const key in set) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.dataset.k = key;
+    b.textContent = set[key].name;
+    if (set[key].note) {
+      const small = document.createElement('small');
+      small.textContent = set[key].note;
+      b.append(small);
+    }
+    b.addEventListener('click', () => { preset[kind] = key; showPreset(); });
+    $(id).append(b);
+  }
+}
+showPreset();
 
-$('enterForm').addEventListener('submit', (e) => {
-  e.preventDefault();
-  if (entered || $('stepGo').hidden || !codeValue()) return;      // 모든 항목을 정해야 들어갈 수 있다
+function enter() {
+  if (entered || !role || $('stepGo').hidden || !codeValue()) return;      // 모든 항목을 정해야 들어갈 수 있다
   player = actors[chosen];
   mate = actors[chosen === 'roy' ? 'stella' : 'roy'];
   myName = ($('nick').value.trim() || player.name).slice(0, 12);
   roomCode = codeValue();
-  isTeacher = $('teacher').checked;
+  isTeacher = role === 'teacher';
   saveProfile();
+  if (creator) {                                // 미리 고른 강의실로 짓는다 (이미 있던 사람들도 이 설정을 따른다)
+    const ch = {}, now = Date.now();
+    for (const kind in preset) {
+      cfgAt[kind] = now;
+      if (cfg[kind] !== preset[kind]) { cfg[kind] = preset[kind]; ch[kind] = true; }
+    }
+    if (Object.keys(ch).length) applyConfig(ch);
+  }
   player.wave = mate.wave = 0;
   player.setSelf(true);
-  if (online()) spawn(player);                  // 여럿이 겹쳐 서지 않게 입구 쪽 빈 곳 아무 데서나 시작한다
-  player.bodyYaw = player.lookYaw = FRONT;      // 칠판 쪽을 보고 시작
+  spawn(player);                                // 학생은 문 쪽, 선생님은 칠판 앞에서 시작한다
+  player.bodyYaw = player.lookYaw = isTeacher ? 0 : FRONT;      // 학생은 칠판을, 선생님은 강의실을 보고 시작
   player.lookPitch = 0.05;
   player.applyPose();
-  // 혼자 입장하면 친구가 둘째 줄 가운데 자리로 걸어가 앉는다. 함께 접속하면 친구 대신 진짜 사람들이 보인다
-  mate.model.root.visible = mate.model.blob.visible = !online();
-  mateNext = online() ? null : seats[chosen === 'roy' ? 9 : 8];
-  mateTimer = 25 + Math.random() * 20;
-  if (online()) netJoin();
+  mate.model.root.visible = mate.model.blob.visible = false;     // 소개 화면에 서 있던 다른 캐릭터는 들어가지 않는다
+  mateNext = null;
+  netJoin();
   entered = true;
   audioReady();                       // 선생님이 BGM 을 틀면 바로 들리도록 소리를 준비해 둔다
   showSetup();
@@ -4542,18 +4808,24 @@ $('enterForm').addEventListener('submit', (e) => {
   $('entry').hidden = true;
   $('hud').hidden = false;
   $('remoteBtn').hidden = !isTeacher;           // 선생님에게만 리모컨이 있다
+  $('invite').hidden = !isTeacher;              // 선생님: 들어오자마자 초대 링크를 복사할 수 있다
   player.setRemote(isTeacher);
   setRemoteOut(isTeacher);
-  if (isTeacher) toast('리모컨으로 칠판을 조작하고, "강의실 설정"에서 강의실 · 자리 · 칠판 · BGM을 골라요', 7000);
+  toast(isTeacher ? '리모컨으로 칠판을 조작하고, "강의실 설정"에서 강의실 · 자리 · 칠판 · BGM을 바꿔요'
+    : '자리를 바라보고 X를 누르면 앉아요 · 칠판을 바라보고 X를 누르면 크게 볼 수 있어요', 7000);
   canvas.focus();
   dirty = true;
+}
+$('enterForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  enter();
 });
 
 /* ───────────── 화면 크기 ───────────── */
 function resize() {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO));
   renderer.setSize(window.innerWidth, window.innerHeight, false);
-  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.aspect = (window.innerWidth || 1) / (window.innerHeight || 1);      // 창이 가려져 있으면 크기가 0 으로 나온다
   camera.fov = camera.aspect < 1 ? 82 : 70;      // 세로 화면(휴대폰)에서는 조금 넓게
   camera.updateProjectionMatrix();
   if (zoomed) {                                  // 화면 폭이 바뀌면 칠판 영역도 다시 나눈다
@@ -4584,9 +4856,6 @@ function advance(dt) {
   if (laserThink(dt)) dirty = true;
   if (zoomThink(dt)) dirty = true;
   if (writeThink(dt)) dirty = true;
-  const near = atDoor();              // 문 앞에 막 도착했으면 나갈지 묻는다
-  if (near && !doorAsked) askExit();
-  doorAsked = near;
 }
 
 function frame(now) {
@@ -4614,39 +4883,59 @@ function frame(now) {
   info.triangles = renderer.info.render.triangles;
   drawn++;
 }
-// 지난번에 고른 캐릭터·이름·수업 코드를 다시 채워 준다
+// 지난번에 고른 것(역할 · 수업 코드 · 이름 · 캐릭터 · 강의실)을 기억해 두었다가 다시 채워 준다
 const PROFILE_KEY = 'classroom-profile-v1';
 function saveProfile() {
-  try {
-    localStorage.setItem(PROFILE_KEY, JSON.stringify({
-      who: chosen, name: nickTouched ? $('nick').value.trim() : '', code: $('code').value.trim(),
-      teacher: $('teacher').checked,
-    }));
-  } catch {}
+  profile = {
+    who: chosen, name: nickTouched ? $('nick').value.trim() : '', code: $('code').value.trim(),
+    role, creator, preset: { ...preset },
+  };
+  try { localStorage.setItem(PROFILE_KEY, JSON.stringify(profile)); } catch {}
 }
 let profile = {};
 try { profile = JSON.parse(localStorage.getItem(PROFILE_KEY)) || {}; } catch {}
+if (!profile.role && profile.code) profile.role = profile.teacher ? 'teacher' : 'student';     // 예전 방식으로 저장된 기록
+if (profile.role !== 'teacher' && profile.role !== 'student') profile.role = '';
+if (typeof profile.code !== 'string') profile.code = '';
+profile.code = profile.code.slice(0, 20);
 if (typeof profile.name === 'string' && profile.name) {
   $('nick').value = profile.name.slice(0, 12);
   nickTouched = true;
 }
-if (typeof profile.code === 'string') $('code').value = profile.code.slice(0, 20);
-
-// 초대 링크(?code=수업코드)로 들어왔으면 코드가 이미 정해져 있으니 바로 다음 항목부터 고른다
-const invited = (new URLSearchParams(location.search).get('code') || '').trim().slice(0, 20);
-if (invited) {
-  $('code').value = invited;
-  $('code').readOnly = true;
-  $('codeNext').hidden = true;
-  $('netNote').textContent = '초대 링크로 받은 코드';
-  showStep(1);
+if (profile.preset && typeof profile.preset === 'object') {
+  for (const [kind, , set] of PRESETS) if (Object.hasOwn(set, profile.preset[kind])) preset[kind] = profile.preset[kind];
+  showPreset();
 }
 $('nick').addEventListener('input', () => { nickTouched = $('nick').value.trim() !== ''; });
-if (!(SUPABASE_URL && SUPABASE_KEY)) {
-  $('netNote').textContent += ' 지금은 온라인 연결 전이라, 이 컴퓨터의 다른 탭끼리만 만나요.';
-}
-
 choose(profile.who === 'stella' ? 'stella' : 'roy');
+
+// 주소에 따라 입장 화면을 연다
+const query = new URLSearchParams(location.search);
+const invited = normalCode(query.get('code') || '');
+if (invited) {                                  // 초대 링크: 역할과 수업 코드가 이미 정해져 있다
+  beginEntry(query.get('t') === teacherKey(invited) ? 'teacher' : 'student', { code: invited, locked: true });
+  if (nickTouched) {                            // 전에 들어온 적이 있으면 이름 · 캐릭터가 채워져 있어서 바로 입장할 수 있다
+    reveal('stepWho');
+    reveal('stepGo');
+  }
+} else {
+  showStart();
+  if (profile.role && profile.code) {           // 지난번처럼 한 번에 들어가기
+    const who = CHARACTERS[profile.who === 'stella' ? 'stella' : 'roy'].name;
+    $('again').replaceChildren('지난번처럼 들어가기', Object.assign(document.createElement('small'), {
+      textContent: `${profile.role === 'teacher' ? '선생님' : '학생'} · ${profile.code} · ${profile.name || who}`,
+    }));
+    $('again').hidden = false;
+    $('again').addEventListener('click', () => {
+      beginEntry(profile.role, { code: profile.code, create: profile.role === 'teacher' });
+      nameDone();
+      whoDone();
+      enter();
+    });
+  }
+}
+if (!(SUPABASE_URL && SUPABASE_KEY)) $('netNote').textContent += ' 지금은 온라인 연결 전이라, 이 컴퓨터의 다른 탭끼리만 만나요.';
+
 requestAnimationFrame(frame);
 
 // 0.5초마다: 부하 표시 갱신 + 벽시계 분침 맞추기
@@ -4669,7 +4958,8 @@ setInterval(() => {
 window.classroom = {
   actors, seats, scene, renderer, attendance, findPath, advance, act, updateTarget, placeCamera,
   show, openFiles, gotoPage, startLive, endShow, showCanvas, notes, whispers, lasers, showText,
-  cfg, cfgAt, setConfig, ink, pen, strokes, inkAdd, FORMS, BOARD, spawn, nearestFree, playBgm, gotoArea, boardCam,
+  cfg, cfgAt, setConfig: (kind, key) => setConfig(kind, key, true), askConfig: setConfig, back, ink, pen, inviteLink, teacherKey,
+  get role() { return [role, creator, isTeacher]; }, strokes, inkAdd, FORMS, BOARD, spawn, nearestFree, playBgm, gotoArea, boardCam,
   get areas() { return [areas, areaAt, zoomX]; },
   get zoom() { return [zoomed, zoomAmt]; }, get bgm() { return bgmNow; }, get audio() { return ac; },
   get room() { return { ROOM, HW, HD, floorAt, obstacles, blocked, cellH, NX, NZ }; },
