@@ -297,7 +297,9 @@
     width: 24px; height: 24px; background: var(--c, #333); pointer-events: none;
     box-shadow: inset 3px 3px 0 rgba(255, 255, 255, .38), inset -3px -3px 0 rgba(0, 0, 0, .3), 0 0 0 2px #1b1b1b;
   }
-  #sizeBtn i, #penSizes i { width: var(--d); height: var(--d); background: #fff; box-shadow: 0 0 0 2px #1b1b1b; pointer-events: none; }
+  #sizeBtn i, #penSizes i { flex: none; width: var(--d); height: var(--d); background: #fff; box-shadow: 0 0 0 2px #1b1b1b; pointer-events: none; }
+  #pens #penSizes { align-items: center; gap: 10px; padding: 8px 12px; }
+  #sizeRange { width: 170px; height: 32px; margin: 0; accent-color: var(--coral); cursor: pointer; touch-action: none; }
   /* 지우개를 들었을 때 포인터를 따라다니는 점선 동그라미: 이만큼이 지워진다 */
   #eraseRing {
     position: absolute; left: 0; top: 0; z-index: 2; pointer-events: none; border-radius: 50%;
@@ -702,11 +704,11 @@
       </div>
     </div>
     <div class="grp menu">
-      <button type="button" class="slot more" id="sizeBtn" aria-haspopup="true" aria-expanded="false" aria-label="굵기 고르기" title="굵기: 누르면 다른 굵기를 고를 수 있어요"><i style="--d: 8px"></i></button>
+      <button type="button" class="slot more" id="sizeBtn" aria-haspopup="true" aria-expanded="false" aria-label="굵기 고르기" title="굵기: 누르면 밀어서 굵기를 고를 수 있어요"><i style="--d: 8px"></i></button>
       <div class="pop" id="penSizes" hidden>
-        <button type="button" class="slot" data-size="0" aria-pressed="false" aria-label="가늘게" title="가늘게"><i style="--d: 4px"></i></button>
-        <button type="button" class="slot" data-size="1" aria-pressed="true" aria-label="보통 굵기" title="보통"><i style="--d: 8px"></i></button>
-        <button type="button" class="slot" data-size="2" aria-pressed="false" aria-label="굵게" title="굵게"><i style="--d: 14px"></i></button>
+        <i style="--d: 2px"></i>
+        <input id="sizeRange" type="range" min="0" max="7" step="1" value="4" aria-label="굵기 (왼쪽이 가늘게)">
+        <i style="--d: 16px"></i>
       </div>
     </div>
     <div class="grp" id="penHist">
@@ -1786,7 +1788,7 @@ showTex.colorSpace = THREE.SRGBColorSpace;
 showTex.anisotropy = screenTex.anisotropy;
 // 판서: 칠판 위에 손으로 쓴 것. 그래픽 카드로는 바뀐 조각만 보낸다 (full = 통째로 다시 보내야 함, dirty = 바뀐 조각 번호)
 const ink = { canvas: document.createElement('canvas'), ctx: null, used: false, full: true, dirty: new Set() };
-ink.ctx = ink.canvas.getContext('2d', CANVAS_2D);
+ink.ctx = ink.canvas.getContext('2d', { willReadFrequently: true });       // 판서 그림은 크다(수백만 점). 그래픽 카드에 두지 않고, 바뀐 조각만 떼어 올린다
 const strokes = [];                  // 판서한 획들 (그은 순서대로): { key, tool, color, size, pts: [u, v, …] }
 const strokeOf = new Map();          // 획 이름 → 획
 const inkTex = new THREE.CanvasTexture(ink.canvas);
@@ -1854,7 +1856,11 @@ function placeBoard() {
   live.w = 0;                                    // 칠판이 바뀌었으니 다음 장면에서 바탕과 크기를 다시 맞춘다
   screenObj.boxes[0].min.set(-w / 2 - 0.15, y - h / 2 - 0.15, z - 0.09);
   screenObj.boxes[0].max.set(w / 2 + 0.15, y + h / 2 + 0.15, z);
-  const iw = clamp(Math.round(w * 120), 1536, 3072), ih = Math.round(iw * h / w);     // 긴 칠판은 그만큼 촘촘하게 (1m 에 120점)
+  // 판서 그림의 촘촘함: 1m 에 400점(예전에는 120점이라 크게 보면 가장자리가 흐렸다). 긴 칠판은 그래픽 카드가 받는 크기와
+  // 기기의 기억 공간을 넘지 않게 줄인다 (가로 8192점 · 모두 840만 점까지, 휴대폰 · 패드는 가로 6144점 · 630만 점까지)
+  const handheld = matchMedia('(pointer: coarse)').matches;
+  const maxW = Math.min(renderer.capabilities.maxTextureSize, handheld ? 6144 : 8192), maxArea = handheld ? 6.3e6 : 8.4e6;
+  const iw = Math.round(clamp(Math.min(w * 400, maxW, Math.sqrt(maxArea * w / h)), 1024, 8192)), ih = Math.round(iw * h / w);
   if (ink.canvas.width !== iw || ink.canvas.height !== ih) {      // 칠판 크기가 바뀌면 판서도 새로 시작한다
     ink.canvas.width = iw;
     ink.canvas.height = ih;
@@ -3361,9 +3367,11 @@ function relayoutZoom() {
 }
 // 칠판을 화면 폭에 맞춰 영역으로 나눈다 (이웃한 영역은 조금씩 겹친다)
 function layoutAreas() {
-  const vis = boardCam().vis, span = Math.max(0, BOARD.w + 0.3 - vis);
-  const n = span > 0.05 ? Math.ceil(span / (vis * 0.8)) + 1 : 1;
-  areas = Array.from({ length: n }, (_, i) => (n === 1 ? 0 : -span / 2 + i * span / (n - 1)));
+  // 화면 1 · 2 · 3 … 은 책장처럼 칠판의 왼쪽 끝에서부터 한 화면 분량씩 이어진다 (서로 겹치지 않는다).
+  // 칠판이 화면 폭의 배수가 아니면 마지막 화면은 칠판의 남은 부분만 보이고 그 오른쪽은 벽이다
+  const vis = boardCam().vis, full = BOARD.w + 0.3;
+  const n = full - vis > 0.05 ? Math.ceil((full - 0.02) / vis) : 1;
+  areas = Array.from({ length: n }, (_, i) => (n === 1 ? 0 : -full / 2 + vis / 2 + i * vis));
   areaAt = clamp(areaAt, 0, n - 1);
 }
 const nearestArea = (x) => areas.reduce((best, c, i) => (Math.abs(c - x) < Math.abs(areas[best] - x) ? i : best), 0);
@@ -5489,10 +5497,11 @@ $('lobbySound').addEventListener('click', () => { toggleSound(); if (soundOn) pl
         e                   통째로 지울 획 이름들
         x                   모두 지우기
         all                 나중에 들어온 사람에게 보내 주는 지금까지의 획들 (r = 받기 전에 비우기) */
-const PEN_W = [0.55, 1, 1.9];        // 굵기 세 단계
+const PEN_W = [0.15, 0.25, 0.4, 0.6, 0.85, 1.2, 1.7, 2.4];       // 굵기 여덟 단계 (가장 가는 것은 예전 '가늘게'의 1/4 쯤)
+const PEN_DOT = [2, 3, 4, 6, 8, 10, 13, 16];        // 도구 줄의 굵기 칸에 보이는 점의 크기(px)
 const TOOL_NO = { ball: 0, fount: 1, rub: 2 };
-const round4 = (v) => Math.round(v * 10000) / 10000;
-const pen = { id: null, tool: 'ball', erase: 'rub', write: 'ball', color: 0, size: 1, key: '', n: 0, last: null, out: [], gone: [], zout: [], zend: false, sentAt: 0, did: { keys: [], gone: [] } };
+const round4 = (v) => Math.round(v * 100000) / 100000;      // (보낼 때) 소수 다섯 자리까지: 16m 칠판에서 0.16mm
+const pen = { id: null, tool: 'ball', erase: 'rub', write: 'ball', color: 0, size: 4, key: '', n: 0, last: null, out: [], gone: [], zout: [], zend: false, sentAt: 0, puts: new Map(), did: { keys: [], gone: [], orig: [], live: new Set() } };
 
 /* 획에서 아직 그리지 않은 부분을 그린다 (from = 이미 그린 점의 수).
    점과 점을 곧은 선으로 이으면 빨리 그은 획에서 꺾인 자국이 보인다. 그래서 꺾이는 점마다
@@ -5533,7 +5542,7 @@ function inkDraw(st, from) {
     c.stroke();
   }
   // 방금 그린 곳을 감싸는 네모 (선 굵기의 절반 + 가장자리 번짐만큼 넉넉하게) → 그 조각들만 그래픽 카드로 다시 보낸다
-  if (!ink.full) {
+  if (!ink.full && !ink.quiet) {
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     for (let i = Math.max(0, from - 2); i < n; i++) {
       const x = X(i), y = Y(i);
@@ -5565,11 +5574,12 @@ function inkMark(x0, y0, x1, y1) {   // 캔버스의 이 네모가 바뀌었다
   for (let r = r0; r <= r1; r++) for (let col = c0; col <= c1; col++) ink.dirty.add(r * cols + col);
 }
 function inkFlush() {                // 화면을 그리기 전에 부른다
-  if ((!ink.full && !ink.dirty.size) || !inkMesh.visible) return;
+  if ((!ink.full && !ink.dirty.size && !ink.mipDue) || !inkMesh.visible) return;
   const W = ink.canvas.width, H = ink.canvas.height, cols = Math.ceil(W / INK_TILE), rows = Math.ceil(H / INK_TILE);
   const target = renderer.properties.get(inkTex).__webglTexture;       // 그래픽 카드에 올라가 있는 판서 그림
   if (ink.full || !target || ink.dirty.size > cols * rows * 0.4) {
-    inkTex.needsUpdate = true;       // 통째로
+    inkTex.needsUpdate = true;       // 통째로 (밉맵도 그때 함께 만들어진다)
+    ink.mipDue = false;
     lap.upN++;
     lap.upPx += W * H;
   } else {
@@ -5586,7 +5596,7 @@ function inkFlush() {                // 화면을 그리기 전에 부른다
       let piece = inkScratch.get(w * 4096 + h);
       if (!piece) {
         const canvas = Object.assign(document.createElement('canvas'), { width: w, height: h });
-        piece = { canvas, ctx: canvas.getContext('2d', CANVAS_2D) };
+        piece = { canvas, ctx: canvas.getContext('2d', { willReadFrequently: true }) };
         piece.ctx.globalCompositeOperation = 'copy';       // 투명한 곳까지 그대로 옮겨 담는다
         inkScratch.set(w * 4096 + h, piece);
       }
@@ -5595,7 +5605,15 @@ function inkFlush() {                // 화면을 그리기 전에 부른다
       lap.upN++;
       lap.upPx += w * h;
     }
-    if (inkTex.generateMipmaps) gl.generateMipmap(gl.TEXTURE_2D);       // 작게 보일 때 쓰는 그림(밉맵)도 다시 만든다
+    // 작게 보일 때 쓰는 그림(밉맵)은 큰 그림 전체를 다시 줄여 만드는 일이라 0.2초에 한 번만 한다.
+    // (쓰는 사람은 크게 보고 있어서 밉맵을 쓰지 않는다. 멀리서 보는 사람에게만 0.2초 늦게 보인다)
+    if (ink.dirty.size) ink.mipDue = true;
+    const nowMs = performance.now();
+    if (ink.mipDue && inkTex.generateMipmaps && nowMs - (ink.mipAt || 0) > 200) {
+      gl.generateMipmap(gl.TEXTURE_2D);
+      ink.mipAt = nowMs;
+      ink.mipDue = false;
+    }
     renderer.state.unbindTexture();
   }
   ink.full = false;
@@ -5634,16 +5652,48 @@ function inkRedraw() {
   dirty = true;
 }
 // 획을 통째로 지운다
+// 획이 그림에서 차지하는 네모 (uv). 선 굵기의 절반과 가장자리 번짐만큼 넉넉하게 잡는다
+function strokeArea(st) {
+  const W = ink.canvas.width, H = ink.canvas.height, base = H * 0.009 * PEN_W[st.size];
+  const pad = (st.tool === 2 ? base * 7 : base * 1.7) / 2 + 3;
+  return [st.box[0] - pad / W, st.box[1] - pad / H, st.box[2] + pad / W, st.box[3] + pad / H];
+}
+// 그림의 한 네모(uv)만 다시 그린다: 그 안을 비우고, 걸치는 획들을 차례대로 다시 긋는다 (네모 밖은 건드리지 않는다)
+function inkPatch(u0, v0, u1, v1) {
+  const c = ink.ctx, W = ink.canvas.width, H = ink.canvas.height;
+  const x0 = Math.max(0, Math.floor(u0 * W) - 1), x1 = Math.min(W, Math.ceil(u1 * W) + 1);
+  const y0 = Math.max(0, Math.floor((1 - v1) * H) - 1), y1 = Math.min(H, Math.ceil((1 - v0) * H) + 1);
+  if (x1 <= x0 || y1 <= y0) return;
+  c.save();
+  c.beginPath();
+  c.rect(x0, y0, x1 - x0, y1 - y0);
+  c.clip();
+  c.globalCompositeOperation = 'source-over';
+  c.clearRect(x0, y0, x1 - x0, y1 - y0);
+  ink.quiet = true;                  // (획마다 바뀐 곳을 따로 적지 않는다. 이 네모만 적으면 된다)
+  for (const st of strokes) {
+    const a = strokeArea(st);
+    if (a[2] < u0 || a[0] > u1 || a[3] < v0 || a[1] > v1) continue;
+    st.w = 0;
+    inkDraw(st, 0);
+  }
+  ink.quiet = false;
+  c.restore();
+  if (!ink.full) inkMark(x0, y0, x1, y1);
+  dirty = true;
+}
+const inkPatchStroke = (st) => inkPatch(...strokeArea(st));
 function inkErase(keys) {
-  let any = false;
+  const gone = [];
   for (const key of keys) {
     const st = strokeOf.get(key);
     if (!st) continue;
     strokeOf.delete(key);
     strokes.splice(strokes.indexOf(st), 1);
-    any = true;
+    gone.push(st);
   }
-  if (any) inkRedraw();
+  if (gone.length > 12) inkRedraw();           // 많이 지웠으면 통째로 다시 그리는 편이 빠르다
+  else for (const st of gone) inkPatchStroke(st);
 }
 function inkClear(announce, keepHist) {
   if (!announce) { if (!keepHist) histReset(); }       // 남이 지웠거나 칠판이 바뀌었다: 되돌릴 것이 없다
@@ -5688,8 +5738,10 @@ function inkPut(key, tool, color, size, pts, after) {
   inkAdd(key, tool, color, size, pts);
   const at = after === '' ? 0 : strokeOf.has(after) ? strokes.indexOf(strokeOf.get(after)) + 1 : -1;
   if (at < 0 || at >= strokes.length - 1) return false;
-  strokes.splice(at, 0, strokes.pop());
-  return true;
+  const st = strokes.pop();
+  strokes.splice(at, 0, st);
+  inkPatchStroke(st);                // 순서가 바뀌었으니 그 획이 있는 곳을 차례에 맞게 다시 그린다
+  return false;
 }
 // 지웠던 획들을 다시 그리고 모두에게 보낸다
 function histRestore(items) {
@@ -5735,6 +5787,10 @@ function undo() {
       const items = histRemove(a.items.map((it) => it.key));
       if (!items.length) continue;   // 누가 이미 지운 획: 그 앞의 일을 되돌린다
       a.items = items;
+    } else if (a.kind === 'cut') {   // 문질러 잘라 낸 것: 남은 조각들을 치우고 자르기 전의 획을 되살린다
+      const made = histRemove(a.made.map((it) => it.key));
+      histRestore(a.gone);
+      a.made = made;
     } else histRestore(a.items);
     hist.redo.push(a);
     break;
@@ -5746,7 +5802,11 @@ function redo() {
   penUp();
   for (let a = hist.redo.pop(); a; a = hist.redo.pop()) {
     if (a.kind === 'add') histRestore(a.items);
-    else {
+    else if (a.kind === 'cut') {     // 다시 잘라 낸다: 되살린 획을 치우고 조각들을 되돌려 놓는다
+      const gone = histRemove(a.gone.map((it) => it.key));
+      histRestore(a.made);
+      a.gone = gone;
+    } else {
       const items = histRemove(a.items.map((it) => it.key));
       if (!items.length) continue;
       a.items = items;
@@ -5794,50 +5854,70 @@ function boardUV(e) {
    판서 그림(캔버스)에는 남기지 않고, 칠판 바로 앞에 띠 모양 도형으로 그린다 (획 하나가 도형 하나).
    선생님은 어느 칠판에서나(영상 스크린 위에도), 학생은 자유 보드에서만 쓸 수 있다 */
 const ZAP = {
-  hold: 1200, fade: 500,             // 손을 멈춘 뒤 머무는 시간 · 사라지는 데 걸리는 시간
-  linger: 7000,                      // 계속 쓰고 있어도 이보다 오래된 획은 먼저 사라진다
-  idle: 1500,                        // 끝났다는 말 없이 점이 끊긴 지 이만큼 지나면 끝난 것으로 본다
-  z: 0.012, max: 60,
+  hold: 3000, fade: 600,             // 펜을 뗀 뒤 머무는 시간(그 뒤에 그 사람이 레이저로 쓴 것이 한꺼번에 사라진다) · 사라지는 데 걸리는 시간
+  idle: 1500,                        // 끝났다는 말도, "아직 누르고 있다"는 말도 없이 이만큼 지나면 끝난 것으로 본다
+  keep: 600,                         // 누른 채 가만히 있는 동안 이 간격으로 "아직 누르고 있다"고 알린다
+  z: 0.012, max: 400,
 };
 const zaps = new Map();              // 획 이름 → { who, pts: [u, v, …], size, mesh, done: 끝난 시각(0 = 긋는 중), at: 마지막 점이 온 시각, fadeAt }
 const canZap = () => zoomed && zoomWrite && (isTeacher || canWrite());       // 레이저 펜도 가까이에서 쓰기를 시작했을 때만
-const zapMat = () => new THREE.ShaderMaterial({
-  transparent: true, depthWrite: false, side: THREE.DoubleSide,
-  uniforms: { opacity: { value: 1 }, grow: { value: 1 }, whiten: { value: 0.85 } },
+/* 레이저 펜의 획은 "토막마다의 알약 모양"을 모아서 그린다. 띠 하나로 이어 붙이면 급하게 꺾이는 곳에서 안쪽이 접혀 사방으로 튀기 때문이다.
+   토막(두 점 사이)마다 네모 하나를 놓고, 그 안의 점마다 "토막에서 얼마나 떨어졌는지"로 흰 심과 붉은 빛을 정한다 (양 끝은 저절로 둥글다).
+   토막들이 겹치는 곳(이어지는 점 · 꺾이는 곳 · 획이 엇갈리는 곳)은 두 번 칠해져 밝아지면 안 되므로 두 단계로 그린다:
+     ① 깊이만 적는다 — 토막에 가까울수록 앞에 있는 것처럼 적어서, 점마다 "가장 가까운 토막"만 남는다
+     ② 색을 칠한다 — ①에서 남은 것과 깊이가 똑같은 조각만 통과한다 → 점마다 한 번만 칠해진다 */
+const zapShader = {
   vertexShader: `
-    attribute vec2 off;              // 가운데 줄에서 옆(과 끝 방향)으로 벌어지는 만큼
-    attribute vec3 ac;               // x = 옆으로 얼마나 (-1 ~ 1), y = 둥근 끝에서 얼마나 (0 ~ 1), z = 펜 끝의 밝은 점인지
+    attribute vec3 seg;              // 토막의 방향 (x, y) · 길이
+    attribute vec3 cor;              // 어느 모서리인지: x = 0 시작 쪽 · 1 끝 쪽, y = 옆(-1 · 1), z = 펜 끝의 밝은 점인지
+    attribute float rad;             // 빛의 반지름
     uniform float grow;              // 사라질 때 가늘어지는 정도
-    varying vec3 vAc;
+    varying vec4 vSeg;               // 토막을 따라 온 길이 · 옆으로 벗어난 길이 · 토막의 길이 · 반지름
+    varying float vHead;
     void main() {
-      vAc = ac;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position.xy + off * grow, position.z, 1.0);
+      float r = rad * grow;
+      float along = cor.x > 0.5 ? seg.z + r : -r;
+      float side = cor.y * r;
+      vSeg = vec4(along, side, seg.z, r);
+      vHead = cor.z;
+      vec2 p = position.xy + seg.xy * along + vec2(-seg.y, seg.x) * side;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(p, position.z, 1.0);
     }`,
   fragmentShader: `
     uniform float opacity;
-    uniform float whiten;            // 심을 얼마나 희게 할지: 어두운 칠판에서는 흰빛이 돌게, 밝은 칠판에서는 붉은색이 또렷하게
-    varying vec3 vAc;
+    varying vec4 vSeg;
+    varying float vHead;
     void main() {
-      float d = length(vAc.xy);      // 가운데 줄에서 떨어진 정도 (1 = 빛의 가장자리)
+      // 필기 앱의 레이저 펜처럼: 가운데는 흰 글씨, 둘레로 붉은 빛이 번진다
+      float d = length(vec2(vSeg.x - clamp(vSeg.x, 0.0, vSeg.z), vSeg.y)) / vSeg.w;       // 토막에서 떨어진 정도 (1 = 빛의 가장자리)
       if (d >= 1.0) discard;
-      float core = 1.0 - smoothstep(0.24, 0.40, d);            // 진한 심
-      float glow = pow(1.0 - d, 1.6);                           // 둘레로 퍼지는 빛
-      vec3 color = mix(vec3(1.0, 0.03, 0.02), vec3(1.0, 0.62, 0.56), core * whiten * (0.8 + 0.2 * vAc.z));
-      gl_FragColor = vec4(color, max(core, glow * (0.6 + 0.4 * vAc.z)) * opacity);
+      gl_FragDepth = gl_FragCoord.z - (1.0 - d) * 0.00006;      // 토막에 가까울수록 앞에
+      float core = 1.0 - smoothstep(0.16, 0.30, d);            // 흰 심
+      float glow = pow(1.0 - d, 1.35);                          // 둘레로 번지는 붉은 빛
+      vec3 color = mix(vec3(1.0, 0.06, 0.04), vec3(1.0), core);
+      gl_FragColor = vec4(color, max(core, glow * (0.75 + 0.25 * vHead)) * opacity);
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
     }`,
-});
+};
+function zapMats() {                 // [① 깊이만 적는 재질, ② 색을 칠하는 재질] — 값(opacity · grow)은 둘이 함께 쓴다
+  const uniforms = { opacity: { value: 1 }, grow: { value: 1 } };
+  const depth = new THREE.ShaderMaterial({ ...zapShader, uniforms, transparent: true, side: THREE.DoubleSide, colorWrite: false, depthWrite: true, depthFunc: THREE.LessDepth });
+  const color = new THREE.ShaderMaterial({ ...zapShader, uniforms, transparent: true, side: THREE.DoubleSide, depthWrite: false, depthFunc: THREE.EqualDepth });
+  return [depth, color];
+}
 function zapAdd(key, size, pts, end = false) {
   let z = zaps.get(key);
   const now = performance.now();
   if (!z) {
     if (zaps.size >= ZAP.max || !pts.length) return;
-    const mesh = new THREE.Mesh(new THREE.BufferGeometry(), zapMat());
-    mesh.renderOrder = 2.5;            // 판서(2) 위, 포인터의 점(3) 아래
-    mesh.frustumCulled = false;
-    scene.add(mesh);
-    z = { who: key.slice(0, key.lastIndexOf('-z')), pts: [], size, mesh, done: 0, at: now, fadeAt: 0 };
+    const [depthMat, colorMat] = zapMats(), geo = new THREE.BufferGeometry();
+    const under = new THREE.Mesh(geo, depthMat), mesh = new THREE.Mesh(geo, colorMat);
+    under.renderOrder = 2.4;           // ① 깊이를 먼저 (모든 레이저 획의 깊이가 색보다 앞선다)
+    mesh.renderOrder = 2.5;            // ② 색: 판서(2) 위, 포인터의 점(3) 아래
+    under.frustumCulled = mesh.frustumCulled = false;
+    scene.add(under, mesh);
+    z = { who: key.slice(0, key.lastIndexOf('-z')), pts: [], size, mesh, under, done: 0, at: now, fadeAt: 0 };
     zaps.set(key, z);
   }
   if (z.pts.length + pts.length <= 6000) for (const v of pts) z.pts.push(v);
@@ -5866,74 +5946,44 @@ function zapBuild(z) {
   }
   if (C.length === 2) C.push(C[0] + 0.002, C[1]);                  // 점 하나: 아주 짧은 줄
   const count = C.length / 2;
-  const R = BOARD.h * 0.009 * PEN_W[z.size] * 1.5;                 // 빛의 반지름 (심의 굵기는 펜의 0.7배쯤)
-  const pos = [], off = [], ac = [], idx = [];
-  const row = (x, y, tx, ty, r, back, cap) => {                     // 가운데 줄의 한 점: 왼쪽 · 오른쪽 꼭짓점
-    for (const side of [1, -1]) {
+  const R = Math.max(BOARD.h * 0.009 * PEN_W[z.size] * 2.2, BOARD.h * 0.007);       // 빛의 반지름 (흰 심은 그 1/4 쯤). 가는 굵기에서도 빛이 보이게 아래 끝을 둔다
+  // 토막마다 네모 하나 (꼭짓점 넷). 반지름은 획의 처음에서 가늘게 들어간다
+  const pos = [], seg = [], cor = [], rad = [], idx = [];
+  const capsule = (x, y, dx, dy, len, r0, r1, head) => {
+    const v = pos.length / 3;
+    for (const end of [0, 1]) for (const side of [-1, 1]) {
       pos.push(x, y, 0);
-      off.push(-ty * side * r + tx * back, tx * side * r + ty * back);
-      ac.push(side, cap, 0);
-    }
-  };
-  // 토막마다의 방향
-  const dir = [];
-  for (let k = 0; k < count - 1; k++) {
-    const dx = C[k * 2 + 2] - C[k * 2], dy = C[k * 2 + 3] - C[k * 2 + 1], len = Math.hypot(dx, dy) || 1;
-    dir.push(dx / len, dy / len);
-  }
-  /* 띠를 잇는다. 점마다 앞뒤 토막 방향의 한가운데 방향으로 폭을 벌리되, 급하게 꺾이는 곳(약 75° 넘게)에서는
-     띠를 거기서 둥글게 끝내고 새로 둥글게 시작한다. 한 줄로 이어 붙이면 꺾이는 점에서 방향이 뒤집혀 띠가 뾰족하게 튀기 때문이다 */
-  let run = 0, open = false;           // run = 획의 처음부터 온 길이, open = 띠가 이어지는 중인지
-  const link = () => { const v = pos.length / 3; idx.push(v - 4, v - 3, v - 2, v - 3, v - 1, v - 2); };
-  for (let k = 0; k < count; k++) {
-    const x = C[k * 2], y = C[k * 2 + 1];
-    if (k) run += Math.hypot(x - C[k * 2 - 2], y - C[k * 2 - 1]);
-    const ease = clamp(run / (R * 5), 0, 1), r = R * (0.45 + 0.55 * ease * ease * (3 - 2 * ease));      // 시작은 가늘게 들어간다
-    const ix = k ? dir[k * 2 - 2] : 0, iy = k ? dir[k * 2 - 1] : 0;                 // 들어오는 방향
-    const ox = k < count - 1 ? dir[k * 2] : 0, oy = k < count - 1 ? dir[k * 2 + 1] : 0;       // 나가는 방향
-    const sharp = k > 0 && k < count - 1 && ix * ox + iy * oy < 0.25;
-    if (k > 0 && (sharp || k === count - 1)) {      // 여기서 띠를 끝낸다: 들어오던 방향 그대로 + 둥근 마개
-      row(x, y, ix, iy, r, 0, 0);
-      link();
-      row(x, y, ix, iy, r, r, 1);
-      link();
-      open = false;
-    }
-    if (k < count - 1 && (sharp || !open)) {        // 여기서 띠를 시작한다: 둥근 마개 + 나가는 방향
-      row(x, y, ox, oy, r, -r, 1);
-      row(x, y, ox, oy, r, 0, 0);
-      link();
-      open = true;
-    } else if (open && k < count - 1) {             // 이어지는 점: 두 방향의 한가운데
-      const mx = ix + ox, my = iy + oy, len = Math.hypot(mx, my) || 1;
-      row(x, y, mx / len, my / len, r, 0, 0);
-      link();
-    }
-  }
-  if (!z.done) {                       // 긋는 중: 펜 끝의 밝은 점
-    const x = C[count * 2 - 2], y = C[count * 2 - 1], v = pos.length / 3, r = R * 1.5;
-    for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-      pos.push(x, y, 0.001);
-      off.push(sx * r, sy * r);
-      ac.push(sx, sy, 1);
+      seg.push(dx, dy, len);
+      cor.push(end, side, head);
+      rad.push(end ? r1 : r0);
     }
     idx.push(v, v + 1, v + 2, v + 1, v + 3, v + 2);
+  };
+  let run = 0, r0 = R * 0.45;          // run = 획의 처음부터 온 길이
+  for (let k = 0; k < count - 1; k++) {
+    const x = C[k * 2], y = C[k * 2 + 1], dx = C[k * 2 + 2] - x, dy = C[k * 2 + 3] - y, len = Math.hypot(dx, dy) || 1e-6;
+    run += len;
+    const ease = clamp(run / (R * 5), 0, 1), r1 = R * (0.45 + 0.55 * ease * ease * (3 - 2 * ease));
+    capsule(x, y, dx / len, dy / len, len, r0, r1, 0);
+    r0 = r1;
   }
+  if (!z.done) capsule(C[count * 2 - 2], C[count * 2 - 1], 1, 0, 0, R * 1.5, R * 1.5, 1);       // 긋는 중: 펜 끝의 밝은 점
   z.mesh.geometry.dispose();
-  const geo = z.mesh.geometry = new THREE.BufferGeometry();
+  const geo = z.mesh.geometry = z.under.geometry = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  geo.setAttribute('off', new THREE.Float32BufferAttribute(off, 2));
-  geo.setAttribute('ac', new THREE.Float32BufferAttribute(ac, 3));
+  geo.setAttribute('seg', new THREE.Float32BufferAttribute(seg, 3));
+  geo.setAttribute('cor', new THREE.Float32BufferAttribute(cor, 3));
+  geo.setAttribute('rad', new THREE.Float32BufferAttribute(rad, 1));
   geo.setIndex(idx);
-  z.mesh.position.z = BOARD.z + ZAP.z;
-  z.mesh.material.uniforms.whiten.value = cfg.board === 'white' || cfg.board === 'free' ? 0.18 : 0.85;
+  z.mesh.position.z = z.under.position.z = BOARD.z + ZAP.z;
 }
 function zapDrop(key) {
   const z = zaps.get(key);
   if (!z) return;
-  scene.remove(z.mesh);
+  scene.remove(z.mesh, z.under);
   z.mesh.geometry.dispose();
   z.mesh.material.dispose();
+  z.under.material.dispose();
   zaps.delete(key);
 }
 // 매 프레임: 손을 멈춘 사람의 획들을 한꺼번에, 가늘어지면서 사라지게 한다
@@ -5948,10 +5998,19 @@ function zapThink(now) {
     }
     last.set(z.who, Math.max(last.get(z.who) || 0, z.done || now));
   }
+  // 누르고 있는 동안에는 사라지지 않는다: 내가 누른 채 가만히 있어도 "아직 누르고 있다"고 나와 남들에게 알린다
+  const mine = pen.id !== null && pen.tool === 'laser' ? zaps.get(pen.key) : null;
+  if (mine && !mine.done) {
+    mine.at = now;
+    if (now - (pen.zKeep || 0) > ZAP.keep) {
+      pen.zKeep = now;
+      if (link) link.send({ t: 'z', id: myId, s: pen.key, w: pen.size, p: [], e: 0 });
+    }
+  }
   for (const [key, z] of zaps) {
     if (!z.done) continue;
-    if (!z.fadeAt) {
-      const due = Math.min(last.get(z.who) + ZAP.hold, z.done + ZAP.linger);
+    if (!z.fadeAt) {                 // 그 사람이 펜을 뗀 지 hold 만큼 지나면, 그 사람이 쓴 것이 모두 같은 때에 사라지기 시작한다
+      const due = last.get(z.who) + ZAP.hold;
       if (now < due) continue;
       z.fadeAt = due;
     }
@@ -5971,8 +6030,88 @@ function onZap(m) {
   if (!peer || (!peer.teacher && cfg.board !== 'free')) return;
   if (typeof m.s !== 'string' || m.s.length > 40 || !m.s.startsWith(`${m.id}-z`)) return;
   if (!Array.isArray(m.p) || m.p.length > 2000 || m.p.length % 2 || !m.p.every(Number.isFinite)) return;
-  zapAdd(m.s, Number.isInteger(m.w) && m.w >= 0 && m.w <= 2 ? m.w : 1, m.p.map((v) => clamp(v, 0, 1)), !!m.e);
+  zapAdd(m.s, Number.isInteger(m.w) && m.w >= 0 && m.w < PEN_W.length ? m.w : 4, m.p.map((v) => clamp(v, 0, 1)), !!m.e);
   if (peer.teacher && m.p.length) followNote(BOARD.x + (clamp(m.p[m.p.length - 2], 0, 1) - 0.5) * BOARD.w);      // 학생 화면이 따라갈 곳
+}
+
+/* 자유 보드의 문지르는 지우개: 누구나 쓰는 칠판이라, 그림의 점을 지우면 남의 필기까지 지워진다.
+   그래서 그림을 지우는 대신 "내 획"에서 지우개 동그라미 안에 든 부분만 잘라 내고, 남은 조각들을 새 획으로 둔다.
+   다른 사람의 획은 건드리지 않는다. 되돌리면 잘라 내기 전의 내 획으로 돌아간다 */
+function cutStroke(pts, cx, cy, r) {             // 동그라미(m 단위)에 걸리지 않으면 null, 걸리면 남은 조각들
+  const n = pts.length / 2, r2 = r * r;
+  const X = (i) => pts[i * 2] * BOARD.w, Y = (i) => pts[i * 2 + 1] * BOARD.h;
+  const inside = (i) => (X(i) - cx) ** 2 + (Y(i) - cy) ** 2 < r2;
+  const pieces = [];
+  let cur = [], hit = false, wasIn = inside(0);
+  const push = (x, y) => cur.push(x / BOARD.w, y / BOARD.h);
+  const close = () => { if (cur.length >= 4) pieces.push(cur); cur = []; };
+  if (wasIn) hit = true;
+  else push(X(0), Y(0));
+  for (let i = 1; i < n; i++) {
+    const ax = X(i - 1), ay = Y(i - 1), bx = X(i), by = Y(i), isIn = inside(i);
+    const dx = bx - ax, dy = by - ay, fx = ax - cx, fy = ay - cy;
+    const A = dx * dx + dy * dy, B = 2 * (fx * dx + fy * dy), D = B * B - 4 * A * (fx * fx + fy * fy - r2);
+    let t1 = -1, t2 = -1;                        // 이 마디가 동그라미에 들어가는 곳 · 나오는 곳 (0~1)
+    if (A > 1e-12 && D > 0) { const q = Math.sqrt(D); t1 = (-B - q) / (2 * A); t2 = (-B + q) / (2 * A); }
+    if (!wasIn && !isIn) {
+      if (t1 > 0 && t2 < 1 && t1 < t2) {         // 두 끝은 밖인데 가운데가 걸린다
+        hit = true;
+        push(ax + dx * t1, ay + dy * t1);
+        close();
+        push(ax + dx * t2, ay + dy * t2);
+      }
+      push(bx, by);
+    } else if (!wasIn && isIn) {
+      hit = true;
+      if (t1 > 0 && t1 < 1) push(ax + dx * t1, ay + dy * t1);
+      close();
+    } else if (wasIn && !isIn) {
+      if (t2 > 0 && t2 < 1) push(ax + dx * t2, ay + dy * t2);
+      push(bx, by);
+    }
+    wasIn = isIn;
+  }
+  close();
+  return hit ? pieces : null;
+}
+function rubCut(uv) {
+  const r = BOARD.h * 0.009 * PEN_W[pen.size] * 3.5;             // 지우개 동그라미의 반지름 (m)
+  const cx = uv[0] * BOARD.w, cy = uv[1] * BOARD.h, ru = r / BOARD.w, rv = r / BOARD.h;
+  let any = false;
+  for (const st of strokes.slice()) {
+    if (st.tool === 2 || !st.key.startsWith(myId + '-')) continue;                                   // 내가 그은 획만
+    if (uv[0] < st.box[0] - ru || uv[0] > st.box[2] + ru || uv[1] < st.box[1] - rv || uv[1] > st.box[3] + rv) continue;
+    const pieces = cutStroke(st.pts, cx, cy, r);
+    if (!pieces) continue;
+    any = true;
+    if (pen.did.live.has(st.key)) pen.did.live.delete(st.key);   // 이번에 생긴 조각을 또 자르는 것: 되돌릴 때는 처음 획만 있으면 된다
+    else pen.did.orig.push(histTake([st.key])[0]);
+    if (pen.puts.has(st.key)) pen.puts.delete(st.key);            // 아직 보내지도 않은 조각이면 보낼 것에서 뺀다
+    else pen.gone.push(st.key);
+    const at = strokes.indexOf(st);
+    strokeOf.delete(st.key);
+    strokes.splice(at, 1);
+    let after = at ? strokes[at - 1].key : '';
+    pieces.forEach((pts, k) => {                 // 남은 조각들을 그 획이 있던 차례에 넣는다 (그리는 것은 아래에서 한꺼번에)
+      const key = `${myId}-${++pen.n}`, box = [1, 1, 0, 0];
+      for (let i = 0; i < pts.length; i += 2) {
+        box[0] = Math.min(box[0], pts[i]);
+        box[1] = Math.min(box[1], pts[i + 1]);
+        box[2] = Math.max(box[2], pts[i]);
+        box[3] = Math.max(box[3], pts[i + 1]);
+      }
+      const piece = { key, tool: st.tool, color: st.color, size: st.size, pts, w: 0, box };
+      strokeOf.set(key, piece);
+      strokes.splice(at + k, 0, piece);
+      pen.did.live.add(key);
+      pen.puts.set(key, [key, st.tool, st.color, st.size, pts, after]);
+      after = key;
+    });
+  }
+  if (any) {                                     // 지우개가 지나간 둘레만 다시 그린다
+    const mu = 0.15 / BOARD.w, mv = 0.15 / BOARD.h;
+    inkPatch(uv[0] - ru - mu, uv[1] - rv - mv, uv[0] + ru + mu, uv[1] + rv + mv);
+  }
 }
 
 // 펜이 (u, v) 에 닿았다: 긋거나, 문질러 지우거나, 닿은 획을 통째로 지운다
@@ -5980,6 +6119,8 @@ function penAt(uv) {
   if (pen.tool === 'laser') {
     zapAdd(pen.key, pen.size, uv);
     pen.zout.push(uv[0], uv[1]);
+  } else if (pen.tool === 'rub' && cfg.board === 'free') {
+    rubCut(uv);                      // 자유 보드: 내 획에서 문지른 곳만 잘라 낸다 (다른 사람의 필기는 그대로)
   } else if (pen.tool === 'wipe') {
     const keys = strokesNear(uv[0], uv[1], BOARD.h * 0.035 * PEN_W[pen.size]);
     if (keys.length) {
@@ -6012,7 +6153,7 @@ function penDown(e) {
 }
 // 획을 끝낸다: 마지막 점을 한 번 더 적어서, 둥글게 이어 그리던 획이 마지막 점까지 닿게 한다
 function penEnd() {
-  if (!pen.last || pen.tool === 'wipe') return;
+  if (!pen.last || pen.tool === 'wipe' || (pen.tool === 'rub' && cfg.board === 'free')) return;
   if (pen.tool === 'laser') {        // 레이저 펜: 다 그었다고 알린다 (펜 끝의 밝은 점이 꺼지고, 손을 멈춘 것으로 센다)
     zapAdd(pen.key, pen.size, [], true);
     pen.zend = true;
@@ -6040,6 +6181,20 @@ function penFlush() {
     link.send({ t: 'd', id: myId, s: pen.key, k: TOOL_NO[pen.tool], c: pen.color, w: pen.size, p: pen.out.map(round4) });
   }
   if (link && pen.gone.length) link.send({ t: 'd', id: myId, e: pen.gone });
+  if (link && pen.puts.size) {       // 잘라 내고 남은 조각들 (메시지 한 개가 너무 커지지 않게 나눠 보낸다)
+    let batch = [], count = 0;
+    const flush = () => { if (batch.length) link.send({ t: 'd', id: myId, put: batch }); batch = []; count = 0; };
+    for (const it of pen.puts.values()) {
+      for (let i = 0; i < it[4].length; i += 3000) {
+        const part = it[4].slice(i, i + 3000).map(round4);
+        batch.push([it[0], it[1], it[2], it[3], part, it[5]]);
+        count += part.length;
+        if (count >= 9000) flush();
+      }
+    }
+    flush();
+  }
+  pen.puts = new Map();
   if (link && (pen.zout.length || pen.zend)) link.send({ t: 'z', id: myId, s: pen.key, w: pen.size, p: pen.zout.map(round4), e: pen.zend ? 1 : 0 });
   pen.out = [];
   pen.gone = [];
@@ -6053,15 +6208,16 @@ function penUp() {
   penFlush();
   pen.id = pen.last = null;
   const did = pen.did;               // 이번에 한 일을 되돌리기 목록에 올린다 (한 번 대었다 뗀 것이 한 단계)
-  pen.did = { keys: [], gone: [] };
+  pen.did = { keys: [], gone: [], orig: [], live: new Set() };
   if (did.keys.length) histPush({ kind: 'add', items: did.keys.map((key) => ({ key })) });
   if (did.gone.length) histPush({ kind: 'erase', items: did.gone });
+  if (did.orig.length) histPush({ kind: 'cut', gone: did.orig, made: [...did.live].map((key) => ({ key })) });      // 자유 보드에서 문질러 지운 것
 }
 
 // 받은 획이 제대로 된 것인지
 function okStroke(key, tool, color, size, pts) {
   return typeof key === 'string' && key.length <= 40 && (tool === 0 || tool === 1 || tool === 2)
-    && Number.isInteger(color) && color >= 0 && color <= 4 && Number.isInteger(size) && size >= 0 && size <= 2
+    && Number.isInteger(color) && color >= 0 && color <= 4 && Number.isInteger(size) && size >= 0 && size < PEN_W.length
     && Array.isArray(pts) && pts.length >= 2 && pts.length <= 6000 && pts.length % 2 === 0 && pts.every(Number.isFinite);
 }
 const in01 = (v) => clamp(v, 0, 1);
@@ -6091,7 +6247,7 @@ function onInk(m) {
     for (const it of m.put.slice(0, 3000)) {
       if (!Array.isArray(it) || !okStroke(it[0], it[1], it[2], it[3], it[4]) || !it[0].startsWith(m.id + '-')) continue;
       const pts = it[4].map(in01);
-      if (strokeOf.has(it[0])) inkAdd(it[0], it[1], it[2], it[3], pts);          // 긴 획의 뒷부분
+      if (strokeOf.has(it[0])) { inkAdd(it[0], it[1], it[2], it[3], pts); inkPatchStroke(strokeOf.get(it[0])); }          // 긴 획의 뒷부분
       else redraw = inkPut(it[0], it[1], it[2], it[3], pts, typeof it[5] === 'string' && it[5].length <= 40 ? it[5] : null) || redraw;
     }
     if (redraw) inkRedraw();
@@ -6357,8 +6513,8 @@ function showPens() {
     b.style.setProperty('--c', inks[n]);
     b.setAttribute('aria-pressed', String(n === pen.color));
   }
-  for (const b of $('penSizes').children) b.setAttribute('aria-pressed', String(Number(b.dataset.size) === pen.size));
-  $('sizeBtn').firstElementChild.style.setProperty('--d', ['4px', '8px', '14px'][pen.size]);       // 굵기 칸에는 지금 굵기가 보인다
+  $('sizeRange').value = pen.size;
+  $('sizeBtn').firstElementChild.style.setProperty('--d', `${PEN_DOT[pen.size]}px`);       // 굵기 칸에는 지금 굵기가 보인다
 }
 function setTool(tool) {
   pen.tool = tool;
@@ -6395,12 +6551,11 @@ for (const b of $('colorPop').children) b.addEventListener('click', () => {
   canvas.focus();
 });
 $('sizeBtn').addEventListener('click', () => openPop($('penSizes').hidden ? 'penSizes' : ''));
-for (const b of $('penSizes').children) b.addEventListener('click', () => {
-  pen.size = Number(b.dataset.size);
-  closePops();
+$('sizeRange').addEventListener('input', () => {        // 밀면 바로 굵기가 바뀐다 (손을 떼도 창은 열어 둔다. 바깥을 누르면 닫힌다)
+  pen.size = clamp(Number($('sizeRange').value) | 0, 0, PEN_W.length - 1);
   showPens();
-  canvas.focus();
 });
+$('sizeRange').addEventListener('change', () => canvas.focus());
 
 /* ───────────── 강의실 설정: 선생님이 고르면 같은 수업의 모두에게 적용된다 ─────────────
    내 상태를 알리는 s 메시지에 설정 네 가지와 "바꾼 시각"을 함께 실어 보낸다. 받는 쪽은 더 나중에 바뀐 것을 따른다 */
@@ -7793,6 +7948,7 @@ function frame(now) {
   if (show.mode === 'live') liveThink(now);       // 화면 공유: 새 장면만 그래픽 카드로 보낸다
   talkThink(now);                     // 내가 말하는 중인지 (손짓)
   if (zaps.size && zapThink(performance.now())) dirty = true;     // 레이저 펜 자국을 서서히 지운다
+  if (!dirty && ink.mipDue && performance.now() - (ink.mipAt || 0) > 200) dirty = true;       // 미뤄 둔 판서 밉맵을 마저 만든다
   if (!dirty && mirrorStale && now - mirrorAt >= mirrorEvery()) dirty = true;     // 미뤄 둔 거울 그림을 마저 그린다
   if (!dirty) { lap.lastDraw = 0; return; }       // 바뀐 게 없으면 그리지 않는다 → 그래픽 카드가 쉰다
   dirty = false;
