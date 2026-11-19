@@ -232,7 +232,7 @@
     position: absolute; left: 50%; bottom: calc(100% + 10px); transform: translateX(-50%); z-index: 2;
     display: flex; gap: 4px; padding: 5px; background: rgba(255, 246, 227, .97); border: 2px solid var(--ink);
   }
-  #pens .pop[hidden] { display: none; }
+  #pens .pop[hidden], #pens [hidden] { display: none !important; }
   #pens .pop button { display: grid; justify-items: center; gap: 2px; padding: 4px 6px; font-size: 11px; white-space: nowrap; }
   #pens .pop button[aria-pressed="true"] { color: #fff; background: var(--coral); }
   #pens .pop button[hidden] { display: none; }
@@ -462,6 +462,7 @@
       <button type="button" class="slot" data-tool="hand" data-icon="hand" aria-pressed="false" aria-label="이동" title="이동: 끌어서 칠판을 옆으로 옮기기"></button>
       <button type="button" class="slot" data-tool="ball" data-icon="ball" aria-pressed="true" aria-label="볼펜" title="볼펜: 굵기가 고른 펜"></button>
       <button type="button" class="slot" data-tool="fount" data-icon="fount" aria-pressed="false" aria-label="만년필" title="만년필: 긋는 방향에 따라 획이 가늘어지고 굵어지는 펜"></button>
+      <button type="button" class="slot" data-tool="laser" data-icon="zap" aria-pressed="false" aria-label="레이저 펜" title="레이저 펜: 쓰면 잠깐 보였다가 사라져요"></button>
       <div class="menu">
         <button type="button" class="slot more" id="eraseBtn" aria-pressed="false" aria-haspopup="true" aria-expanded="false" aria-label="지우개" title="지우개: 누르면 지우는 방법을 고를 수 있어요"></button>
         <div class="pop" id="erasePop" hidden>
@@ -3637,6 +3638,7 @@ function netReceive(m) {
   if (m.t === 'q' || m.t === 'e' || m.t === 'w') { onClassMsg(m); return; }
   if (m.t === 'l') { onLaser(m); return; }
   if (m.t === 'd') { onInk(m); return; }
+  if (m.t === 'z') { onZap(m); return; }
   if (m.t !== 's' || !Array.isArray(m.p) || !Array.isArray(m.r)) return;
   onConfig(m.cf);                    // 강의실 설정이 나보다 새것이면 먼저 따라 바꾼다 (위치와 자리 번호를 읽기 전에)
 
@@ -4512,7 +4514,7 @@ $('soundBtn').addEventListener('click', () => {
 const PEN_W = [0.55, 1, 1.9];        // 굵기 세 단계
 const TOOL_NO = { ball: 0, fount: 1, rub: 2 };
 const round4 = (v) => Math.round(v * 10000) / 10000;
-const pen = { id: null, tool: 'ball', erase: 'rub', write: 'ball', color: 0, size: 1, key: '', n: 0, last: null, out: [], gone: [], sentAt: 0 };
+const pen = { id: null, tool: 'ball', erase: 'rub', write: 'ball', color: 0, size: 1, key: '', n: 0, last: null, out: [], gone: [], zout: [], zend: false, sentAt: 0 };
 
 /* 획에서 아직 그리지 않은 부분을 그린다 (from = 이미 그린 점의 수).
    점과 점을 곧은 선으로 이으면 빨리 그은 획에서 꺾인 자국이 보인다. 그래서 꺾이는 점마다
@@ -4701,9 +4703,111 @@ function boardUV(e) {
   const v = (camera.position.y + (_hit.y - camera.position.y) * t - BOARD.y) / BOARD.h + 0.5;
   return u < 0 || u > 1 || v < 0 || v > 1 ? null : [u, v];
 }
+/* ── 레이저 펜: 쓰면 잠깐 보였다가 사라지는 펜 ──
+   판서 그림(캔버스)에는 남기지 않는다. 칠판 바로 앞에 붉은 띠 모양 도형으로 그렸다가, 획을 다 긋고 2초 뒤부터 서서히 지운다.
+   획 하나가 도형 하나 (진한 심 + 그 둘레의 옅은 빛). 점 사이는 판서와 같은 방식으로 둥글게 잇는다.
+   선생님은 어느 칠판에서나(영상 스크린 위에도), 학생은 자유 보드에서만 쓸 수 있다 */
+const ZAP = { hold: 2000, fade: 800, idle: 1500, z: 0.012, max: 60 };       // hold = 다 긋고 머무는 시간, idle = 끝났다는 말 없이 점이 끊긴 지 이만큼 지나면 끝난 것으로 본다
+const zaps = new Map();              // 획 이름 → { pts: [u, v, …], size, mesh, done: 끝난 시각(0 = 긋는 중), at: 마지막 점이 온 시각 }
+const canZap = () => isTeacher || canWrite();
+function zapAdd(key, size, pts, end = false) {
+  let z = zaps.get(key);
+  const now = performance.now();
+  if (!z) {
+    if (zaps.size >= ZAP.max || !pts.length) return;
+    const mesh = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({
+      vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide,
+    }));
+    mesh.renderOrder = 2.5;            // 판서(2) 위, 레이저 포인터의 점(3) 아래
+    mesh.frustumCulled = false;
+    scene.add(mesh);
+    z = { pts: [], size, mesh, done: 0, at: now };
+    zaps.set(key, z);
+  }
+  if (z.pts.length + pts.length <= 6000) for (const v of pts) z.pts.push(v);
+  z.at = now;
+  if (end && !z.done) z.done = now;
+  zapBuild(z);
+  dirty = true;
+}
+// 획의 띠 도형을 다시 만든다: 가운데 줄을 둥글게 잡고, 그 양옆으로 폭을 준다
+function zapBuild(z) {
+  const p = z.pts, n = p.length / 2, line = [];
+  const X = (i) => (p[i * 2] - 0.5) * BOARD.w, Y = (i) => BOARD.y + (p[i * 2 + 1] - 0.5) * BOARD.h;
+  line.push(X(0), Y(0));
+  for (let i = 1; i < n - 1; i++) {    // 꺾이는 점마다 앞 가운데점 → 뒤 가운데점으로 휘어서 (네 토막)
+    const ax = (X(i - 1) + X(i)) / 2, ay = (Y(i - 1) + Y(i)) / 2, bx = (X(i) + X(i + 1)) / 2, by = (Y(i) + Y(i + 1)) / 2;
+    for (let s = 1; s <= 4; s++) {
+      const t = s / 4, u = 1 - t;
+      line.push(u * u * ax + 2 * u * t * X(i) + t * t * bx, u * u * ay + 2 * u * t * Y(i) + t * t * by);
+    }
+  }
+  if (n > 1) line.push(X(n - 1), Y(n - 1));
+  if (line.length === 2) line.push(line[0] + 0.004, line[1]);      // 점 하나: 아주 짧은 줄
+  const count = line.length / 2, core = BOARD.h * 0.009 * PEN_W[z.size] * 0.5, glow = core * 2.8;
+  const pos = new Float32Array(count * 12), col = new Float32Array(count * 16), idx = [];
+  for (let k = 0; k < count; k++) {
+    const a = Math.max(0, k - 1), b = Math.min(count - 1, k + 1);
+    let tx = line[b * 2] - line[a * 2], ty = line[b * 2 + 1] - line[a * 2 + 1];
+    const len = Math.hypot(tx, ty) || 1;
+    tx /= len;
+    ty /= len;
+    const x = line[k * 2], y = line[k * 2 + 1];
+    // 한 점마다 꼭짓점 넷: 빛의 왼쪽 · 오른쪽, 심의 왼쪽 · 오른쪽
+    [glow, -glow, core, -core].forEach((half, j) => {
+      pos.set([x - ty * half, y + tx * half, j < 2 ? 0 : 0.001], k * 12 + j * 3);
+      col.set(j < 2 ? [1, 0.22, 0.16, 0.26] : [0.96, 0.13, 0.1, 1], k * 16 + j * 4);
+    });
+    if (k < count - 1) {
+      const v = k * 4;
+      idx.push(v, v + 1, v + 4, v + 1, v + 5, v + 4, v + 2, v + 3, v + 6, v + 3, v + 7, v + 6);
+    }
+  }
+  z.mesh.geometry.dispose();
+  const geo = z.mesh.geometry = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 4));
+  geo.setIndex(idx);
+  z.mesh.position.z = BOARD.z + ZAP.z;
+}
+function zapDrop(key) {
+  const z = zaps.get(key);
+  if (!z) return;
+  scene.remove(z.mesh);
+  z.mesh.geometry.dispose();
+  z.mesh.material.dispose();
+  zaps.delete(key);
+}
+// 매 프레임: 다 그은 획을 서서히 지운다
+function zapThink(now) {
+  let active = false;
+  for (const [key, z] of zaps) {
+    if (!z.done && now - z.at > ZAP.idle) z.done = z.at;       // 끝났다는 말이 오지 않은 획
+    if (!z.done) continue;
+    const age = now - z.done - ZAP.hold;
+    if (age >= ZAP.fade) zapDrop(key);
+    else if (age > 0) z.mesh.material.opacity = 1 - age / ZAP.fade;
+    else continue;
+    active = true;
+  }
+  return active;
+}
+// 다른 사람이 레이저 펜으로 쓴 것 받기
+function onZap(m) {
+  const peer = peers.get(m.id);
+  if (!peer || (!peer.teacher && cfg.board !== 'free')) return;
+  if (typeof m.s !== 'string' || m.s.length > 40 || !m.s.startsWith(`${m.id}-z`)) return;
+  if (!Array.isArray(m.p) || m.p.length > 2000 || m.p.length % 2 || !m.p.every(Number.isFinite)) return;
+  zapAdd(m.s, Number.isInteger(m.w) && m.w >= 0 && m.w <= 2 ? m.w : 1, m.p.map((v) => clamp(v, 0, 1)), !!m.e);
+  if (peer.teacher && m.p.length) followNote(BOARD.x + (clamp(m.p[m.p.length - 2], 0, 1) - 0.5) * BOARD.w);      // 학생 화면이 따라갈 곳
+}
+
 // 펜이 (u, v) 에 닿았다: 긋거나, 문질러 지우거나, 닿은 획을 통째로 지운다
 function penAt(uv) {
-  if (pen.tool === 'wipe') {
+  if (pen.tool === 'laser') {
+    zapAdd(pen.key, pen.size, uv);
+    pen.zout.push(uv[0], uv[1]);
+  } else if (pen.tool === 'wipe') {
     const keys = strokesNear(uv[0], uv[1], BOARD.h * 0.035 * PEN_W[pen.size]);
     if (keys.length) {
       inkErase(keys);
@@ -4721,18 +4825,24 @@ function penAt(uv) {
   if (player.mode === 'free' && Math.abs(hx - 0.3 - player.pos.x) > 0.9) goWrite(hx - 0.3);
 }
 function penDown(e) {
-  if (pen.id !== null || !canWrite() || zoomAmt < 0.97) return;
+  const laser = pen.tool === 'laser';
+  if (pen.id !== null || zoomAmt < 0.97 || !(laser ? canZap() : canWrite())) return;
   const uv = boardUV(e);
   if (!uv) return;
   if (follow.on && canFollow()) setFollow(false, '직접 쓰기 시작해서 ');
   pen.id = e.pointerId;
   try { canvas.setPointerCapture(e.pointerId); } catch {}
-  pen.key = `${myId}-${++pen.n}`;
+  pen.key = `${myId}-${laser ? 'z' : ''}${++pen.n}`;
   penAt(uv);
 }
 // 획을 끝낸다: 마지막 점을 한 번 더 적어서, 둥글게 이어 그리던 획이 마지막 점까지 닿게 한다
 function penEnd() {
   if (!pen.last || pen.tool === 'wipe') return;
+  if (pen.tool === 'laser') {        // 레이저 펜: 다 그었다고 알린다 (이때부터 사라질 시간을 센다)
+    zapAdd(pen.key, pen.size, [], true);
+    pen.zend = true;
+    return;
+  }
   inkAdd(pen.key, TOOL_NO[pen.tool], pen.color, pen.size, pen.last);
   pen.out.push(pen.last[0], pen.last[1]);
 }
@@ -4744,19 +4854,22 @@ function penMove(e) {
     pen.last = null;
     return;
   }
-  if (!pen.last) pen.key = `${myId}-${++pen.n}`;       // 다시 들어오면 새 획
+  if (!pen.last) pen.key = `${myId}-${pen.tool === 'laser' ? 'z' : ''}${++pen.n}`;       // 다시 들어오면 새 획
   else if (Math.hypot((uv[0] - pen.last[0]) * BOARD.w, (uv[1] - pen.last[1]) * BOARD.h) < 0.012) return;
   penAt(uv);
   // 사람이 많을수록 덜 자주 보낸다 (그은 선은 내 화면에는 바로 보인다)
-  if (pen.out.length >= 240 || Date.now() - pen.sentAt > Math.max(150, netPace().sendMs * 0.75)) penFlush();
+  if (pen.out.length + pen.zout.length >= 240 || Date.now() - pen.sentAt > Math.max(150, netPace().sendMs * 0.75)) penFlush();
 }
 function penFlush() {
   if (link && pen.out.length) {
     link.send({ t: 'd', id: myId, s: pen.key, k: TOOL_NO[pen.tool], c: pen.color, w: pen.size, p: pen.out.map(round4) });
   }
   if (link && pen.gone.length) link.send({ t: 'd', id: myId, e: pen.gone });
+  if (link && (pen.zout.length || pen.zend)) link.send({ t: 'z', id: myId, s: pen.key, w: pen.size, p: pen.zout.map(round4), e: pen.zend ? 1 : 0 });
   pen.out = [];
   pen.gone = [];
+  pen.zout = [];
+  pen.zend = false;
   pen.sentAt = Date.now();
 }
 function penUp() {
@@ -4829,7 +4942,7 @@ function sendInk(to) {
 /* 도구 그림: 16 × 16 픽셀 그림 (마인크래프트의 아이템처럼). 글자 하나가 점 하나, '.' 은 비어 있는 곳 */
 const ICON_INK = {
   k: '#1b1b1b', w: '#ffffff', g: '#c9ccd2', s: '#e6b08a', S: '#bf8560', b: '#3f76dd', B: '#27499c', l: '#86b0f5',
-  d: '#4b4f58', G: '#9aa0aa', p: '#f5a3bd', P: '#cf6788', r: '#dc4034', R: '#9a251d', i: '#26324f',
+  d: '#4b4f58', G: '#9aa0aa', p: '#f5a3bd', P: '#cf6788', r: '#dc4034', R: '#9a251d', i: '#26324f', y: '#ffd84a',
 };
 const ICONS = {
   hand: [                            // 이동: 손바닥
@@ -4861,6 +4974,12 @@ const ICONS = {
     '.......kbpppPPk.', '......kbbbpPPk..', '......klbbbPk...', '......kllbBk....',
     '.......kkkk.....', '................', '..ww........ww..', '.wkkw......wkkw.',
     'wk..kw....wk..kw', 'w....kw..wk....w', '......kwwk......', '.......kk.......',
+  ],
+  zap: [                             // 레이저 펜: 끝에서 빛이 나는 붉은 펜
+    '.............kk.', '............kRrk', '...........kRrpk', '..........kRrpk.',
+    '.........kRrpk..', '........kRrpk...', '.......kRrpk....', '......kRrpk.....',
+    '.....kRrpk......', '..y.kGgwk.......', '...ykGgwk.......', '.yykrrgk........',
+    '..kyrrk.y.......', '.yyrkky.........', '.y.y.y..........', 'y...............',
   ],
   tnt: [                             // 모두 지우기: TNT
     'kkkkkkkkkkkkkkkk', 'krrrrrrrrrrrrrrk', 'krrRrrrRrrrRrrrk', 'krrRrrrRrrrRrrrk',
@@ -4900,10 +5019,13 @@ const closePops = () => openPop('');
 addEventListener('pointerdown', (e) => { if (!e.target.closest?.('#pens .menu')) closePops(); }, true);    // 바깥을 누르면 닫힌다
 
 function showPens() {
-  const on = zoomed && canWrite();
+  const full = canWrite(), on = zoomed && (full || isTeacher);       // 선생님은 영상 스크린에서도 레이저 펜을 쓸 수 있다
   $('pens').hidden = !on;
+  if (on && !full && pen.tool !== 'laser') pen.tool = 'hand';        // 쓸 수 없는 칠판에서는 이동과 레이저 펜만
   canvas.classList.toggle('pen', on && pen.tool !== 'hand');
   if (!on) { closePops(); return; }
+  for (const b of document.querySelectorAll('#pens [data-tool="ball"], #pens [data-tool="fount"]')) b.hidden = !full;
+  $('eraseBtn').parentElement.hidden = $('colorBtn').parentElement.hidden = !full;
   const erasing = pen.tool === 'rub' || pen.tool === 'wipe', inks = BOARDS[cfg.board].pens;
   for (const b of document.querySelectorAll('#pens [data-tool]')) b.setAttribute('aria-pressed', String(b.dataset.tool === pen.tool));
   $('eraseBtn').setAttribute('aria-pressed', String(erasing));
@@ -4999,6 +5121,7 @@ function settle(a) {
 function rebuild(moved, keep = false) {
   setZoom(false);
   zoomAmt = 0;
+  for (const key of [...zaps.keys()]) zapDrop(key);      // 남아 있던 레이저 펜 자국도 치운다
   follow.at = 0;                     // 새 칠판에서는 선생님이 쓴 곳을 처음부터 다시 기억한다
   follow.fresh = false;
   setGhost(false);
@@ -5658,7 +5781,7 @@ let slideId = null, slideX = 0, slideFrom = 0;       // 칠판 보기에서 끌�
 canvas.addEventListener('pointerdown', (e) => {
   if (!entered || lookId !== null || slideId !== null) return;
   if (zoomed) {
-    if (canWrite() && pen.tool !== 'hand') penDown(e);
+    if (pen.tool !== 'hand' && (pen.tool === 'laser' ? canZap() : canWrite())) penDown(e);
     else if (zoomAmt > 0.97) {
       followOff();
       slideId = e.pointerId;
@@ -6042,6 +6165,7 @@ function frame(now) {
     if (peer.actor.tickBubble(now)) dirty = true;
   }
   if (show.mode === 'live') liveThink(now);       // 화면 공유: 새 장면만 그래픽 카드로 보낸다
+  if (zaps.size && zapThink(performance.now())) dirty = true;     // 레이저 펜 자국을 서서히 지운다
   if (!dirty && mirrorStale && now - mirrorAt >= mirrorEvery()) dirty = true;     // 미뤄 둔 거울 그림을 마저 그린다
   if (!dirty) { lap.lastDraw = 0; return; }       // 바뀐 게 없으면 그리지 않는다 → 그래픽 카드가 쉰다
   dirty = false;
@@ -6168,7 +6292,7 @@ window.classroom = {
   cfg, cfgAt, setConfig: (kind, key) => setConfig(kind, key, true), askConfig: setConfig, back, ink, pen, inviteLink, teacherKey,
   get role() { return [role, creator, isTeacher]; }, strokes, inkAdd, FORMS, BOARD, spawn, nearestFree, playBgm, gotoArea, boardCam,
   get areas() { return [areas, areaAt, zoomX]; },
-  get zoom() { return [zoomed, zoomAmt]; }, frame, liveTex, liveMesh, live, inkTex, showTex, startLive, endShow, inkClear, inkErase, get show() { return show; }, get lap() { return { ...lapShown, level: pixels.level, trial: !!pixels.trial, hold: Math.round(Math.max(0, pixels.hold - performance.now()) / 1000), mirrorMs, every: mirrorEvery() }; }, get mirror() { return { on: mirrorGlass.visible, pos: mirrorGlass.position.toArray(), calls: mirrorCalls, all: info.calls, fade: mirrorMat.uniforms.fade.value }; }, get mySkin() { return mySkin; }, peerSkins, actors, get follow() { return { on: follow.on, can: canFollow(), x: zoomX, to: follow.to, area: areaAt }; }, setZoom, get bgm() { return bgmNow; }, get audio() { return ac; },
+  get zoom() { return [zoomed, zoomAmt]; }, frame, zaps, zapAdd, liveTex, liveMesh, live, inkTex, showTex, startLive, endShow, inkClear, inkErase, get show() { return show; }, get lap() { return { ...lapShown, level: pixels.level, trial: !!pixels.trial, hold: Math.round(Math.max(0, pixels.hold - performance.now()) / 1000), mirrorMs, every: mirrorEvery() }; }, get mirror() { return { on: mirrorGlass.visible, pos: mirrorGlass.position.toArray(), calls: mirrorCalls, all: info.calls, fade: mirrorMat.uniforms.fade.value }; }, get mySkin() { return mySkin; }, peerSkins, actors, get follow() { return { on: follow.on, can: canFollow(), x: zoomX, to: follow.to, area: areaAt }; }, setZoom, get bgm() { return bgmNow; }, get audio() { return ac; },
   get room() { return { ROOM, HW, HD, floorAt, obstacles, blocked, cellH, NX, NZ }; },
   net: { peers, myId, tick: netTick, receive: netReceive, pace: netPace, openSupabase,
     get link() { return link; }, get state() { return linkState; }, get seatAt() { return mySeatAt; } },
