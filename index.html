@@ -227,7 +227,7 @@
   }
   #panels > .chip { position: static; transform: none; flex: none; max-height: 100%; overflow-y: auto; pointer-events: auto; background: var(--paper); box-shadow: 0 4px 0 var(--ink); }
   #panels > [hidden] { display: none; }
-  @media (max-width: 640px) { #panels { flex-wrap: nowrap; overflow-y: auto; pointer-events: auto; } #panels:not(:has(> .chip:not([hidden]))) { display: none; } }      /* 좁은 화면: 한 줄로 쌓고 넘치면 굴린다 */
+  @media (max-width: 640px) { #panels { flex-wrap: nowrap; overflow-y: auto; } #panels:not(:has(> .chip:not([hidden]))) { display: none; } }      /* 좁은 화면: 한 줄로 쌓고 넘치면 굴린다 (틀 자체는 눌리지 않는다 — 빈 곳은 뒤의 화면 · 리모컨이 눌린다) */
   #setup { width: 316px; max-width: 100%; padding: 10px 10px 12px; }
   /* 연습장: 자리에 앉은 학생의 개인 필기장. 화면을 덮는 종이 한 장 + 위쪽의 도구 줄. 쓴 것은 이 기기에만 남는다 */
   #note { position: fixed; inset: 0; z-index: 30; display: grid; grid-template-rows: auto minmax(0, 1fr); justify-items: center; gap: 8px; padding: 10px; background: rgba(24, 19, 14, .55); }
@@ -316,6 +316,16 @@
   #examBox h3 { margin: 8px 0 4px; font-size: 12px; font-weight: 800; }
   #examSubs { display: grid; gap: 3px; font-weight: 700; font-variant-numeric: tabular-nums; max-height: 160px; overflow-y: auto; }
   #examSubs .late { color: #c0291b; }
+  #examSubs > div { display: flex; align-items: center; gap: 5px; }
+  #examSubs > div span { flex: 1; min-width: 0; }
+  #examSubs small { font-size: 11px; font-weight: 600; opacity: .65; }
+  #examSubs button, #tgLink, #tgOff { flex: none; padding: 2px 7px; font: 800 11px var(--font); color: var(--ink); background: #fff; border: 2px solid var(--ink); border-radius: 0; cursor: pointer; }
+  #examSubs button:disabled { opacity: .5; cursor: default; }
+  #tgBox { margin-top: 8px; padding-top: 6px; border-top: 2px solid rgba(51, 36, 26, .2); }
+  #tgBox summary { font-size: 12px; font-weight: 800; cursor: pointer; }
+  #tgRow { display: flex; gap: 5px; }
+  #tgRow[hidden], #tgOff[hidden] { display: none; }
+  #tgToken { flex: 1; min-width: 0; padding: 4px 6px; font: 700 12px var(--font); color: var(--ink); background: #fff; border: 2px solid var(--ink); border-radius: 0; }
   /* 채팅: 모두가 함께 보는 대화 창 (왼쪽 창 자리에 쌓인다) */
   /* 채팅 창은 바탕과 테두리가 없는 투명한 창이다: 글씨만 화면 위에 뜬다 (밝은 벽 앞에서도 읽히게 글씨 둘레를 어둡게).
      머리줄에는 투명도 막대가 늘 보인다 (--a, 기기마다 따로 적어 둔다). 글 적는 칸과 보내기 단추는 Q(채팅 단추)를 눌렀을 때만 나온다 */
@@ -672,6 +682,26 @@
     position: fixed; inset: 0; display: grid; place-items: center; padding: 24px;
     text-align: center; font-size: 16px; line-height: 1.7; color: #fff6e3; background: #241c15;
   }
+  /* ───── 화면 전수 검사(dev/uxcheck.js)로 고친 것: PC · 태블릿 · 휴대폰(가로 · 세로) × 선생님 · 학생의 모든 상태에서 겹침 · 화면 밖 · 가려짐이 없게 ───── */
+  body.zoom #invite { display: none; }               /* 판서 뷰: 위 가운데는 영역 단추의 자리다 (초대 링크는 더보기 → 학생 초대에도 있다) */
+  .touch body.paneled #stick, .touch body.typing #stick { display: none; }       /* 관리 창을 열어 둔 동안 · 채팅을 적는 동안에는 걷지 않으므로 조이스틱을 치운다 (창 · 입력 칸이 그 자리까지 내려온다) */
+  .touch #chatLog { max-height: max(64px, min(190px, calc(100vh - 400px))); }       /* 채팅 창이 아래의 조이스틱 · 둥근 단추에 닿지 않게 */
+  .touch #reacts { top: 48px; left: 84px; }           /* 반응 모음: 조작법 단추 옆 (채팅 창과 겹치지 않게) */
+  /* 터치: 누르는 것은 36px 이상 */
+  .touch .seg button, .touch #examFile, .touch #examGo, .touch #examStop, .touch #keysBtn, .touch #room, .touch #invite button, .touch #examChip button,
+  .touch #noteExamTime, .touch #keysClose, .touch #keysHint button, .touch #skinBtn, .touch #skinOff, .touch #tgLink, .touch #tgOff, .touch #examSubs button, .touch #voiceList button { min-height: 36px; }
+  .touch #restart { min-height: 36px; padding: 8px 6px; }
+  .touch #setupClose, .touch #voicesClose, .touch #examClose, .touch #chatClose, .touch #whisperClose { min-width: 36px; min-height: 36px; margin: -6px -6px -6px 0; }      /* 작은 × 단추: 누르는 자리를 넓힌다 (창의 머리줄 높이는 그대로) */
+  @media (max-height: 560px) { .touch body.paneled #remote { display: none !important; } }       /* 눕힌 휴대폰: 관리 창을 열어 둔 동안에는 리모컨을 접어 둔다 (창이 놓일 자리) */
+  @media (max-width: 640px) {                        /* 세로로 든 휴대폰 */
+    .touch body.zoom #remote { display: none; }      /* 판서 뷰에서는 리모컨을 접어 둔다 (눕힌 휴대폰과 같다): 그 자리에 펜 도구 줄이 놓인다 */
+    #invite { display: none; }                       /* 위 가운데에 자리가 없다 (수업 코드 칩의 '링크 복사' · 더보기 → 학생 초대로 대신한다) */
+    #room { max-width: calc(100vw - 236px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }      /* 오른쪽 위 아이콘들에 닿지 않게 */
+    #examChip, #hud:has(#areas:not([hidden])) #examChip { top: 88px; padding: 2px 5px; }       /* 시험 시계는 출석 · 조작법 줄 아래로 */
+    #panels { top: 130px; height: calc(100% - 146px); }
+    /* 관리 창(강의실 · 마이크 · 시험)은 화면을 덮는 한 장이 된다: 열어 둔 동안 뒤의 조작 단추들은 치운다 */
+    body.paneled #remote, body.paneled #acts, body.paneled #jump, body.paneled #keysBtn, body.paneled #reacts, body.paneled #examChip { display: none !important; }
+  }
 </style>
 </head>
 <body>
@@ -742,7 +772,7 @@
   <div id="examChip" class="chip" hidden>
     <button id="examTime" type="button" title="시험 시계 (시험 중에 누르면 숨기고, 다시 누르면 보여요)"></button>
     <button id="examSubmit" type="button" hidden>제출</button>
-    <button id="examShare" type="button" hidden>다시 공유</button>
+    <button id="examShare" type="button" hidden>파일로 보내기</button>
   </div>
   <div id="toast" class="chip" hidden></div>
   <div id="corner">
@@ -822,6 +852,12 @@
     <p id="examNote"></p>
     <h3>제출</h3>
     <div id="examSubs"></div>
+    <details id="tgBox">
+      <summary>텔레그램으로 받기 · <b id="tgState">꺼짐</b></summary>
+      <p id="tgNote"></p>
+      <div id="tgRow"><input id="tgToken" type="password" placeholder="봇 토큰" autocomplete="off" spellcheck="false" aria-label="텔레그램 봇 토큰"><button id="tgLink" type="button">연결</button></div>
+      <button id="tgOff" type="button" hidden>연결 끊기</button>
+    </details>
     <input id="examInput" type="file" accept=".pdf,application/pdf" hidden>
   </div>
   <div id="voices" class="chip" hidden>
@@ -3761,8 +3797,18 @@ function showAreas() {
 function placePens() {
   if (!COARSE) return;
   const pens = $('pens'), ar = $('areas');
-  pens.style.left = pens.style.transform = '';
-  if (pens.hidden || ar.hidden) return;
+  pens.style.left = pens.style.transform = pens.style.bottom = '';
+  if (pens.hidden) return;
+  const raise = () => {              // 둥근 단추들 · 영역 단추 위의 한 줄로 올린다 (화면 너비에 맞춰 줄인다)
+    const w = pens.getBoundingClientRect().width;
+    const tops = [$('jump'), ar, ...$('acts').querySelectorAll('button')].filter((b) => !b.hidden && getComputedStyle(b).display !== 'none').map((b) => b.getBoundingClientRect()).filter((r) => r.width && r.top > innerHeight / 2).map((r) => r.top);
+    pens.style.left = '8px';
+    pens.style.transformOrigin = 'left bottom';
+    pens.style.bottom = `${Math.round(innerHeight - Math.min(innerHeight - 60, ...tops) + 10)}px`;
+    pens.style.transform = `scale(${Math.min(1, (innerWidth - 16) / Math.max(1, w)).toFixed(3)})`;
+  };
+  if (innerWidth <= 640) { raise(); return; }       // 세로로 든 휴대폰: 아래 줄에는 자리가 없다
+  if (ar.hidden) return;
   const edge = ar.getBoundingClientRect().right + 10;
   if (edge > pens.getBoundingClientRect().left) {
     pens.style.left = `${edge}px`;
@@ -3772,7 +3818,11 @@ function placePens() {
     const stop = Math.min(innerWidth, ...['jump', 'backBtn'].map($).filter((b) => getComputedStyle(b).display !== 'none' && !b.hidden)
       .map((b) => b.getBoundingClientRect()).filter((r) => r.width && r.bottom > innerHeight - 70).map((r) => r.left)) - 8;
     const w = pens.getBoundingClientRect().width;
-    if (edge + w > stop && w > 0) pens.style.transform = `scale(${Math.max(0.6, (stop - edge) / w).toFixed(3)})`;
+    if (edge + w > stop && w > 0) {
+      const fit = (stop - edge) / w;
+      if (fit >= 0.6) pens.style.transform = `scale(${fit.toFixed(3)})`;
+      else { pens.style.transform = ''; raise(); }      // 줄여도 들어가지 않는다
+    }
   }
 }
 
@@ -3950,8 +4000,10 @@ function updateTarget() {
     $('backText').textContent = back;
   }
   layoutActs();
+  const sig = ['act', 'noteBtn', 'askBtn', 'okBtn', 'glanceBtn', 'backBtn'].map((id) => ($(id).hidden ? 0 : 1)).join('');
+  if (sig !== actsSig) { actsSig = sig; fitPanels(); }      // 아래의 단추가 생기거나 없어졌다: 왼쪽 창들이 그 위에 걸치지 않게 다시 맞춘다
 }
-let backLabel = '';
+let backLabel = '', actsSig = '';
 const slidesMine = () => presenting() && show.mode === 'slides';      // 내가 슬라이드를 띄워 둔 중인지
 
 // X: 바라본 것에 하는 행동
@@ -4233,7 +4285,7 @@ function snapshot() {
     v: !voice.on ? 0 : isTeacher && voice.global ? 2 : 1,             // 마이크: 0 끔 · 1 켬(가까이에만) · 2 켬(선생님, 교실 전체에)
     tk: player.talking ? 1 : 0,                  // 지금 말하는 중 (손짓을 한다)
     ...(isTeacher ? { vm: voice.muteAll ? 1 : 0, vx: [...voice.muted].slice(0, 120) } : {}),       // 선생님이 정한 전체 · 개별 음소거
-    ...(isTeacher && exam.mine && exam.meta ? { ex: [exam.meta.id, exam.meta.n, exam.meta.w, exam.meta.h, exam.meta.start, exam.meta.end, exam.meta.title, Date.now()] } : {}),     // 예약한 시험 (마지막 값은 내 시계 → 학생이 시계를 맞춘다)
+    ...(isTeacher && exam.mine && exam.meta ? { ex: [exam.meta.id, exam.meta.n, exam.meta.w, exam.meta.h, exam.meta.start, exam.meta.end, exam.meta.title, Date.now(), exam.meta.pk || ''] } : {}),     // 예약한 시험 (마지막 값은 내 시계 → 학생이 시계를 맞춘다)
   };
 }
 
@@ -4284,6 +4336,9 @@ function netTick() {
 // 다른 사람의 소식 받기
 function netReceive(m) {
   if (!entered || !m || typeof m !== 'object' || typeof m.id !== 'string' || m.id === myId) return;
+  // 다른 탭을 보고 있으면 브라우저가 타이머를 드물게만 돌린다 (오래되면 1분에 한 번) → 내 소식이 끊겨 남들 화면에서 내가 사라진다.
+  // 소식을 받는 일은 늦춰지지 않으므로, 가려진 동안에는 남의 소식이 올 때마다 내 소식을 보낼 때가 됐는지 본다
+  if (document.hidden && Date.now() - lastSentAt >= netPace().beatMs) netTick();
   if (m.t === 'h') {                 // 새로 온 사람에게 곧바로 내 상태와 (발표 중이면) 강의 자료를 알린다
     lastSent = '';
     lastSentAt = 0;
@@ -4330,6 +4385,7 @@ function netReceive(m) {
     peer.t = 0;
     peer.goal = goal;
     peer.last = now;
+    if (peer.away) { peer.away = false; peer.actor.bubbleUntil = 1; dirty = true; }      // 자리를 비웠던 사람이 돌아왔다 (말풍선을 걷는다)
   }
   onVoiceState(peer, m);             // 마이크를 켰는지 · (선생님이면) 누구를 음소거했는지
   if (peer.teacher) onExamMeta(peer, m.ex);        // 선생님이 예약한 시험
@@ -4434,10 +4490,70 @@ function dropPeer(id) {
   dirty = true;
 }
 
-// 한동안 소식이 없는 사람은 나간 것으로 본다
+/* 왼쪽의 창들(강의실 · 마이크 · 시험 + 채팅)은 위에서 아래로 쌓이고, 아래에 자리가 없으면 오른쪽 단으로 넘어간다.
+   단이 늘어나 화면 밖으로 나가거나 오른쪽의 리모컨 · 둥근 단추에 닿게 되면, 먼저 연 관리 창부터 닫는다 (채팅 창은 닫지 않는다).
+   body.paneled = 관리 창이 열려 있다 · body.typing = 채팅을 적는 중 (터치 화면의 조이스틱을 치우는 데 쓴다) */
+const PANEL_IDS = ['setup', 'voices', 'examBox'], panelOrder = [];
+function fitPanels() {
+  for (const id of PANEL_IDS) {
+    const open = !$(id).hidden, at = panelOrder.indexOf(id);
+    if (open && at < 0) panelOrder.push(id);
+    else if (!open && at >= 0) panelOrder.splice(at, 1);
+  }
+  document.body.classList.toggle('paneled', panelOrder.length > 0);
+  document.body.classList.toggle('typing', !$('chatForm').hidden && !$('chat').hidden);
+  const pn = $('panels');
+  pn.style.height = '';
+  if ($('hud').hidden || matchMedia('(max-width: 640px)').matches) return;      // 좁은 화면은 한 줄로 쌓고 굴린다
+  const box = pn.getBoundingClientRect(), seen = (el) => !el.hidden && getComputedStyle(el).visibility !== 'hidden' && el.getBoundingClientRect().width > 0;
+  // 아래쪽 단추들(PC: 가운데 아래의 단추 줄 · 터치: 오른쪽 아래의 둥근 단추) 위에 창이 걸치면, 창들을 그 위까지만 내려오게 한다 (넘치는 창은 안에서 굴린다)
+  const chips = [...pn.children].filter(seen).map((el) => el.getBoundingClientRect());
+  let floor = Infinity;
+  for (const b of $('acts').querySelectorAll('button')) {
+    if (!seen(b)) continue;
+    const r = b.getBoundingClientRect();
+    if (r.top > box.top + 150 && chips.some((c) => c.right > r.left - 6 && c.left < r.right + 6 && c.bottom > r.top - 6)) floor = Math.min(floor, r.top - 10);
+  }
+  if (floor < Infinity) pn.style.height = `${Math.round(floor - box.top)}px`;
+  for (let guard = 0; guard < 3 && panelOrder.length > 1; guard++) {
+    let limit = innerWidth - 12, right = 0;
+    const now = pn.getBoundingClientRect();      // (위에서 높이를 줄였을 수 있으니 다시 잰다)
+    for (const el of [$('remote'), $('jump'), ...$('acts').querySelectorAll('button')]) {
+      const r = el.getBoundingClientRect();
+      if (seen(el) && r.bottom > now.top && r.top < now.bottom) limit = Math.min(limit, r.left - 8);
+    }
+    for (const el of $('panels').children) if (!el.hidden) right = Math.max(right, el.getBoundingClientRect().right);
+    if (right <= limit) break;
+    $(panelOrder.shift()).hidden = true;         // (hidden 이 바뀌면 아래의 지켜보기가 다시 부른다)
+  }
+}
+{
+  const watch = new MutationObserver(() => fitPanels());
+  for (const id of [...PANEL_IDS, 'chat', 'chatForm', 'remote', 'hud']) watch.observe($(id), { attributes: true, attributeFilter: ['hidden'] });
+  addEventListener('resize', fitPanels);
+}
+/* 한동안 소식이 없는 사람은 나간 것으로 본다. 다만 자리에 앉아 있던 사람은 바로 지우지 않고 '잠시 자리 비움'으로 둔다 —
+   패드 · 휴대폰에서 다른 앱을 보거나 화면이 꺼지면, 또는 컴퓨터에서 다른 탭을 오래 보고 있으면 그 기기는 소식을 보내지 못한다.
+   그때마다 캐릭터가 사라지고 그 자리에 다른 사람이 앉을 수 있게 되면 안 되므로, 자리를 맡아 둔 채 AWAY_MS 동안 기다린다.
+   창을 닫거나 나간 사람은 나간다고 알리므로(b) 바로 사라진다 */
+const AWAY_MS = 10 * 60000;
 function sweepPeers() {
   const now = Date.now(), goneMs = netPace().goneMs;
-  for (const peer of peers.values()) if (now - peer.last > goneMs) dropPeer(peer.id);
+  for (const peer of peers.values()) {
+    const quiet = now - peer.last;
+    if (quiet <= goneMs) continue;
+    if (peer.seat && peer.seat.taken === peer.actor && quiet < AWAY_MS) {
+      if (!peer.away) {
+        peer.away = true;
+        peer.actor.say('잠시 자리 비움', AWAY_MS, '#e4dfd0');
+        peer.actor.wave = 0;         // (말풍선을 띄울 때 드는 손은 내린다)
+        peer.actor.applyPose();
+        dirty = true;
+      }
+      continue;
+    }
+    dropPeer(peer.id);
+  }
 }
 
 function showRoom() {
@@ -7557,6 +7673,8 @@ const exam = {
   offset: 0, phase: '', done: 0,     // 선생님 시계 - 내 시계 · 지금 단계 · 제출한 시각(선생님 시계)
   doc: null, hideClock: false, wantAt: 0, file: null,
   coverTex: new THREE.Texture(), draft: null, subs: new Map(),
+  sid: '', acked: false, sentAt: 0, sending: false, warned: false,      // (학생) 내 제출의 이름표 · 선생님이 받았는지 · 마지막으로 보낸 때
+  priv: null, inbox: new Map(),      // (선생님) 답안을 여는 열쇠 · 받는 중인 답안 조각들
 };
 exam.coverTex.colorSpace = THREE.SRGBColorSpace;
 const examNow = () => Date.now() + exam.offset;
@@ -7572,17 +7690,21 @@ function examPhase() {
 }
 function examSave() {                 // 쓴 답과 제출 여부를 기기에 적어 둔다 (새로고침 · 튕김에 대비)
   if (!exam.meta || !exam.doc || isTeacher) return;
-  try { localStorage.setItem(EXAM_KEY, JSON.stringify({ id: exam.meta.id, pages: exam.doc.pages, at: exam.doc.at, done: exam.done })); } catch {}
+  try { localStorage.setItem(EXAM_KEY, JSON.stringify({ id: exam.meta.id, pages: exam.doc.pages, at: exam.doc.at, done: exam.done, sid: exam.sid, acked: exam.acked })); } catch {}
 }
 function examDocFor(meta) {
   const doc = { kind: 'exam', pages: Array.from({ length: meta.n }, () => []), at: 0, w: EXAM_PX, h: Math.round(EXAM_PX * meta.h / meta.w), max: meta.n, grow: false, readonly: false, bg: exam.pages };
   exam.done = 0;
+  exam.sid = Math.random().toString(36).slice(2, 12);
+  exam.acked = false;
   try {
     const saved = JSON.parse(localStorage.getItem(EXAM_KEY));
     if (saved && saved.id === meta.id && Array.isArray(saved.pages)) {
       saved.pages.slice(0, meta.n).forEach((pg, i) => { if (Array.isArray(pg)) doc.pages[i] = pg.filter((st) => st && Array.isArray(st.p)); });
       doc.at = clamp(saved.at | 0, 0, meta.n - 1);
       exam.done = Number(saved.done) || 0;
+      if (typeof saved.sid === 'string' && saved.sid) exam.sid = saved.sid.slice(0, 24);
+      exam.acked = !!saved.acked;
     }
   } catch {}
   doc.readonly = !!exam.done;
@@ -7602,6 +7724,11 @@ function examClear() {                // 시험이 없어졌다 (취소 · 강�
   exam.parts = [];
   exam.sendUntil = 0;
   exam.subs.clear();
+  exam.sid = '';
+  exam.acked = exam.sending = exam.warned = false;
+  exam.sentAt = 0;
+  exam.priv = null;
+  exam.inbox.clear();
   examTick();
 }
 function examPage(i, d) {             // 시험지 한 쪽을 받았다 (선생님은 자기가 만든 것을 그대로 넣는다)
@@ -7617,13 +7744,13 @@ function examPage(i, d) {             // 시험지 한 쪽을 받았다 (선생�
 function onExamMeta(peer, ex) {
   if (isTeacher && exam.mine) return;
   if (!Array.isArray(ex)) { if (exam.meta && exam.by === peer.id) examClear(); return; }
-  const [id, n, w, h, start, end, title, now] = ex;
+  const [id, n, w, h, start, end, title, now, pk] = ex;
   if (typeof id !== 'string' || id.length > 24 || !Number.isInteger(n) || n < 1 || n > EXAM_MAX || !(w > 0) || !(h > 0) || !(start > 0) || !(end > start) || !(now > 0)) return;
   const fresh = !exam.meta || exam.meta.id !== id;
   exam.offset = fresh ? now - Date.now() : Math.max(exam.offset, now - Date.now());      // 소식이 늦게 올수록 차이가 작게 재어진다 → 가장 큰 값이 가장 정확하다
   if (fresh) {
     examClear();
-    exam.meta = { id, title: String(title || '시험지').slice(0, 60), n, w, h, start, end };
+    exam.meta = { id, title: String(title || '시험지').slice(0, 60), n, w, h, start, end, pk: typeof pk === 'string' && pk.length < 200 ? pk : '' };      // pk = 답안을 잠글 선생님의 공개 열쇠
     exam.by = peer.id;
     exam.doc = examDocFor(exam.meta);
     examTick();
@@ -7650,11 +7777,90 @@ function onExamMsg(m) {
     if (exam.got >= exam.meta.n) { exam.phase = ''; examTick(); }
   } else if (m.done > 0) {                           // (선생님) 학생이 제출을 눌렀다
     if (!exam.mine || !exam.meta || m.ex !== exam.meta.id) return;
-    exam.subs.set(m.id, { name: peer.actor.name || '학생', at: Number(m.done) });
+    const key = typeof m.sid === 'string' && m.sid && m.sid.length <= 24 ? m.sid : m.id;
+    if (exam.subs.has(key)) return;
+    exam.subs.set(key, { name: peer.actor.name || '학생', at: Number(m.done) });
     toast(`${peer.actor.name || '학생'} · 시험지 제출 ${hhmm(Number(m.done))}`, 4000);
     examKeep();
     showExamBox();
+  } else if (typeof m.sub === 'string') {            // (선생님) 학생의 답안 조각 (잠겨 있다)
+    if (!exam.mine || !exam.meta || m.ex !== exam.meta.id || !exam.priv || !m.sub || m.sub.length > 24) return;
+    const had = exam.subs.get(m.sub);
+    if (had && had.pages) { if (m.i === 0 && link) link.send({ t: 'x', id: myId, ex: exam.meta.id, ack: m.sub }); return; }      // 이미 받은 답안: 받았다고만 다시 알린다
+    if (!Number.isInteger(m.of) || m.of < 1 || m.of > 24 || !Number.isInteger(m.i) || m.i < 0 || m.i >= m.of) return;
+    if (typeof m.d !== 'string' || m.d.length > EXAM_CHUNK || typeof m.ek !== 'string' || m.ek.length > 200 || typeof m.iv !== 'string' || m.iv.length > 40) return;
+    const key = `${m.id}|${m.sub}`;
+    let box = exam.inbox.get(key);
+    if (!box || box.of !== m.of || box.ek !== m.ek) {
+      if (exam.inbox.size > 80) exam.inbox.clear();
+      box = { of: m.of, ek: m.ek, iv: m.iv, parts: new Array(m.of).fill(null) };
+      exam.inbox.set(key, box);
+    }
+    box.parts[m.i] = m.d;
+    if (box.parts.includes(null)) return;
+    exam.inbox.delete(key);
+    examTake(m.sub, box);
+  } else if (typeof m.ack === 'string') {            // (학생) 선생님이 내 답안을 받았다
+    if (isTeacher || !peer.teacher || !exam.meta || m.ex !== exam.meta.id || m.ack !== exam.sid || exam.acked) return;
+    exam.acked = true;
+    examSave();
+    toast('선생님께 답안이 전달됐어요', 4000);
+    examShow();
   }
+}
+/* ── 답안 걷기: 학생이 제출하면 쓴 답(획)이 선생님 기기로 온다 ──
+   서버가 없어서 방 통로(모두가 듣는 곳)로 보내야 하므로, 선생님의 공개 열쇠로 잠가서 보낸다 → 선생님 기기만 열 수 있다.
+   시험을 예약할 때 열쇠 한 쌍을 만든다: 공개 열쇠(pk)는 시험 소식에 실어 모두에게, 여는 열쇠(priv)는 선생님 기기에만 (꺼낼 수 없게) 둔다.
+   선생님 기기는 받은 답을 시험지 그림 위에 얹어 PDF 로 만든다 — 내려받거나, 텔레그램 봇으로 선생님의 대화방에 올린다 (봇 토큰은 선생님 기기에만 있다).
+   학생 화면에는 '제출 · 전달됨'만 보인다. 선생님이 받았다는 답(ack)이 올 때까지 학생 기기는 가끔 다시 보낸다 */
+const b64 = (buf) => { const u = new Uint8Array(buf); let str = ''; for (let i = 0; i < u.length; i += 0x8000) str += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(str); };
+const unb64 = (str) => Uint8Array.from(atob(str), (ch) => ch.charCodeAt(0));
+const ECDH = { name: 'ECDH', namedCurve: 'P-256' };
+async function sealFor(pk, bytes) {   // 공개 열쇠 pk 의 주인만 열 수 있게 잠근다
+  const pub = await crypto.subtle.importKey('raw', unb64(pk), ECDH, false, []);
+  const mine = await crypto.subtle.generateKey(ECDH, true, ['deriveKey']);
+  const key = await crypto.subtle.deriveKey({ name: 'ECDH', public: pub }, mine.privateKey, { name: 'AES-GCM', length: 256 }, false, ['encrypt']);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  return { ek: b64(await crypto.subtle.exportKey('raw', mine.publicKey)), iv: b64(iv), d: b64(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, bytes)) };
+}
+async function openSealed(priv, ek, iv, d) {
+  const pub = await crypto.subtle.importKey('raw', unb64(ek), ECDH, false, []);
+  const key = await crypto.subtle.deriveKey({ name: 'ECDH', public: pub }, priv, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+  return new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(iv) }, key, unb64(d)));
+}
+const cleanStrokes = (list) => (!Array.isArray(list) ? [] : list.slice(0, 4000)
+  .filter((st) => st && Array.isArray(st.p) && st.p.length >= 2 && st.p.length <= 8000 && st.p.every(Number.isFinite))
+  .map((st) => ({ c: /^#[0-9a-f]{6}$/i.test(st.c) ? st.c : '#1f2430', w: clamp(Number(st.w) || 3, 1, 10), e: st.e ? 1 : 0, p: st.p })));
+async function examDeliver() {        // (학생) 쓴 답을 선생님 기기로 보낸다
+  if (isTeacher || !exam.meta || !exam.done || exam.acked || !exam.meta.pk || !link || exam.sending || !window.crypto || !crypto.subtle) return;
+  exam.sending = true;
+  exam.sentAt = Date.now();
+  try {
+    const id = exam.meta.id, sid = exam.sid;
+    const box = await sealFor(exam.meta.pk, new TextEncoder().encode(JSON.stringify({ sid, name: myName || '학생', at: exam.done, pages: exam.doc.pages })));
+    const of = Math.ceil(box.d.length / EXAM_CHUNK);
+    if (of > 24) throw new Error('답안이 너무 커요');
+    for (let i = 0; i < of; i++) {
+      if (!link || !exam.meta || exam.meta.id !== id || exam.acked) break;
+      link.send({ t: 'x', id: myId, ex: id, sub: sid, i, of, ek: box.ek, iv: box.iv, d: box.d.slice(i * EXAM_CHUNK, (i + 1) * EXAM_CHUNK) });
+      if (i < of - 1) await new Promise((next) => setTimeout(next, 250));
+    }
+  } catch (err) { console.warn('답안 보내기 실패', err); }
+  exam.sending = false;
+}
+async function examTake(sid, box) {   // (선생님) 다 모인 답안을 열어서 제출 목록에 넣는다
+  let data = null;
+  try { data = JSON.parse(new TextDecoder().decode(await openSealed(exam.priv, box.ek, box.iv, box.parts.join('')))); }
+  catch (err) { console.warn('답안 열기 실패', err); return; }
+  const m = exam.meta, had = exam.subs.get(sid);
+  if (!m || !exam.mine || !data || data.sid !== sid || !Array.isArray(data.pages) || (had && had.pages)) return;
+  const now = Date.now(), name = String(data.name || (had && had.name) || '학생').slice(0, 12);
+  exam.subs.set(sid, { name, at: clamp(Number(data.at) || now, m.start - EXAM_PRE, now + 5000), pages: Array.from({ length: m.n }, (_, i) => cleanStrokes(data.pages[i])), tg: 0 });
+  examKeep();
+  if (link) link.send({ t: 'x', id: myId, ex: m.id, ack: sid });
+  toast(`${name} · 답안을 받았어요`, 3000);
+  showExamBox();
+  if (tg) tgSend(sid);
 }
 function examSend() {                 // (선생님) 시험지의 모든 쪽을 조각내어 보낸다. 한꺼번에 몰리지 않게 조금씩 띄운다
   if (!link || !exam.mine || !exam.meta) return;
@@ -7686,7 +7892,7 @@ function examDb(mode, work) {
   });
 }
 function examKeep() {
-  if (exam.mine && exam.meta) examDb('readwrite', (st) => st.put({ room: roomCode, meta: exam.meta, pages: exam.pages, subs: [...exam.subs] }, 'mine'));
+  if (exam.mine && exam.meta) examDb('readwrite', (st) => st.put({ room: roomCode, meta: exam.meta, pages: exam.pages, subs: [...exam.subs], priv: exam.priv }, 'mine'));
 }
 function examRestore() {
   if (!isTeacher) return;
@@ -7699,6 +7905,7 @@ function examRestore() {
     exam.meta = kept.meta;
     kept.pages.forEach((d, i) => examPage(i, d));
     for (const [id, sub] of kept.subs || []) exam.subs.set(id, sub);
+    exam.priv = kept.priv || null;
     lastSent = '';
     examTick();
     showExamBox();
@@ -7752,6 +7959,13 @@ function examTick() {
     exam.wantAt = Date.now();
     link.send({ t: 'x', id: myId, want: exam.meta.id });
   }
+  if (!isTeacher && exam.meta && exam.done && exam.meta.pk && !exam.acked) {       // 제출했는데 선생님이 아직 받지 못했다: 선생님이 있으면 12초마다 다시 보낸다
+    if (Date.now() - exam.sentAt > 12000 && [...peers.values()].some((peer) => peer.teacher)) examDeliver();
+    if (!exam.warned && examNow() - exam.done > 25000) {
+      exam.warned = true;
+      toast('답안이 아직 선생님께 전달되지 않았어요 · 선생님이 강의실에 계신지 확인해 주세요. "파일로 보내기"로 직접 보낼 수도 있어요', 9000);
+    }
+  }
   examShow();
 }
 setInterval(examTick, 250);
@@ -7767,7 +7981,7 @@ function examShow() {
     : p === 'pre' ? `시작까지 ${mmss(m.start - t)}`
     : p === 'run' ? (exam.hideClock ? '시계 숨김' : `남은 시간 ${mmss(left)}`)
     : p === 'over' ? (isTeacher ? `종료 뒤 ${mmss(-left)}` : `초과 +${mmss(-left)}`)
-    : `제출 ${hhmm(exam.done)}`;
+    : `제출 ${hhmm(exam.done)}${m.pk ? (exam.acked ? ' · 전달됨' : ' · 보내는 중') : ''}`;
   const tone = p === 'over' ? 'over' : p === 'done' ? 'done' : p === 'run' && left <= 60000 ? 'last' : p === 'run' && left <= 300000 ? 'soon' : p === 'run' && left <= 600000 ? 'near' : '';
   const canSubmit = !isTeacher && (p === 'run' || p === 'over');
   for (const [time, submit, share] of [[$('examTime'), $('examSubmit'), $('examShare')], [$('noteExamTime'), $('noteSubmit'), null]]) {
@@ -7775,7 +7989,7 @@ function examShow() {
     time.dataset.tone = tone;
     submit.hidden = !canSubmit;
     submit.classList.toggle('over', p === 'over');
-    if (share) share.hidden = !(p === 'done' && exam.file);
+    if (share) share.hidden = !(p === 'done' && !isTeacher && (!m.pk || (!exam.acked && t - exam.done > 20000)));      // 전달되지 않을 때의 예비: 파일로 만들어 직접 보낸다
   }
 }
 for (const el of [$('examTime'), $('noteExamTime')]) el.addEventListener('click', () => { if (exam.phase === 'run') { exam.hideClock = !exam.hideClock; examShow(); } });
@@ -7788,10 +8002,10 @@ function examOpen() {
   padOpen(exam.doc);
 }
 /* ── 제출: 답을 쓴 시험지를 PDF 한 개로 만들어 공유한다 ── */
-function examSheet(i, stamp) {        // i 쪽의 시험지 그림 위에 쓴 답을 얹은 JPEG
-  const doc = exam.doc, c = document.createElement('canvas'), g = c.getContext('2d'), k = 1.2;
-  c.width = Math.round(doc.w * k);
-  c.height = Math.round(doc.h * k);
+function examSheet(pages, i, stamp) { // i 쪽의 시험지 그림 위에 쓴 답(pages[i] 의 획들)을 얹은 JPEG
+  const c = document.createElement('canvas'), g = c.getContext('2d'), k = 1.2;
+  c.width = Math.round(EXAM_PX * k);
+  c.height = Math.round(Math.round(EXAM_PX * exam.meta.h / exam.meta.w) * k);
   g.fillStyle = '#fff';
   g.fillRect(0, 0, c.width, c.height);
   const img = exam.imgs[i];
@@ -7800,7 +8014,7 @@ function examSheet(i, stamp) {        // i 쪽의 시험지 그림 위에 쓴 �
   layer.width = c.width;
   layer.height = c.height;
   const lg = layer.getContext('2d');
-  for (const st of doc.pages[i]) strokeOn(lg, st, k);
+  for (const st of pages[i] || []) strokeOn(lg, st, k);
   g.drawImage(layer, 0, 0);
   if (stamp) {                       // 첫 쪽 위쪽에 이름 · 제출 시각을 적는다
     g.font = `700 ${Math.round(26 * k)}px ${UI_FONT}`;
@@ -7839,41 +8053,51 @@ function jpegPdf(sheets) {            // JPEG 한 장이 한 쪽인 PDF 를 손�
   put(`trailer\n<< /Size ${count} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`);
   return new Blob(parts, { type: 'application/pdf' });
 }
-function examSubmit() {               // (제출 단추 → 확인 → 여기) 누른 그 자리에서 파일을 만들어 공유 창을 띄운다
+function examPdf(pages, name, at) {   // 답(쪽마다의 획들)을 얹은 시험지 PDF. 첫 쪽 위에 이름 · 제출 시각 · 초과 시간이 찍힌다
+  const late = at - exam.meta.end, stamp = `${name} · 제출 ${hhmm(at)}${late > 0 ? ` (초과 +${mmss(late)})` : ''}`;
+  const blob = jpegPdf(Array.from({ length: exam.meta.n }, (_, i) => examSheet(pages, i, i === 0 ? stamp : '')));
+  return new File([blob], `시험_${name}_${hhmm(at).replace(':', '')}.pdf`, { type: 'application/pdf' });
+}
+function saveFile(file) {             // 파일로 내려받는다
+  const url = URL.createObjectURL(file), a = Object.assign(document.createElement('a'), { href: url, download: file.name });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+}
+function examSubmit() {               // (제출 단추 → 확인 → 여기)
   if (!exam.meta || !exam.doc || exam.done || isTeacher) return;
   notePenUp();
-  const m = exam.meta, at = examNow(), late = at - m.end, name = myName || '학생';
-  const stamp = `${name} · 제출 ${hhmm(at)}${late > 0 ? ` (초과 +${mmss(late)})` : ''}`;
-  let blob;
-  try { blob = jpegPdf(exam.doc.pages.map((_, i) => examSheet(i, i === 0 ? stamp : ''))); }
-  catch (err) { console.warn('시험지 파일 만들기 실패', err); toast('제출할 파일을 만들지 못했어요. 다시 눌러 주세요', 6000); return; }
-  exam.file = new File([blob], `시험_${name}_${hhmm(at).replace(':', '')}.pdf`, { type: 'application/pdf' });
+  const m = exam.meta, at = examNow();
   exam.done = at;
   exam.doc.readonly = true;
+  exam.acked = exam.warned = false;
+  exam.file = null;
   examSave();
-  if (link) link.send({ t: 'x', id: myId, ex: m.id, done: at });
+  if (link) link.send({ t: 'x', id: myId, ex: m.id, done: at, sid: exam.sid });
   closeNote();
   examTick();
-  examShare();
+  if (m.pk && window.crypto && crypto.subtle) {      // 답안이 선생님 기기로 간다. 학생은 기다리기만 하면 된다
+    toast('제출했어요 · 선생님께 답안을 보내는 중이에요', 4000);
+    examDeliver();
+  } else examShare();                // (답안을 걷지 못하는 경우: 파일로 만들어 공유하기로 직접 보낸다)
 }
-function examShare() {                // 기기의 '공유하기'로 보낸다. 공유하기가 없는 브라우저에서는 파일로 내려받는다
+function examShare() {                // 답을 쓴 시험지를 파일로 만들어 기기의 '공유하기'로 보낸다. 공유하기가 없는 브라우저에서는 파일로 내려받는다
+  if (!exam.meta || !exam.doc || !exam.done) return;
+  try { exam.file = exam.file || examPdf(exam.doc.pages, myName || '학생', exam.done); }
+  catch (err) { console.warn('시험지 파일 만들기 실패', err); toast('파일을 만들지 못했어요. 다시 눌러 주세요', 6000); return; }
   const file = exam.file;
-  if (!file) return;
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     navigator.share({ files: [file], title: '시험지 제출', text: `${myName || '학생'} 시험지` })
       .then(() => toast('공유 창에서 보냈으면 제출이 끝나요', 5000))
-      .catch((err) => { if (!err || err.name !== 'AbortError') console.warn('공유 실패', err); toast('보내지 않았으면 "다시 공유"를 눌러 선생님께 보내 주세요', 7000); });
+      .catch((err) => { if (!err || err.name !== 'AbortError') console.warn('공유 실패', err); toast('보내지 않았으면 "파일로 보내기"를 눌러 선생님께 보내 주세요', 7000); });
   } else {
-    const url = URL.createObjectURL(file), a = Object.assign(document.createElement('a'), { href: url, download: file.name });
-    document.body.append(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 30000);
+    saveFile(file);
     toast('이 브라우저에는 공유하기가 없어서 파일로 내려받았어요 · 그 파일을 선생님께 보내 주세요', 9000);
   }
 }
-$('examSubmit').addEventListener('click', () => askConfirm('시험지 제출', '제출하면 더 고칠 수 없어요. 답을 쓴 시험지를 파일로 만들어 공유 창을 열어요. 제출할까요?', examSubmit, '제출'));
-$('noteSubmit').addEventListener('click', () => askConfirm('시험지 제출', '제출하면 더 고칠 수 없어요. 답을 쓴 시험지를 파일로 만들어 공유 창을 열어요. 제출할까요?', examSubmit, '제출'));
+$('examSubmit').addEventListener('click', () => askConfirm('시험지 제출', '제출하면 더 고칠 수 없어요. 제출할까요?', examSubmit, '제출'));
+$('noteSubmit').addEventListener('click', () => askConfirm('시험지 제출', '제출하면 더 고칠 수 없어요. 제출할까요?', examSubmit, '제출'));
 $('examShare').addEventListener('click', examShare);
 /* ── 선생님의 시험 창 ── */
 function showExamBox() {
@@ -7885,14 +8109,99 @@ function showExamBox() {
   $('examGo').disabled = !d;
   $('examStop').hidden = !m;
   $('examStop').textContent = m && exam.phase === 'over' ? '시험 마치기 (시험지 걷기)' : '시험 취소';
-  $('examNote').textContent = m ? `${hhmm(m.start)} ~ ${hhmm(m.end)} · 시작 15분 전부터 학생 책상에 시험지가 놓여요` : '학생은 답을 시험지 위에 쓰고, 제출하면 기기의 공유하기로 선생님께 보내요';
-  const rows = [...exam.subs.values()].sort((a, b) => a.at - b.at).map((s) => {
-    const row = document.createElement('div'), late = m ? s.at - m.end : 0;
-    row.textContent = `${s.name} · ${hhmm(s.at)}${late > 0 ? ` (+${mmss(late)})` : ''}`;
-    if (late > 0) row.className = 'late';
+  $('examNote').textContent = m ? `${hhmm(m.start)} ~ ${hhmm(m.end)} · 제출한 답안은 이 기기로 모여요. 시험이 끝날 때까지 강의실에 있어 주세요` : '학생은 답을 시험지 위에 쓰고, 제출하면 답안이 선생님 기기로 모여요 (PDF 로 내려받기 · 텔레그램으로 받기)';
+  showTg();
+  const rows = [...exam.subs].sort((a, b) => a[1].at - b[1].at).map(([sid, sub]) => {
+    const row = document.createElement('div'), late = m ? sub.at - m.end : 0, who = document.createElement('span');
+    who.textContent = `${sub.name} · ${hhmm(sub.at)}${late > 0 ? ` (+${mmss(late)})` : ''}`;
+    if (late > 0) who.className = 'late';
+    row.append(who);
+    if (!sub.pages) row.append(Object.assign(document.createElement('small'), { textContent: '답안 받는 중…' }));
+    else {
+      const pdf = Object.assign(document.createElement('button'), { type: 'button', textContent: 'PDF', title: '답을 쓴 시험지를 PDF 로 내려받아요' });
+      pdf.addEventListener('click', () => { try { saveFile(examPdf(sub.pages, sub.name, sub.at)); } catch (err) { console.warn(err); toast('PDF 를 만들지 못했어요'); } });
+      row.append(pdf);
+      if (tg) {
+        const send = Object.assign(document.createElement('button'), { type: 'button', textContent: sub.tg === 1 ? '보냄 ✓' : sub.tg === 2 ? '보내는 중' : sub.tg === -1 ? '다시 보내기' : '텔레그램', disabled: sub.tg === 2, title: '텔레그램 대화방으로 보내요' });
+        send.addEventListener('click', () => tgSend(sid, true));
+        row.append(send);
+      }
+    }
     return row;
   });
   $('examSubs').replaceChildren(...(rows.length ? rows : [Object.assign(document.createElement('p'), { textContent: m ? '아직 제출한 학생이 없어요.' : '' })]));
+}
+/* ── 텔레그램으로 받기 (선생님): 봇 토큰과 받을 대화방은 이 기기에만 적어 둔다. 학생 기기에는 가지 않는다 ── */
+const TG_KEY = 'classroom-tg-v1';
+let tg = null, tgLine = Promise.resolve();      // tg = { token, chat, title, bot } · tgLine = 한 번에 하나씩 보내는 줄
+try {
+  const kept = JSON.parse(localStorage.getItem(TG_KEY));
+  if (kept && typeof kept.token === 'string' && kept.chat) tg = kept;
+} catch {}
+async function tgCall(token, method, form) {
+  const res = await fetch(`https://api.telegram.org/bot${token}/${method}`, form ? { method: 'POST', body: form } : undefined), data = await res.json();
+  if (!data.ok) throw new Error(data.description || `텔레그램 오류 ${res.status}`);
+  return data.result;
+}
+function showTg(note) {
+  $('tgState').textContent = tg ? '켜짐' : '꺼짐';
+  $('tgRow').hidden = !!tg;
+  $('tgOff').hidden = !tg;
+  $('tgNote').textContent = note || (tg ? `"${tg.title}" 대화방으로 보내요 (@${tg.bot} 봇) · 답안이 오면 자동으로 올려요` : '텔레그램의 BotFather 로 봇을 만들고, 그 봇에게 아무 말이나 보낸 뒤, 봇 토큰을 적고 "연결"을 눌러 주세요. 토큰은 이 기기에만 저장되고 학생에게는 가지 않아요.');
+}
+$('tgLink').addEventListener('click', async () => {
+  const token = $('tgToken').value.trim();
+  if (!/^\d{5,}:[\w-]{30,}$/.test(token)) { showTg('봇 토큰의 모양이 아니에요. BotFather 가 준 것(숫자:글자…)을 그대로 붙여 주세요.'); return; }
+  $('tgLink').disabled = true;
+  try {
+    const me = await tgCall(token, 'getMe'), ups = await tgCall(token, 'getUpdates?offset=-1');
+    const last = ups.map((u) => u.message || u.channel_post || u.edited_message || (u.my_chat_member && { chat: u.my_chat_member.chat })).filter((msg) => msg && msg.chat).pop();
+    if (!last) showTg(`텔레그램에서 @${me.username} 봇에게 아무 말이나 보낸 뒤 (모임방이면 봇을 초대한 뒤), 다시 "연결"을 눌러 주세요.`);
+    else {
+      const chat = last.chat, form = new FormData();
+      form.append('chat_id', String(chat.id));
+      form.append('text', '3D 강의실과 연결됐어요. 학생이 제출한 시험 답안이 여기로 와요.');
+      await tgCall(token, 'sendMessage', form);
+      tg = { token, chat: chat.id, title: String(chat.title || [chat.first_name, chat.last_name].filter(Boolean).join(' ') || '대화방').slice(0, 40), bot: me.username };
+      try { localStorage.setItem(TG_KEY, JSON.stringify(tg)); } catch {}
+      $('tgToken').value = '';
+      showTg();
+      toast('텔레그램과 연결했어요 · 대화방에 확인 글을 보냈어요', 5000);
+    }
+  } catch (err) { showTg(`연결하지 못했어요: ${String(err.message || err).slice(0, 80)}`); }
+  $('tgLink').disabled = false;
+  showExamBox();
+});
+$('tgOff').addEventListener('click', () => {
+  tg = null;
+  try { localStorage.removeItem(TG_KEY); } catch {}
+  showTg();
+  showExamBox();
+});
+function tgSend(sid, again = false) { // 그 학생의 답안 PDF 를 대화방에 올린다 (여럿이 한꺼번에 내도 하나씩, 1초 남짓 띄워서)
+  const sub = exam.subs.get(sid);
+  if (!tg || !sub || !sub.pages || sub.tg === 2 || (sub.tg === 1 && !again)) return;
+  sub.tg = 2;
+  showExamBox();
+  tgLine = tgLine.then(async () => {
+    const m = exam.meta;
+    if (!tg || !m || exam.subs.get(sid) !== sub) return;
+    try {
+      const file = examPdf(sub.pages, sub.name, sub.at), late = sub.at - m.end, form = new FormData();
+      form.append('chat_id', String(tg.chat));
+      form.append('caption', `${m.title} · ${sub.name} · 제출 ${hhmm(sub.at)}${late > 0 ? ` (초과 +${mmss(late)})` : ''}`);
+      form.append('document', file, file.name);
+      await tgCall(tg.token, 'sendDocument', form);
+      sub.tg = 1;
+    } catch (err) {
+      console.warn('텔레그램 보내기 실패', err);
+      sub.tg = -1;
+      toast(`${sub.name}의 답안을 텔레그램으로 보내지 못했어요 · 제출 목록에서 다시 보낼 수 있어요`, 6000);
+    }
+    examKeep();
+    showExamBox();
+    await new Promise((next) => setTimeout(next, 1200));
+  });
 }
 const timeField = (t) => { const d = new Date(t); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
 const fieldTime = (v) => { const [h, mi] = String(v).split(':').map(Number), d = new Date(); d.setHours(h || 0, mi || 0, 0, 0); return d.getTime(); };
@@ -7948,9 +8257,15 @@ $('examInput').addEventListener('change', async () => {
   }
   showExamBox();
 });
-$('examGo').addEventListener('click', () => {
+$('examGo').addEventListener('click', async () => {
   const d = exam.draft;
-  if (!d || !isTeacher) return;
+  if (!d || !isTeacher || exam.mine) return;
+  let pair = null, pk = '';          // 답안을 잠그고 여는 열쇠 한 쌍 (여는 열쇠는 이 기기 밖으로 나가지 않는다)
+  try {
+    pair = await crypto.subtle.generateKey(ECDH, false, ['deriveKey']);
+    pk = b64(await crypto.subtle.exportKey('raw', pair.publicKey));
+  } catch (err) { console.warn('열쇠 만들기 실패', err); pair = null; }
+  if (exam.mine) return;
   let start = fieldTime($('examStart').value), end = fieldTime($('examEnd').value);
   if (end <= start) end += 24 * 3600000;               // 자정을 넘기는 시험
   if (end <= Date.now()) { toast('종료 시각이 이미 지났어요. 시각을 다시 정해 주세요', 5000); return; }
@@ -7959,7 +8274,8 @@ $('examGo').addEventListener('click', () => {
   exam.offset = 0;
   exam.mine = true;
   exam.by = myId;
-  exam.meta = { id: Math.random().toString(36).slice(2, 10), title: d.title, n: d.pages.length, w: d.w, h: d.h, start, end };
+  exam.meta = { id: Math.random().toString(36).slice(2, 10), title: d.title, n: d.pages.length, w: d.w, h: d.h, start, end, pk };
+  exam.priv = pair ? pair.privateKey : null;
   d.pages.forEach((p, i) => examPage(i, p));
   examSend();
   examKeep();
@@ -9255,7 +9571,8 @@ window.classroom = {
   get role() { return [role, creator, isTeacher]; }, strokes, inkAdd, FORMS, BOARD, spawn, nearestFree, playBgm, gotoArea, boardCam,
   get areas() { return [areas, areaAt, zoomX]; },
   get zoom() { return [zoomed, zoomAmt]; }, frame, zaps, zapAdd, liveTex, liveMesh, live, inkTex, showTex, startLive, endShow, inkClear, inkErase, get show() { return show; }, get lap() { return { ...lapShown, level: pixels.level, trial: !!pixels.trial, hold: Math.round(Math.max(0, pixels.hold - performance.now()) / 1000), mirrorMs, every: mirrorEvery() }; }, mirrorRT, get mirror() { return { n: mirrorN, sum: mirrorSum, ms: mirrorMs, rt: [mirrorRT.width, mirrorRT.height], on: mirrorGlass.visible, pos: mirrorGlass.position.toArray(), calls: mirrorCalls, all: info.calls, fade: mirrorMat.uniforms.fade.value }; }, get mySkin() { return mySkin; }, peerSkins, actors, get follow() { return { on: follow.on, can: canFollow(), x: zoomX, to: follow.to, area: areaAt }; }, setZoom, setHide, undo, redo, hist, stylus, joy, voice, setMic, VOICE, openChat, chatAdd, chat, get zoomWrite() { return zoomWrite; }, nearBoard, get glance() { return [glancing, +glanceLook.yaw.toFixed(3), +glanceLook.pitch.toFixed(3)]; }, get bgm() { return bgmNow; }, get audio() { return ac; },
-  exam, note, noteObj, examTick, examSheet, jpegPdf, openNote, closeNote, noteZoom,
+  exam, note, noteObj, examTick, examSheet, examPdf, jpegPdf, openNote, closeNote, noteZoom,
+  setKeys, openWhisper, setRemoteOut, get remoteOut() { return remoteOut; },
   get room() { return { ROOM, HW, HD, floorAt, obstacles, blocked, cellH, NX, NZ }; },
   net: { peers, myId, tick: netTick, receive: netReceive, pace: netPace, openSupabase,
     get link() { return link; }, get state() { return linkState; }, get seatAt() { return mySeatAt; } },
