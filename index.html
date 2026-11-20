@@ -230,7 +230,7 @@
   @media (max-width: 640px) { #panels { flex-wrap: nowrap; overflow-y: auto; pointer-events: auto; } #panels:not(:has(> .chip:not([hidden]))) { display: none; } }      /* 좁은 화면: 한 줄로 쌓고 넘치면 굴린다 */
   #setup { width: 316px; max-width: 100%; padding: 10px 10px 12px; }
   /* 연습장: 자리에 앉은 학생의 개인 필기장. 화면을 덮는 종이 한 장 + 위쪽의 도구 줄. 쓴 것은 이 기기에만 남는다 */
-  #note { position: fixed; inset: 0; z-index: 30; display: grid; grid-template-rows: auto 1fr; justify-items: center; gap: 8px; padding: 10px; background: rgba(24, 19, 14, .55); }
+  #note { position: fixed; inset: 0; z-index: 30; display: grid; grid-template-rows: auto minmax(0, 1fr); justify-items: center; gap: 8px; padding: 10px; background: rgba(24, 19, 14, .55); }
   #note[hidden] { display: none; }
   #noteBar { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 5px; padding: 6px 8px; background: var(--paper); border: 2px solid var(--ink); box-shadow: 0 4px 0 var(--ink); }
   #noteBar .nb {
@@ -244,11 +244,17 @@
   #noteBar .nb img { width: 32px; height: 32px; image-rendering: pixelated; pointer-events: none; display: block; }
   #noteBar .nb.sw i { width: 22px; height: 22px; background: var(--c); box-shadow: inset 3px 3px 0 rgba(255, 255, 255, .35), inset -3px -3px 0 rgba(0, 0, 0, .3), 0 0 0 2px #1b1b1b; }
   #noteBar .nb.txt { width: auto; padding: 0 10px; font: 800 13px var(--font); background: #fff; box-shadow: none; }
+  #noteBar .nb.txt[aria-pressed="true"] { color: #fff; background: var(--coral); }
+  #noteBar .nb.txt:disabled { opacity: .4; }
+  #noteBar .nb.zm { padding: 0 8px; font-size: 16px; }
+  #noteZoomPct { min-width: 52px; font-variant-numeric: tabular-nums; }
   #noteBar .sep { width: 2px; height: 26px; background: rgba(51, 36, 26, .25); }
   #noteBar b { min-width: 46px; text-align: center; font-size: 13px; }
   #noteSize { width: 90px; height: 30px; margin: 0 2px; accent-color: var(--coral); cursor: pointer; }
-  #noteSheet { align-self: center; position: relative; aspect-ratio: 1000 / 707; height: 100%; max-width: 100%; max-height: 100%; }
-  @supports not (aspect-ratio: 1) { #noteSheet { width: 100%; } }
+  /* 종이를 담는 틀: 종이를 확대하면 틀 밖으로 나간 부분은 가려지고, 끌어서 옮겨 본다. 종이의 크기와 자리는 스크립트가 정한다 (noteLay) */
+  #noteView { position: relative; justify-self: stretch; width: 100%; height: 100%; min-height: 0; overflow: hidden; touch-action: none; }
+  #noteSheet { position: absolute; }
+  #noteView.move #notePaper { cursor: grab; }
   #notePaper {
     position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: crosshair;
     background-color: #fffdf4; border: 2px solid var(--ink); box-shadow: 0 6px 0 rgba(0, 0, 0, .35);
@@ -916,6 +922,11 @@
     <button type="button" class="nb" id="noteRedo" aria-label="앞으로 가기" title="앞으로 가기 (Ctrl+Shift+Z)"></button>
     <button type="button" class="nb txt" id="noteClear" title="이 쪽에 쓴 것을 모두 지우기">쪽 지우기</button>
     <span class="sep"></span>
+    <button type="button" class="nb txt" data-ntool="move" aria-pressed="false" title="종이 옮기기: 확대한 종이를 끌어서 옮겨요">이동</button>
+    <button type="button" class="nb txt zm" id="noteZoomOut" aria-label="축소" title="축소 (-)">－</button>
+    <button type="button" class="nb txt" id="noteZoomPct" title="원래 크기로 (0)">100%</button>
+    <button type="button" class="nb txt zm" id="noteZoomIn" aria-label="확대" title="확대 (+) · 두 손가락을 벌려도 돼요">＋</button>
+    <span class="sep"></span>
     <button type="button" class="nb txt" id="notePrev" aria-label="앞 쪽">◀</button>
     <b id="notePage">1 / 1</b>
     <button type="button" class="nb txt" id="noteNext" aria-label="다음 쪽">▶</button>
@@ -926,7 +937,7 @@
     </span>
     <button type="button" class="nb txt" id="noteClose" title="덮기 (Esc)">덮기 ×</button>
   </div>
-  <div id="noteSheet"><canvas id="notePaper"></canvas></div>
+  <div id="noteView"><div id="noteSheet"><canvas id="notePaper"></canvas></div></div>
 </div>
 
 <div id="confirm" hidden>
@@ -7115,7 +7126,7 @@ try {
   }
 } catch {}
 const noteObj = { kind: 'note', boxes: [new THREE.Box3()], on: false, seat: null, what: '', mesh: null, paper: null };
-const note = { doc: noteDoc, redo: [], tool: 'pen', color: '#1f2430', size: 3, id: null, cur: null, saveTimer: 0, scale: 1 };
+const note = { doc: noteDoc, redo: [], tool: 'pen', color: '#1f2430', size: 3, id: null, cur: null, saveTimer: 0, scale: 1, zoom: 1, left: 0, top: 0, fitTimer: 0, byTouch: false };
 function noteSave() {                 // 조금 모아서 기기에 적어 둔다
   const doc = note.doc;
   clearTimeout(note.saveTimer);
@@ -7204,7 +7215,8 @@ function noteLooked() {              // 앉아서 시선이 책상 위의 연습
   return viewRay.intersectBox(noteObj.boxes[0], _hit) ? noteObj : null;
 }
 /* ── 필기 화면 ── */
-const notePaper = $('notePaper'), noteCtx = notePaper.getContext('2d');
+const notePaper = $('notePaper'), noteCtx = notePaper.getContext('2d'), noteView = $('noteView');
+const NOTE_ZOOMS = [1, 1.5, 2, 3, 4];        // 확대 단추의 단계 (두 손가락 · Ctrl+휠로는 그 사이도 된다)
 function strokeOn(c, st, k, from = 0) {       // 획을 캔버스에 그린다 (k = 종이 좌표 → 캔버스 점, 꺾이는 점은 둥글게 잇는다)
   const p = st.p, n = p.length / 2;
   c.lineCap = c.lineJoin = 'round';
@@ -7226,13 +7238,51 @@ function noteDraw() {                 // 지금 쪽을 통째로 다시 그린�
   noteCtx.clearRect(0, 0, notePaper.width, notePaper.height);
   for (const st of note.doc.pages[note.doc.at]) noteStroke(st);
 }
-function noteFit() {                  // 종이가 화면에 보이는 크기에 맞춰 그림의 촘촘함을 정한다
+/* 종이의 크기와 자리: 틀(noteView)에 꼭 맞는 크기 × 확대(note.zoom). 틀보다 작으면 가운데에, 크면 note.left · top 만큼 옮겨서 보인다 (틀 밖으로 빈 곳이 생기지 않게 막는다) */
+function noteLay() {
   if ($('note').hidden) return;
-  const doc = note.doc, dpr = Math.min(window.devicePixelRatio || 1, 2);       // (확대되어 오는 중에도 다 커진 크기로 잰다)
-  const w = Math.max(200, Math.round(notePaper.clientWidth * dpr)), h = Math.round(w * doc.h / doc.w);
+  const doc = note.doc, vw = noteView.clientWidth, vh = noteView.clientHeight;
+  const base = Math.max(0.05, Math.min((vw - 12) / doc.w, (vh - 18) / doc.h)), w = doc.w * base * note.zoom, h = doc.h * base * note.zoom;
+  note.left = w <= vw ? (vw - w) / 2 : clamp(note.left, vw - w, 0);
+  note.top = h <= vh ? Math.max(0, (vh - h) / 2 - 4) : clamp(note.top, vh - h, 0);
+  const st = $('noteSheet').style;
+  st.width = `${w}px`;
+  st.height = `${h}px`;
+  st.left = `${note.left}px`;
+  st.top = `${note.top}px`;
+}
+function noteFit() {                  // 종이가 화면에 보이는 크기에 맞춰 그림의 촘촘함을 정한다 (확대하면 더 촘촘하게 다시 그린다 → 글씨가 흐려지지 않는다)
+  if ($('note').hidden) return;
+  noteLay();
+  const doc = note.doc, cw = Math.max(1, notePaper.clientWidth), ch = Math.max(1, notePaper.clientHeight);      // (확대되어 오는 중에도 다 커진 크기로 잰다)
+  const k = Math.min(window.devicePixelRatio || 1, 2, Math.sqrt(8e6 / (cw * ch)));       // 그림이 너무 커지지 않게 (패드의 캔버스 한도)
+  const w = Math.max(200, Math.round(cw * k)), h = Math.round(w * doc.h / doc.w);
   if (notePaper.width !== w || notePaper.height !== h) { notePaper.width = w; notePaper.height = h; }
   note.scale = notePaper.width / doc.w;
   noteDraw();
+}
+// 확대 · 축소. fx · fy = 틀 안에서 그대로 있어야 할 곳 (없으면 한가운데). 크기는 바로 바꾸고, 촘촘하게 다시 그리는 것은 손을 멈춘 뒤에 한다
+function noteZoom(z, fx, fy) {
+  z = clamp(z, 1, NOTE_ZOOMS[NOTE_ZOOMS.length - 1]);
+  if (fx === undefined) { fx = noteView.clientWidth / 2; fy = noteView.clientHeight / 2; }
+  const k = z / note.zoom;
+  note.left = fx - (fx - note.left) * k;
+  note.top = fy - (fy - note.top) * k;
+  note.zoom = z;
+  noteLay();
+  noteShow();
+  clearTimeout(note.fitTimer);
+  note.fitTimer = setTimeout(noteFit, 140);
+}
+function noteZoomStep(dir) {          // 확대 단추 · + - 키: 다음 단계로
+  notePenUp();
+  const z = note.zoom, next = dir > 0 ? NOTE_ZOOMS.find((v) => v > z + 0.01) : [...NOTE_ZOOMS].reverse().find((v) => v < z - 0.01);
+  if (next) noteZoom(next);
+}
+function notePan(dx, dy) {            // 확대한 종이를 옮긴다
+  note.left += dx;
+  note.top += dy;
+  noteLay();
 }
 function noteShow() {
   const doc = note.doc;
@@ -7242,6 +7292,10 @@ function noteShow() {
   $('noteUndo').disabled = doc.readonly || !doc.pages[doc.at].length;
   $('noteRedo').disabled = doc.readonly || !note.redo.length;
   $('noteClear').disabled = doc.readonly;
+  $('noteZoomPct').textContent = `${Math.round(note.zoom * 100)}%`;
+  $('noteZoomOut').disabled = note.zoom <= 1.01;
+  $('noteZoomIn').disabled = note.zoom >= NOTE_ZOOMS[NOTE_ZOOMS.length - 1] - 0.01;
+  noteView.classList.toggle('move', note.tool === 'move' || doc.readonly);
   $('notePage').textContent = `${doc.at + 1} / ${doc.grow ? doc.pages.length : doc.max}`;
   $('notePrev').disabled = doc.at === 0;
   $('noteNext').disabled = doc.at >= doc.max - 1;
@@ -7258,15 +7312,21 @@ function openNote() {
 function padOpen(doc) {
   note.doc = doc;
   note.redo = [];
+  note.zoom = 1;
+  noteTouch.clear();
+  notePinch = noteDrag = null;
+  if (note.tool === 'move') note.tool = 'pen';
   const el = $('note'), isExam = doc.kind === 'exam';
   el.classList.remove('closing');
   el.classList.toggle('exam', isExam);     // 시험지: 책상을 배경으로, 책상 위의 종이가 눈앞으로 확대되어 온다
   if (isExam && deskMat.color.getHex() !== 0xffffff) el.style.setProperty('--desk', `#${deskMat.color.getHexString()}`);      // 이 강의실 책상의 색
-  $('noteSheet').style.aspectRatio = `${doc.w} / ${doc.h}`;
   el.hidden = false;
   noteShow();
+  examShow();                          // (시험 시계 · 제출 단추가 도구 줄에 붙으면 종이 틀의 크기가 달라진다 → 그 뒤에 잰다)
   noteFit();
-  examShow();
+  setTimeout(() => {                   // 확대하는 방법을 처음 한 번 알려 준다
+    if (!$('note').hidden) hintOnce('noteZoom', COARSE ? '두 손가락을 벌리면 확대돼요 · 두 손가락으로 끌면 종이가 옮겨져요' : '＋ － 단추나 Ctrl+휠로 확대해요 · 휠로 종이를 옮겨요', 6000);
+  }, 6500);
 }
 function closeNote() {
   const el = $('note');
@@ -7311,6 +7371,9 @@ function noteKey(e) {                 // 필기 화면을 펴 둔 동안의 키
   else if (e.code === 'KeyY' && (e.ctrlKey || e.metaKey)) noteRedo();
   else if (e.code === 'ArrowLeft' || e.code === 'PageUp') noteGo(-1);
   else if (e.code === 'ArrowRight' || e.code === 'PageDown') noteGo(1);
+  else if (e.code === 'Equal' || e.code === 'NumpadAdd') noteZoomStep(1);
+  else if (e.code === 'Minus' || e.code === 'NumpadSubtract') noteZoomStep(-1);
+  else if (e.code === 'Digit0' || e.code === 'Numpad0') { notePenUp(); noteZoom(1); }
   else return;
   e.preventDefault();
 }
@@ -7325,27 +7388,108 @@ function notePenUp() {
   noteShow();
   noteSave();
 }
-notePaper.addEventListener('pointerdown', (e) => {
-  if (note.id !== null || note.doc.readonly || (stylus.only && e.pointerType === 'touch')) return;      // 펜만 쓰기: 손 · 손바닥으로는 써지지 않는다 (판서와 같은 설정)
+/* 종이 위의 손 · 펜 · 마우스
+   · 펜 · 손가락 하나 · 마우스: 쓴다 ('펜만 쓰기'를 켰으면 손가락으로는 써지지 않는다 — 판서와 같은 설정)
+   · 손가락 둘: 벌려서 확대 · 오므려서 축소 · 함께 끌어서 옮기기. 첫 손가락이 긋기 시작한 획은 없던 일로 한다.
+     펜으로 쓰는 동안과 그 직후(0.7초)에는 듣지 않는다 (손바닥이 닿아 종이가 움직이지 않게)
+   · '이동' 도구 (또는 제출해서 더 쓸 수 없는 시험지): 하나로 끌어도 종이가 옮겨진다
+   · 마우스 휠: 옮기기, Ctrl(⌘)+휠 · 트랙패드 벌리기: 확대 */
+const noteTouch = new Map();          // 화면에 닿아 있는 손가락: id → [x, y]
+let notePinch = null, noteDrag = null, notePenAt = -1e9;
+function noteStrokeDrop() {           // 긋던 획을 없던 일로
+  if (note.id === null || !note.cur) return;
+  const page = note.doc.pages[note.doc.at], i = page.indexOf(note.cur);
+  if (i >= 0) page.splice(i, 1);
+  note.id = null;
+  note.cur = null;
+  noteDraw();
+  noteShow();
+}
+noteView.addEventListener('pointerdown', (e) => {
+  const touch = e.pointerType === 'touch';
+  if (touch) {
+    noteTouch.set(e.pointerId, [e.clientX, e.clientY]);
+    if (noteTouch.size === 2 && performance.now() - notePenAt > 700 && (note.id === null || note.byTouch)) {
+      noteStrokeDrop();
+      noteDrag = null;
+      const [a, b] = [...noteTouch.values()];
+      notePinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, z: note.zoom, x: (a[0] + b[0]) / 2, y: (a[1] + b[1]) / 2 };
+      e.preventDefault();
+      return;
+    }
+    if (noteTouch.size > 1) return;
+  }
+  if (notePinch || noteDrag || note.id !== null) return;
+  if (note.tool === 'move' || note.doc.readonly) {      // 끌어서 옮기기
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    noteDrag = { id: e.pointerId, x: e.clientX, y: e.clientY };
+    try { noteView.setPointerCapture(e.pointerId); } catch {}
+    e.preventDefault();
+    return;
+  }
+  if (e.target !== notePaper || (stylus.only && touch)) return;      // 펜만 쓰기: 손 · 손바닥으로는 써지지 않는다
   e.preventDefault();
   note.id = e.pointerId;
+  note.byTouch = touch;
+  if (e.pointerType === 'pen') notePenAt = performance.now();
   try { notePaper.setPointerCapture(e.pointerId); } catch {}
   note.cur = { c: note.color, w: note.size, e: note.tool === 'erase' ? 1 : 0, p: notePoint(e) };
   note.doc.pages[note.doc.at].push(note.cur);
   note.redo = [];
   noteStroke(note.cur);
 });
-notePaper.addEventListener('pointermove', (e) => {
+noteView.addEventListener('pointermove', (e) => {
+  if (noteTouch.has(e.pointerId)) noteTouch.set(e.pointerId, [e.clientX, e.clientY]);
+  if (notePinch) {
+    if (noteTouch.size < 2) return;
+    const [a, b] = [...noteTouch.values()], r = noteView.getBoundingClientRect();
+    const d = Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, x = (a[0] + b[0]) / 2, y = (a[1] + b[1]) / 2;
+    note.left += x - notePinch.x;      // 두 손가락의 가운데가 움직인 만큼 옮기고
+    note.top += y - notePinch.y;
+    notePinch.x = x;
+    notePinch.y = y;
+    noteZoom(notePinch.z * d / notePinch.d, x - r.left, y - r.top);      // 벌어진 만큼 그 가운데를 중심으로 키운다
+    e.preventDefault();
+    return;
+  }
+  if (noteDrag) {
+    if (e.pointerId !== noteDrag.id) return;
+    notePan(e.clientX - noteDrag.x, e.clientY - noteDrag.y);
+    noteDrag.x = e.clientX;
+    noteDrag.y = e.clientY;
+    return;
+  }
   if (e.pointerId !== note.id || !note.cur) return;
+  if (e.pointerType === 'pen') notePenAt = performance.now();
   const p = note.cur.p, [x, y] = notePoint(e);
-  if (Math.hypot(x - p[p.length - 2], y - p[p.length - 1]) < 1.2) return;
+  if (Math.hypot(x - p[p.length - 2], y - p[p.length - 1]) < 1.2 / note.zoom) return;
   if (p.length < 8000) p.push(x, y);
   noteStroke(note.cur, p.length / 2 - 2);
 });
-for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) notePaper.addEventListener(type, (e) => { if (e.pointerId === note.id) notePenUp(); });
+for (const type of ['pointerup', 'pointercancel']) {
+  noteView.addEventListener(type, (e) => {
+    noteTouch.delete(e.pointerId);
+    if (notePinch && noteTouch.size < 2) notePinch = null;
+    if (noteDrag && e.pointerId === noteDrag.id) noteDrag = null;
+    if (e.pointerId === note.id) notePenUp();
+  });
+}
+notePaper.addEventListener('lostpointercapture', (e) => { if (e.pointerId === note.id) notePenUp(); });
+noteView.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  notePenUp();
+  if (e.ctrlKey || e.metaKey) {
+    const r = noteView.getBoundingClientRect();
+    noteZoom(note.zoom * Math.exp(-clamp(e.deltaY, -40, 40) * 0.01), e.clientX - r.left, e.clientY - r.top);
+  } else notePan(e.shiftKey ? -e.deltaY : -e.deltaX, e.shiftKey ? 0 : -e.deltaY);
+}, { passive: false });
+$('noteZoomIn').addEventListener('click', () => noteZoomStep(1));
+$('noteZoomOut').addEventListener('click', () => noteZoomStep(-1));
+$('noteZoomPct').addEventListener('click', () => { notePenUp(); noteZoom(1); });
+if (window.ResizeObserver) new ResizeObserver(() => noteFit()).observe(noteView);      // 도구 줄이 두 줄이 되거나 화면을 돌리면 다시 맞춘다
 for (const b of document.querySelectorAll('#noteBar [data-ntool]')) {
-  b.append(iconImg(b.dataset.ntool === 'pen' ? 'ball' : 'rub'));
-  b.addEventListener('click', () => { note.tool = b.dataset.ntool; noteShow(); });
+  if (b.dataset.ntool !== 'move') b.append(iconImg(b.dataset.ntool === 'pen' ? 'ball' : 'rub'));
+  b.addEventListener('click', () => { notePenUp(); note.tool = b.dataset.ntool; noteShow(); });
 }
 for (const b of document.querySelectorAll('#noteBar [data-ncolor]')) b.addEventListener('click', () => { note.color = b.dataset.ncolor; note.tool = 'pen'; noteShow(); });
 $('noteSize').addEventListener('input', () => { note.size = clamp(Number($('noteSize').value) | 0, 1, 10); });
@@ -9048,7 +9192,7 @@ window.classroom = {
   get role() { return [role, creator, isTeacher]; }, strokes, inkAdd, FORMS, BOARD, spawn, nearestFree, playBgm, gotoArea, boardCam,
   get areas() { return [areas, areaAt, zoomX]; },
   get zoom() { return [zoomed, zoomAmt]; }, frame, zaps, zapAdd, liveTex, liveMesh, live, inkTex, showTex, startLive, endShow, inkClear, inkErase, get show() { return show; }, get lap() { return { ...lapShown, level: pixels.level, trial: !!pixels.trial, hold: Math.round(Math.max(0, pixels.hold - performance.now()) / 1000), mirrorMs, every: mirrorEvery() }; }, mirrorRT, get mirror() { return { n: mirrorN, sum: mirrorSum, ms: mirrorMs, rt: [mirrorRT.width, mirrorRT.height], on: mirrorGlass.visible, pos: mirrorGlass.position.toArray(), calls: mirrorCalls, all: info.calls, fade: mirrorMat.uniforms.fade.value }; }, get mySkin() { return mySkin; }, peerSkins, actors, get follow() { return { on: follow.on, can: canFollow(), x: zoomX, to: follow.to, area: areaAt }; }, setZoom, setHide, undo, redo, hist, stylus, joy, voice, setMic, VOICE, openChat, chatAdd, chat, get zoomWrite() { return zoomWrite; }, nearBoard, get glance() { return [glancing, +glanceLook.yaw.toFixed(3), +glanceLook.pitch.toFixed(3)]; }, get bgm() { return bgmNow; }, get audio() { return ac; },
-  exam, note, noteObj, examTick, examSheet, jpegPdf, openNote, closeNote,
+  exam, note, noteObj, examTick, examSheet, jpegPdf, openNote, closeNote, noteZoom,
   get room() { return { ROOM, HW, HD, floorAt, obstacles, blocked, cellH, NX, NZ }; },
   net: { peers, myId, tick: netTick, receive: netReceive, pace: netPace, openSupabase,
     get link() { return link; }, get state() { return linkState; }, get seatAt() { return mySeatAt; } },
