@@ -148,13 +148,13 @@
   #invite button { font: 800 13px var(--font); color: var(--ink); background: #fff; border: 2px solid var(--ink); border-radius: 0; cursor: pointer; padding: 5px 10px; }
   #inviteCopy { color: #fff !important; background: var(--coral) !important; }
   #toast {
-    left: 50%; top: 18%; transform: translateX(-50%); max-width: min(560px, 90vw); text-align: center; line-height: 1.5;
+    left: 50%; top: 18%; transform: translateX(-50%); z-index: 45; max-width: min(560px, 90vw); text-align: center; line-height: 1.5;       /* (연습장 화면 위에도 보이게) */
     font-size: 14px; font-weight: 800; background: var(--paper); box-shadow: 0 4px 0 var(--ink);
   }
 
   /* ── 퇴장 확인창 ── */
   #exit, #confirm {
-    position: fixed; inset: 0; display: grid; place-items: center; padding: 16px;
+    position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; padding: 16px;       /* (연습장 화면보다 위) */
     background: rgba(36, 24, 14, .55);
   }
   #exit h2, #confirm h2 { margin: 0 0 8px; font-size: 24px; letter-spacing: -.02em; }
@@ -229,6 +229,87 @@
   #panels > [hidden] { display: none; }
   @media (max-width: 640px) { #panels { flex-wrap: nowrap; overflow-y: auto; pointer-events: auto; } #panels:not(:has(> .chip:not([hidden]))) { display: none; } }      /* 좁은 화면: 한 줄로 쌓고 넘치면 굴린다 */
   #setup { width: 316px; max-width: 100%; padding: 10px 10px 12px; }
+  /* 연습장: 자리에 앉은 학생의 개인 필기장. 화면을 덮는 종이 한 장 + 위쪽의 도구 줄. 쓴 것은 이 기기에만 남는다 */
+  #note { position: fixed; inset: 0; z-index: 30; display: grid; grid-template-rows: auto 1fr; justify-items: center; gap: 8px; padding: 10px; background: rgba(24, 19, 14, .55); }
+  #note[hidden] { display: none; }
+  #noteBar { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 5px; padding: 6px 8px; background: var(--paper); border: 2px solid var(--ink); box-shadow: 0 4px 0 var(--ink); }
+  #noteBar .nb {
+    width: 38px; height: 38px; padding: 0; display: grid; place-items: center; cursor: pointer; color: var(--ink);
+    background: #8b8b8b; border: 2px solid var(--ink); border-radius: 0; box-shadow: inset 2px 2px 0 #4a4a4a, inset -2px -2px 0 #d8d8d8;
+    touch-action: manipulation; user-select: none; -webkit-user-select: none;
+  }
+  #noteBar .nb[aria-pressed="true"] { background: #b9b9b9; border-color: var(--coral); box-shadow: inset 0 0 0 3px #fff; }
+  #noteBar .nb:disabled { cursor: default; }
+  #noteBar .nb:disabled img { opacity: .3; }
+  #noteBar .nb img { width: 32px; height: 32px; image-rendering: pixelated; pointer-events: none; display: block; }
+  #noteBar .nb.sw i { width: 22px; height: 22px; background: var(--c); box-shadow: inset 3px 3px 0 rgba(255, 255, 255, .35), inset -3px -3px 0 rgba(0, 0, 0, .3), 0 0 0 2px #1b1b1b; }
+  #noteBar .nb.txt { width: auto; padding: 0 10px; font: 800 13px var(--font); background: #fff; box-shadow: none; }
+  #noteBar .sep { width: 2px; height: 26px; background: rgba(51, 36, 26, .25); }
+  #noteBar b { min-width: 46px; text-align: center; font-size: 13px; }
+  #noteSize { width: 90px; height: 30px; margin: 0 2px; accent-color: var(--coral); cursor: pointer; }
+  #noteSheet { align-self: center; position: relative; aspect-ratio: 1000 / 707; height: 100%; max-width: 100%; max-height: 100%; }
+  @supports not (aspect-ratio: 1) { #noteSheet { width: 100%; } }
+  #notePaper {
+    position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: crosshair;
+    background-color: #fffdf4; border: 2px solid var(--ink); box-shadow: 0 6px 0 rgba(0, 0, 0, .35);
+    background-image: linear-gradient(90deg, transparent 7.9%, rgba(217, 58, 43, .45) 7.9%, rgba(217, 58, 43, .45) 8.2%, transparent 8.2%),
+      repeating-linear-gradient(180deg, transparent 0, transparent calc(100% / 18 - 1.5px), rgba(42, 95, 208, .28) calc(100% / 18 - 1.5px), rgba(42, 95, 208, .28) calc(100% / 18));
+  }
+  /* 시험지: 같은 필기 화면을 쓰되, 책상(--desk)을 배경으로 책상 위의 종이가 눈앞으로 확대되어 온다. 덮으면 다시 작아지며 내려간다 */
+  #note.exam {
+    --desk: #b98552; animation: examDesk .3s ease-out both;
+    background: radial-gradient(ellipse at 50% 55%, transparent 45%, rgba(0, 0, 0, .38) 100%),
+      repeating-linear-gradient(90deg, rgba(40, 22, 8, .16) 0 3px, transparent 3px 118px),
+      repeating-linear-gradient(90deg, rgba(255, 240, 215, .07) 0 2px, transparent 2px 31px), var(--desk);
+  }
+  #note.exam #notePaper { background-image: none; background-color: #fff; background-size: 100% 100%; box-shadow: 0 10px 0 rgba(0, 0, 0, .28), 0 0 0 1px rgba(0, 0, 0, .2); }
+  #note.exam #noteSheet { transform-origin: 50% 62%; animation: examZoom .45s cubic-bezier(.2, .8, .25, 1) both; }
+  #note.exam #noteBar { animation: examBar .25s .2s ease-out both; }
+  #note.closing { pointer-events: none; animation: examDesk .26s ease-in reverse both; }
+  #note.closing #noteSheet { animation: examZoom .26s ease-in reverse both; }
+  #note.closing #noteBar { animation: none; opacity: 0; }
+  @keyframes examDesk { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes examZoom { from { transform: perspective(900px) translateY(14%) rotateX(54deg) scale(.14); } to { transform: perspective(900px) translateY(0) rotateX(0) scale(1); } }
+  @keyframes examBar { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { #note.exam, #note.exam #noteSheet, #note.exam #noteBar, #note.closing, #note.closing #noteSheet { animation-duration: 1ms; animation-delay: 0s; } }
+  /* 시험 시계: 조용히 색만 바뀐다 (10분 · 5분 · 1분 전, 초과는 빨강). 화면 위 가운데의 칩과 시험지 도구 줄에 같은 것이 있다 */
+  #examChip { left: 50%; top: 12px; transform: translateX(-50%); display: flex; align-items: center; gap: 6px; padding: 5px 7px; pointer-events: auto; }
+  #hud:has(#areas:not([hidden])) #examChip, #hud:has(#invite:not([hidden])) #examChip { top: 60px; }      /* 위 가운데에 영역 단추 · 초대 링크가 떠 있으면 그 아래로 */
+  #examChip[hidden], #noteExam[hidden] { display: none; }
+  #noteExam { display: flex; align-items: center; gap: 6px; }
+  #examTime, #noteExamTime {
+    min-width: 132px; padding: 5px 10px; font: 800 14px var(--font); font-variant-numeric: tabular-nums; text-align: center; white-space: nowrap;
+    color: var(--ink); background: #fff; border: 2px solid var(--ink); border-radius: 0; cursor: pointer;
+  }
+  #examTime[data-tone="near"], #noteExamTime[data-tone="near"] { background: #ffe9a8; }
+  #examTime[data-tone="soon"], #noteExamTime[data-tone="soon"] { background: #ffc98a; }
+  #examTime[data-tone="last"], #noteExamTime[data-tone="last"] { background: #ffb3a8; color: #a01d10; }
+  #examTime[data-tone="over"], #noteExamTime[data-tone="over"] { background: #d93a2b; color: #fff; border-color: #7c150c; }
+  #examTime[data-tone="done"], #noteExamTime[data-tone="done"] { background: #cfeecf; }
+  #examSubmit, #examShare, #noteSubmit { padding: 5px 12px; font: 800 14px var(--font); color: #fff; background: #2a5fd0; border: 2px solid var(--ink); border-radius: 0; cursor: pointer; white-space: nowrap; }
+  #noteBar #noteSubmit { width: auto; height: 38px; box-shadow: none; }
+  #examSubmit.over, #noteBar #noteSubmit.over { background: #d93a2b; }
+  #examSubmit[hidden], #examShare[hidden], #noteSubmit[hidden] { display: none; }
+  /* 시험 창 (선생님): 시험지 PDF · 시작 · 종료 시각 · 제출한 학생 */
+  #examBox { width: 270px; max-width: 100%; padding: 10px 12px; font-size: 13px; }
+  #examBox[hidden] { display: none; }
+  #examBox .head { display: flex; justify-content: space-between; align-items: center; font-size: 14px; margin-bottom: 6px; }
+  #examBox .head button { font: 800 16px var(--font); color: var(--ink); background: none; border: 0; cursor: pointer; }
+  #examBox .sheet { display: flex; gap: 8px; align-items: center; }
+  #examCover { flex: none; border: 2px solid var(--ink); background: #fff; box-shadow: 2px 2px 0 rgba(0, 0, 0, .25); }
+  #examCover[hidden] { display: none; }
+  #examBox p { margin: 4px 0; font-size: 12px; font-weight: 600; line-height: 1.45; opacity: .8; word-break: break-all; }
+  #examBox .times { display: flex; gap: 8px; margin: 8px 0; font-weight: 800; }
+  #examBox .times input { width: 100%; margin-top: 2px; padding: 4px; font: 700 14px var(--font); color: var(--ink); background: #fff; border: 2px solid var(--ink); border-radius: 0; }
+  #examBox .times label { flex: 1; }
+  #examFile, #examGo, #examStop { padding: 6px 10px; font: 800 13px var(--font); color: var(--ink); background: #fff; border: 2px solid var(--ink); border-radius: 0; cursor: pointer; }
+  #examGo, #examStop { width: 100%; }
+  #examGo { color: #fff; background: #2a5fd0; }
+  #examGo:disabled { opacity: .45; cursor: default; }
+  #examGo[hidden], #examStop[hidden] { display: none; }
+  #examBox h3 { margin: 8px 0 4px; font-size: 12px; font-weight: 800; }
+  #examSubs { display: grid; gap: 3px; font-weight: 700; font-variant-numeric: tabular-nums; max-height: 160px; overflow-y: auto; }
+  #examSubs .late { color: #c0291b; }
   /* 채팅: 모두가 함께 보는 대화 창 (왼쪽 창 자리에 쌓인다) */
   /* 채팅 창은 바탕과 테두리가 없는 투명한 창이다: 글씨만 화면 위에 뜬다 (밝은 벽 앞에서도 읽히게 글씨 둘레를 어둡게).
      머리줄에는 투명도 막대가 늘 보인다 (--a, 기기마다 따로 적어 둔다). 글 적는 칸과 보내기 단추는 Q(채팅 단추)를 눌렀을 때만 나온다 */
@@ -642,6 +723,11 @@
   <div id="att" class="chip" title="강의실에 있는 동안 쌓이는 출석 시간">출석 00:00:00</div>
   <button id="room" class="chip" type="button" title="수업 코드가 든 초대 링크를 복사해요" hidden></button>
   <div id="perf" hidden></div>
+  <div id="examChip" class="chip" hidden>
+    <button id="examTime" type="button" title="시험 시계 (시험 중에 누르면 숨기고, 다시 누르면 보여요)"></button>
+    <button id="examSubmit" type="button" hidden>제출</button>
+    <button id="examShare" type="button" hidden>다시 공유</button>
+  </div>
   <div id="toast" class="chip" hidden></div>
   <div id="corner">
     <button id="remoteBtn" type="button" hidden aria-pressed="false" aria-label="리모컨" title="리모컨 꺼내기 · 넣기 (R)"></button>
@@ -671,6 +757,7 @@
       <div class="pop" id="morePop" hidden>
         <button id="setupBtn" type="button">강의실<small>강의실 · 자리 · 칠판 · BGM</small></button>
         <button id="voicesBtn" type="button">마이크<small>내 목소리 · 학생 음소거 풀기</small></button>
+        <button id="examBtn" type="button">시험<small>시험지 PDF · 시작 · 종료 시각</small></button>
         <button id="inviteBtn" type="button">학생 초대<small>학생에게 보낼 링크 복사</small></button>
       </div>
     </div>
@@ -703,6 +790,23 @@
       <input id="chatText" maxlength="120" placeholder="메시지를 적고 Enter" autocomplete="off" spellcheck="false">
       <button type="submit">보내기</button>
     </form>
+  </div>
+  <div id="examBox" class="chip" hidden>
+    <div class="head"><b>시험</b><button id="examClose" type="button" aria-label="닫기">×</button></div>
+    <div class="sheet">
+      <canvas id="examCover" width="78" height="110" hidden></canvas>
+      <div><button id="examFile" type="button">시험지 PDF 고르기</button><p id="examName"></p></div>
+    </div>
+    <div class="times">
+      <label>시작<input id="examStart" type="time"></label>
+      <label>종료<input id="examEnd" type="time"></label>
+    </div>
+    <button id="examGo" type="button" disabled>시험 예약</button>
+    <button id="examStop" type="button" hidden>시험 취소</button>
+    <p id="examNote"></p>
+    <h3>제출</h3>
+    <div id="examSubs"></div>
+    <input id="examInput" type="file" accept=".pdf,application/pdf" hidden>
   </div>
   <div id="voices" class="chip" hidden>
     <div class="head"><b>마이크</b><button id="voicesClose" type="button" aria-label="닫기">×</button></div>
@@ -796,6 +900,33 @@
   <button id="keysBtn" class="chip" type="button"><kbd>H</kbd>조작법</button>
   <div id="stick"><i></i></div>
   <button id="jump" type="button">점프</button>
+</div>
+
+<div id="note" hidden>
+  <div id="noteBar">
+    <button type="button" class="nb" data-ntool="pen" aria-pressed="true" aria-label="펜" title="펜"></button>
+    <button type="button" class="nb" data-ntool="erase" aria-pressed="false" aria-label="지우개" title="지우개"></button>
+    <span class="sep"></span>
+    <button type="button" class="nb sw" data-ncolor="#1f2430" aria-pressed="true" aria-label="검정"><i style="--c: #1f2430"></i></button>
+    <button type="button" class="nb sw" data-ncolor="#2a5fd0" aria-pressed="false" aria-label="파랑"><i style="--c: #2a5fd0"></i></button>
+    <button type="button" class="nb sw" data-ncolor="#d93a2b" aria-pressed="false" aria-label="빨강"><i style="--c: #d93a2b"></i></button>
+    <input id="noteSize" type="range" min="1" max="10" step="1" value="3" aria-label="굵기" title="굵기">
+    <span class="sep"></span>
+    <button type="button" class="nb" id="noteUndo" aria-label="되돌리기" title="되돌리기 (Ctrl+Z)"></button>
+    <button type="button" class="nb" id="noteRedo" aria-label="앞으로 가기" title="앞으로 가기 (Ctrl+Shift+Z)"></button>
+    <button type="button" class="nb txt" id="noteClear" title="이 쪽에 쓴 것을 모두 지우기">쪽 지우기</button>
+    <span class="sep"></span>
+    <button type="button" class="nb txt" id="notePrev" aria-label="앞 쪽">◀</button>
+    <b id="notePage">1 / 1</b>
+    <button type="button" class="nb txt" id="noteNext" aria-label="다음 쪽">▶</button>
+    <span id="noteExam" hidden>
+      <span class="sep"></span>
+      <button id="noteExamTime" type="button" title="시험 시계 (시험 중에 누르면 숨기고, 다시 누르면 보여요)"></button>
+      <button id="noteSubmit" type="button" hidden>제출</button>
+    </span>
+    <button type="button" class="nb txt" id="noteClose" title="덮기 (Esc)">덮기 ×</button>
+  </div>
+  <div id="noteSheet"><canvas id="notePaper"></canvas></div>
 </div>
 
 <div id="confirm" hidden>
@@ -3729,19 +3860,22 @@ function updateTarget() {
     if (seen && seen.taken) takenSeat = seen;      // 이미 누가 앉은 자리는 고를 수 없다
     else t = seen || screenLooked();               // 칠판 보기는 누구나, 어디서나
   } else if (entered && !zoomed && player.mode === 'seated') {
-    t = whisperLooked() || screenLooked();         // 앉아서는 옆자리 친구와 소곤거리거나 칠판을 본다
+    t = noteLooked() || whisperLooked() || screenLooked();         // 앉아서는 책상 위의 연습장을 펴거나, 옆자리 친구와 소곤거리거나, 칠판을 본다
   }
   const seated = entered && player.mode === 'seated' && !player.seat.stand;      // 교탁에 서 있는 것은 학생 메뉴와 상관없다
   const menu = seated && !isTeacher;                 // 질문 · 반응은 학생만 쓴다
   if (!menu) closeReact();
+  notePut(menu ? player.seat : null);                // 앉은 학생의 책상 왼쪽에 연습장이 놓인다
   if ($('okBtn').hidden === menu) $('okBtn').hidden = !menu;       // 앉으면 학생의 반응 단추가 뜬다
   if ($('askBtn').hidden === entered) $('askBtn').hidden = !entered;       // 채팅 단추는 누구에게나 늘 있다
   if (!seated) whisperHinted = seatHinted = false;
+  else if (examBusy()) seatHinted = whisperHinted = true;      // 시험 중에는 자리 안내(소곤거리기 · 일어나기)를 띄우지 않는다
   else if (!seatHinted) {                              // 앉으면 할 수 있는 일을 한 번 알려 준다
     seatHinted = true;
     whisperHinted = whisperNear;
-    toast(COARSE ? (whisperNear ? '칠판을 톡 누르면 크게 봐요 · 옆 친구를 톡 누르면 소곤거려요' : '칠판을 톡 누르면 크게 봐요')
-      : whisperNear ? '칠판을 보고 X: 칠판 보기 · 옆 친구를 보고 X: 소곤거리기 · Esc: 일어나기' : '칠판을 보고 X: 칠판 보기 · Esc: 일어나기', 6000);
+    const mine = isTeacher || examMode() ? '' : COARSE ? ' · 책상 위 연습장을 톡 누르면 내 필기장이 펴져요' : ' · N: 연습장(책상 왼쪽) 펴기';
+    toast((COARSE ? (whisperNear ? '칠판을 톡 누르면 크게 봐요 · 옆 친구를 톡 누르면 소곤거려요' : '칠판을 톡 누르면 크게 봐요')
+      : whisperNear ? '칠판을 보고 X: 칠판 보기 · 옆 친구를 보고 X: 소곤거리기 · Esc: 일어나기' : '칠판을 보고 X: 칠판 보기 · Esc: 일어나기') + mine, 7000);
   } else if (whisperNear && !whisperHinted) {          // 나중에 옆에 친구가 앉으면 그때 알려 준다
     whisperHinted = true;
     toast('옆자리 친구를 바라보면 X 키로 소곤거릴 수 있어요', 5000);
@@ -3757,6 +3891,7 @@ function updateTarget() {
     : target.kind === 'door' ? '나가기'
     : target.kind === 'screen' ? (canWrite() && nearBoard() ? '칠판에 쓰기' : '칠판 보기')
     : target.kind === 'whisper' ? '소곤거리기'
+    : target.kind === 'note' ? (noteObj.what === 'exam' ? '시험지 펴기' : '연습장 펴기')
     : target.stand ? '교탁에 서기' : '앉기';
   if (label !== actLabel) {
     actLabel = label;
@@ -3795,6 +3930,7 @@ function act() {
   if (target.kind === 'door') askExit();
   else if (target.kind === 'screen') setZoom(true, boardHitX);
   else if (target.kind === 'whisper') openWhisper(target.seat.taken.peerId || 'mate');
+  else if (target.kind === 'note') openNote();
   else if (player.goSit(target)) mySeatAt = Date.now();       // 자리를 고른 시각 (둘이 동시에 고르면 빠른 쪽이 앉는다)
   dirty = true;
 }
@@ -3803,6 +3939,7 @@ function back() {
   if (!entered) return false;
   if (!$('setup').hidden) $('setup').hidden = true;
   else if (zoomed) setZoom(false);
+  else if (player.mode === 'seated' && examBusy()) toast('시험 중에는 자리에서 일어날 수 없어요 · 제출하면 일어날 수 있어요', 4000);
   else if (player.mode === 'seated') player.stand();
   else if (player.mode === 'path') player.cancel();
   else return false;
@@ -3983,6 +4120,10 @@ function leave() {
   endShow();                         // 띄워 둔 강의 자료를 내리고
   voiceReset();                      // 마이크를 끄고 목소리 연결을 모두 끊는다
   chatReset();                       // 채팅 창을 닫고 대화를 비운다
+  closeNote();                       // 연습장을 덮는다 (쓴 것은 기기에 남아 있다)
+  notePut(null);
+  examClear();                       // 시험도 내려놓는다 (쓴 답은 기기에 남아 있고, 예약한 시험은 선생님 기기에 남아 있다)
+  $('examBox').hidden = true;
   gestures.length = 0;
   setZoom(false);
   zoomAmt = 0;
@@ -4058,6 +4199,7 @@ function snapshot() {
     v: !voice.on ? 0 : isTeacher && voice.global ? 2 : 1,             // 마이크: 0 끔 · 1 켬(가까이에만) · 2 켬(선생님, 교실 전체에)
     tk: player.talking ? 1 : 0,                  // 지금 말하는 중 (손짓을 한다)
     ...(isTeacher ? { vm: voice.muteAll ? 1 : 0, vx: [...voice.muted].slice(0, 120) } : {}),       // 선생님이 정한 전체 · 개별 음소거
+    ...(isTeacher && exam.mine && exam.meta ? { ex: [exam.meta.id, exam.meta.n, exam.meta.w, exam.meta.h, exam.meta.start, exam.meta.end, exam.meta.title, Date.now()] } : {}),     // 예약한 시험 (마지막 값은 내 시계 → 학생이 시계를 맞춘다)
   };
 }
 
@@ -4123,6 +4265,7 @@ function netReceive(m) {
   if (m.t === 'rtc') { if (m.to === myId) onRtc(m); return; }
   if (m.t === 'c' || m.t === 'q' || m.t === 'e' || m.t === 'w') { onClassMsg(m); return; }
   if (m.t === 'l') { onLaser(m); return; }
+  if (m.t === 'x') { onExamMsg(m); return; }
   if (m.t === 'd') { onInk(m); return; }
   if (m.t === 'z') { onZap(m); return; }
   if (m.t !== 's' || !Array.isArray(m.p) || !Array.isArray(m.r)) return;
@@ -4155,6 +4298,7 @@ function netReceive(m) {
     peer.last = now;
   }
   onVoiceState(peer, m);             // 마이크를 켰는지 · (선생님이면) 누구를 음소거했는지
+  if (peer.teacher) onExamMeta(peer, m.ex);        // 선생님이 예약한 시험
   const holding = Number.isInteger(m.h) && HOLD[m.h] !== undefined ? HOLD[m.h] : m.tc ? 'remote' : '';
   peer.actor.setHold(holding, inkOf(holding, Number.isInteger(m.hc) ? m.hc : 0));      // 손에 든 것과 그 펜의 색
   peer.actor.writeOn = Array.isArray(m.w) && m.w.length === 2;      // 칠판 앞에서 판서하는 중
@@ -4726,6 +4870,7 @@ function micBadge() {                 // 이름 위에 뜨는 작은 마이크 �
 // 학생은 처음에는 마이크를 쓸 수 없다. 선생님 가운데 누군가 "학생 전체 음소거"를 풀어 줘야 하고, 따로 음소거당하지 않았어야 한다
 function voiceBlocked() {
   if (isTeacher) return false;
+  if (examBusy()) return true;       // 시험 중에는 학생 마이크를 쓸 수 없다
   const teachers = [...peers.values()].filter((p) => p.teacher);
   return !teachers.some((p) => p.muteAll === false) || teachers.some((p) => p.mutes && p.mutes.includes(myId));
 }
@@ -4735,13 +4880,13 @@ function showMic() {
   $('micBtn').setAttribute('aria-pressed', String(voice.on));
   $('micBtn').setAttribute('aria-disabled', String(voiceBlocked()));
   micImg.src = iconURL[voice.on ? 'mic' : 'micOff'];
-  $('micBtn').title = voiceBlocked() ? '선생님이 허락하면 마이크를 켤 수 있어요' : voice.on ? '마이크 켬 (누르면 꺼요 · V)' : '마이크 끔 (누르면 켜요 · V)';
+  $('micBtn').title = examBusy() ? '시험 중에는 마이크를 켤 수 없어요' : voiceBlocked() ? '선생님이 허락하면 마이크를 켤 수 있어요' : voice.on ? '마이크 켬 (누르면 꺼요 · V)' : '마이크 끔 (누르면 켜요 · V)';
 }
 async function setMic(on) {
   if (on === voice.on || voice.asking) return;
   if (on) {
     if (!entered) return;
-    if (voiceBlocked()) { toast('선생님이 허락하면 마이크를 켤 수 있어요'); return; }
+    if (voiceBlocked()) { toast(examBusy() ? '시험 중에는 마이크를 켤 수 없어요' : '선생님이 허락하면 마이크를 켤 수 있어요'); return; }
     voice.asking = true;
     let stream = null;
     try {
@@ -4853,6 +4998,7 @@ function voiceThink(now) {
       continue;
     }
     inb.level = everywhere ? 1 : clamp(1 - (d - VOICE.near) / (VOICE.far - VOICE.near), 0, 1) ** 2;
+    if (examBusy() && !peer.teacher) inb.level = 0;      // 시험 중에는 선생님 목소리만 들린다
     if (inb.gain) inb.gain.gain.setTargetAtTime(inb.level, ac.currentTime, 0.12);
   }
 }
@@ -5509,9 +5655,12 @@ function showSound() {
   $('soundBtn').setAttribute('aria-pressed', String(soundOn));
   $('soundBtn').title = `배경 음악 "${MOODS[cfg.bgm].name}" · 소리 ${soundOn ? '켬 (누르면 꺼요)' : '끔 (누르면 켜요)'} · 내 기기에서만`;
 }
+function applyVolume() {             // 배경 음악 · 효과음의 크기. 시험을 치르는 동안에는 끈다
+  if (master) master.gain.setTargetAtTime(soundOn && !examBusy() ? VOL : 0, ac.currentTime, 0.05);
+}
 function toggleSound() {
   soundOn = !soundOn;
-  if (master) master.gain.setTargetAtTime(soundOn ? VOL : 0, ac.currentTime, 0.05);
+  applyVolume();
   showSound();
   showLobbySound();
 }
@@ -6688,8 +6837,9 @@ const cfgText = (kind) => `${CFG_TITLE[kind]} · ${CFG_SETS[kind][cfg[kind]].nam
 
 // 바꿀지 묻는 창
 let confirmGo = null;                // "바꾸기"를 누르면 할 일
-function askConfirm(title, text, go) {
+function askConfirm(title, text, go, yes = '바꾸기') {
   confirmGo = go;
+  $('confirmYes').textContent = yes;
   $('confirmTitle').textContent = title;
   $('confirmText').textContent = text;
   $('confirm').hidden = false;
@@ -6950,6 +7100,710 @@ const whispers = new Map();          // 상대 id → 주고받은 쪽지 목록
 let whisperPeer = '';                // 지금 소곤거리기 창이 열려 있는 상대
 let lastOk = 0;
 
+/* ───────────── 연습장 · 시험지: 자리에 앉은 학생의 책상 위에 놓이는 종이 ─────────────
+   · 평소: 책상 위 왼쪽에 연습장이 놓인다. 펴면 나만 보는 필기장이고, 쓴 것은 이 기기(브라우저)에만 저장된다 (서버로는 아무것도 보내지 않는다)
+   · 시험 모드: 연습장은 치워지고 책상 정가운데에 시험지만 놓인다 (아래 '시험' 참고). 펴면 시험지 PDF 위에 답을 쓴다
+   둘 다 같은 필기 화면을 쓴다. 종이 한 벌(doc)은 { kind, pages 쪽마다의 획들, at 지금 쪽, w · h 종이의 크기, max 쪽 수, grow 쪽을 늘릴 수 있는지, readonly, bg 쪽마다의 바탕 그림 }
+   획은 { c 색, w 굵기, e 지우개인지, p [x, y, …] } — 좌표는 w × h 짜리 종이 위의 자리. 지우개는 그 자리의 필기를 지우는 획이다 (바탕의 줄 · 시험지는 지워지지 않는다) */
+const NOTE_KEY = 'classroom-note-v1', NOTE_PAGES = 20;
+const noteDoc = { kind: 'note', pages: [[]], at: 0, w: 1000, h: 707, max: NOTE_PAGES, grow: true, readonly: false, bg: null };
+try {
+  const saved = JSON.parse(localStorage.getItem(NOTE_KEY));
+  if (saved && Array.isArray(saved.pages) && saved.pages.length) {
+    noteDoc.pages = saved.pages.slice(0, NOTE_PAGES).map((pg) => (Array.isArray(pg) ? pg.filter((st) => st && Array.isArray(st.p)) : []));
+    noteDoc.at = clamp(saved.at | 0, 0, noteDoc.pages.length - 1);
+  }
+} catch {}
+const noteObj = { kind: 'note', boxes: [new THREE.Box3()], on: false, seat: null, what: '', mesh: null, paper: null };
+const note = { doc: noteDoc, redo: [], tool: 'pen', color: '#1f2430', size: 3, id: null, cur: null, saveTimer: 0, scale: 1 };
+function noteSave() {                 // 조금 모아서 기기에 적어 둔다
+  const doc = note.doc;
+  clearTimeout(note.saveTimer);
+  note.saveTimer = setTimeout(() => {
+    if (doc.kind === 'exam') { examSave(); return; }
+    try { localStorage.setItem(NOTE_KEY, JSON.stringify({ pages: doc.pages, at: doc.at })); }
+    catch (err) { toast('연습장이 가득 차서 더는 저장되지 않아요. 안 쓰는 쪽을 지워 주세요', 6000); }
+  }, 500);
+}
+// 책상 위의 연습장 모형: 줄 친 종이가 보이는 납작한 공책
+function noteMesh() {
+  const top = new THREE.MeshLambertMaterial({ map: makeTex(42, 58, (g) => {
+    g.fillStyle = '#fffdf4';
+    g.fillRect(0, 0, 42, 58);
+    g.fillStyle = '#9db6ea';
+    for (let y = 9; y < 56; y += 5) g.fillRect(3, y, 36, 1);          // 줄
+    g.fillStyle = '#e07a6e';
+    g.fillRect(8, 0, 1, 58);                                           // 왼쪽의 붉은 세로줄
+    g.fillStyle = '#33241a';
+    for (let y = 4; y < 56; y += 6) g.fillRect(1, y, 3, 2);            // 스프링
+  }) });
+  const edge = new THREE.MeshLambertMaterial({ color: '#e9e4d2' }), cover = new THREE.MeshLambertMaterial({ color: '#3f76dd' });
+  const m = new THREE.Mesh(new THREE.BoxGeometry(0.21, 0.014, 0.29), [edge, edge, top, cover, edge, edge]);
+  m.visible = false;
+  scene.add(m);
+  return m;
+}
+// 책상 위의 시험지 모형: 얇은 종이 한 장. 윗면에는 시험지 PDF 의 표지(1쪽)가 보이고, 가로 · 세로 비율도 PDF 를 따른다
+function paperMesh() {
+  const edge = new THREE.MeshLambertMaterial({ color: '#f4f1e6' });
+  const top = new THREE.MeshLambertMaterial({ color: '#ffffff', map: exam.coverTex });
+  const m = new THREE.Mesh(new THREE.BoxGeometry(1, 0.004, 1), [edge, edge, top, edge, edge, edge]);
+  m.visible = false;
+  scene.add(m);
+  return m;
+}
+// 그 자리의 책상 위에 연습장(평소) 또는 시험지(시험 모드)를 놓는다. seat 가 없으면 치운다
+function notePut(seat) {
+  const what = !seat ? '' : !examMode() ? 'note' : exam.got >= exam.meta.n ? 'exam' : 'wait';      // wait = 시험지를 아직 받는 중 (연습장은 이미 치웠다)
+  if (seat === noteObj.seat && what === noteObj.what) return;
+  noteObj.seat = seat;
+  noteObj.what = what;
+  noteObj.on = what === 'note' || what === 'exam';
+  if (what === 'note' && !noteObj.mesh) noteObj.mesh = noteMesh();
+  if (what === 'exam' && !noteObj.paper) noteObj.paper = paperMesh();
+  if (noteObj.mesh) noteObj.mesh.visible = what === 'note';
+  if (noteObj.paper) noteObj.paper.visible = what === 'exam';
+  dirty = true;
+  if (!noteObj.on) { closeNote(); return; }
+  if ((note.doc.kind === 'exam') !== (what === 'exam')) closeNote();          // 놓인 것이 바뀌면 펴 둔 것은 덮는다
+  const sn = Math.sin(seat.yaw), cs = Math.cos(seat.yaw), desk = seat.boxes.length > 1 ? seat.boxes[0] : null;
+  const center = what === 'exam';      // 시험지는 책상 정가운데, 연습장은 왼쪽
+  let x, y, z;
+  if (desk) {
+    const cx = (desk.min.x + desk.max.x) / 2, cz = (desk.min.z + desk.max.z) / 2, hx = (desk.max.x - desk.min.x) / 2, hz = (desk.max.z - desk.min.z) / 2;
+    const wide = Math.abs(cs) * hx + Math.abs(sn) * hz, deep = Math.abs(sn) * hx + Math.abs(cs) * hz;      // 내가 볼 때 책상의 반 너비 · 반 깊이
+    const mine = clamp((seat.sit.x - cx) * cs - (seat.sit.z - cz) * sn, -Math.max(0, wide - 0.17), Math.max(0, wide - 0.17));      // 내가 앉은 곳 (긴 책상을 여럿이 쓸 때)
+    const side = center ? mine : Math.max(0, Math.min(0.27, wide - 0.16));      // 연습장은 왼쪽으로, 시험지는 내 앞 한가운데
+    const near = center ? 0 : Math.max(0, deep - 0.19);                          // 내 쪽으로
+    x = cx + cs * side - sn * near;
+    z = cz - sn * side - cs * near;
+    y = desk.max.y + 0.008;
+  } else {                           // 둥근 테이블 · 책상 없는 극장식 의자(무릎 위)
+    const lap = !!FORMS[cfg.form].fixed, fwd = lap ? 0.24 : 0.52, side = lap || center ? 0 : 0.22;
+    x = seat.sit.x + sn * fwd + cs * side;
+    z = seat.sit.z + cs * fwd - sn * side;
+    y = seat.y + (lap ? 0.58 : 0.633);
+  }
+  if (what === 'exam') {
+    const m = exam.meta, long = 0.297, pw = long * Math.min(1, m.w / m.h), ph = long * Math.min(1, m.h / m.w);
+    noteObj.paper.scale.set(pw, 1, ph);
+    noteObj.paper.position.set(x, y, z);
+    noteObj.paper.rotation.set(0, seat.yaw + Math.PI, 0);          // 시험지의 위쪽이 내 앞쪽을 향하게, 반듯하게
+  } else {
+    noteObj.mesh.position.set(x, y, z);
+    noteObj.mesh.rotation.set(0, seat.yaw + Math.PI + 0.12, 0);    // 살짝 비스듬히
+  }
+  noteObj.boxes[0].min.set(x - 0.19, y - 0.03, z - 0.19);
+  noteObj.boxes[0].max.set(x + 0.19, y + 0.06, z + 0.19);
+}
+function noteLooked() {              // 앉아서 시선이 책상 위의 연습장(시험지)에 닿았는지
+  if (!noteObj.on) return null;
+  const cp = Math.cos(player.lookPitch);
+  viewRay.origin.copy(camera.position);
+  viewRay.direction.set(Math.sin(player.lookYaw) * cp, -Math.sin(player.lookPitch), Math.cos(player.lookYaw) * cp);
+  return viewRay.intersectBox(noteObj.boxes[0], _hit) ? noteObj : null;
+}
+/* ── 필기 화면 ── */
+const notePaper = $('notePaper'), noteCtx = notePaper.getContext('2d');
+function strokeOn(c, st, k, from = 0) {       // 획을 캔버스에 그린다 (k = 종이 좌표 → 캔버스 점, 꺾이는 점은 둥글게 잇는다)
+  const p = st.p, n = p.length / 2;
+  c.lineCap = c.lineJoin = 'round';
+  c.globalCompositeOperation = st.e ? 'destination-out' : 'source-over';
+  c.strokeStyle = st.e ? '#000' : st.c;
+  c.lineWidth = st.w * k * (st.e ? 6 : 1);
+  const X = (i) => p[i * 2] * k, Y = (i) => p[i * 2 + 1] * k;
+  c.beginPath();
+  if (n === 1) { c.moveTo(X(0), Y(0)); c.lineTo(X(0) + 0.01, Y(0)); c.stroke(); return; }
+  const first = Math.max(0, from - 1);
+  c.moveTo(first ? (X(first - 1) + X(first)) / 2 : X(0), first ? (Y(first - 1) + Y(first)) / 2 : Y(0));
+  for (let i = first; i < n - 1; i++) c.quadraticCurveTo(X(i), Y(i), (X(i) + X(i + 1)) / 2, (Y(i) + Y(i + 1)) / 2);
+  c.lineTo(X(n - 1), Y(n - 1));
+  c.stroke();
+}
+const noteStroke = (st, from) => strokeOn(noteCtx, st, note.scale, from);
+function noteDraw() {                 // 지금 쪽을 통째로 다시 그린다
+  noteCtx.globalCompositeOperation = 'source-over';
+  noteCtx.clearRect(0, 0, notePaper.width, notePaper.height);
+  for (const st of note.doc.pages[note.doc.at]) noteStroke(st);
+}
+function noteFit() {                  // 종이가 화면에 보이는 크기에 맞춰 그림의 촘촘함을 정한다
+  if ($('note').hidden) return;
+  const doc = note.doc, dpr = Math.min(window.devicePixelRatio || 1, 2);       // (확대되어 오는 중에도 다 커진 크기로 잰다)
+  const w = Math.max(200, Math.round(notePaper.clientWidth * dpr)), h = Math.round(w * doc.h / doc.w);
+  if (notePaper.width !== w || notePaper.height !== h) { notePaper.width = w; notePaper.height = h; }
+  note.scale = notePaper.width / doc.w;
+  noteDraw();
+}
+function noteShow() {
+  const doc = note.doc;
+  for (const b of document.querySelectorAll('#noteBar [data-ntool]')) b.setAttribute('aria-pressed', String(b.dataset.ntool === note.tool));
+  for (const b of document.querySelectorAll('#noteBar [data-ncolor]')) b.setAttribute('aria-pressed', String(note.tool === 'pen' && b.dataset.ncolor === note.color));
+  $('noteSize').value = note.size;
+  $('noteUndo').disabled = doc.readonly || !doc.pages[doc.at].length;
+  $('noteRedo').disabled = doc.readonly || !note.redo.length;
+  $('noteClear').disabled = doc.readonly;
+  $('notePage').textContent = `${doc.at + 1} / ${doc.grow ? doc.pages.length : doc.max}`;
+  $('notePrev').disabled = doc.at === 0;
+  $('noteNext').disabled = doc.at >= doc.max - 1;
+  notePaper.style.backgroundImage = doc.bg && doc.bg[doc.at] ? `url(${doc.bg[doc.at]})` : '';      // 시험지: 그 쪽의 그림이 바탕
+  notePaper.style.backgroundSize = doc.bg ? '100% 100%' : '';
+}
+// 책상 위에 놓인 것을 편다: 연습장, 시험 모드에서는 시험지
+function openNote() {
+  if (!entered || !noteObj.on || !$('note').hidden) return;
+  if (noteObj.what === 'exam') { examOpen(); return; }
+  padOpen(noteDoc);
+  hintOnce('noteOpen', '연습장은 나만 보는 필기장이에요 · 쓴 것은 이 기기에만 저장돼요', 5000);
+}
+function padOpen(doc) {
+  note.doc = doc;
+  note.redo = [];
+  const el = $('note'), isExam = doc.kind === 'exam';
+  el.classList.remove('closing');
+  el.classList.toggle('exam', isExam);     // 시험지: 책상을 배경으로, 책상 위의 종이가 눈앞으로 확대되어 온다
+  if (isExam && deskMat.color.getHex() !== 0xffffff) el.style.setProperty('--desk', `#${deskMat.color.getHexString()}`);      // 이 강의실 책상의 색
+  $('noteSheet').style.aspectRatio = `${doc.w} / ${doc.h}`;
+  el.hidden = false;
+  noteShow();
+  noteFit();
+  examShow();
+}
+function closeNote() {
+  const el = $('note');
+  if (el.hidden || el.classList.contains('closing')) return;
+  notePenUp();
+  canvas.focus();
+  dirty = true;
+  if (!el.classList.contains('exam')) { el.hidden = true; return; }
+  el.classList.add('closing');         // 시험지: 책상 위로 다시 작아지며 내려간다
+  setTimeout(() => { el.hidden = true; el.classList.remove('closing'); }, 260);
+}
+function noteUndo() {
+  const doc = note.doc;
+  notePenUp();
+  if (doc.readonly) return;
+  const st = doc.pages[doc.at].pop();
+  if (!st) return;
+  note.redo.push(st);
+  noteDraw(); noteShow(); noteSave();
+}
+function noteRedo() {
+  const doc = note.doc;
+  notePenUp();
+  if (doc.readonly) return;
+  const st = note.redo.pop();
+  if (!st) return;
+  doc.pages[doc.at].push(st);
+  noteStroke(st); noteShow(); noteSave();
+}
+function noteGo(step) {               // 쪽 넘기기 (연습장은 끝에서 넘기면 새 쪽이 생긴다)
+  const doc = note.doc, to = doc.at + step;
+  notePenUp();
+  if (to < 0 || to >= doc.max) return;
+  if (to >= doc.pages.length) { if (!doc.grow) return; doc.pages.push([]); }
+  doc.at = to;
+  note.redo = [];
+  noteDraw(); noteShow(); noteSave();
+}
+function noteKey(e) {                 // 필기 화면을 펴 둔 동안의 키
+  if (e.code === 'Escape') closeNote();
+  else if (e.code === 'KeyZ' && (e.ctrlKey || e.metaKey)) { if (e.shiftKey) noteRedo(); else noteUndo(); }
+  else if (e.code === 'KeyY' && (e.ctrlKey || e.metaKey)) noteRedo();
+  else if (e.code === 'ArrowLeft' || e.code === 'PageUp') noteGo(-1);
+  else if (e.code === 'ArrowRight' || e.code === 'PageDown') noteGo(1);
+  else return;
+  e.preventDefault();
+}
+const notePoint = (e) => {
+  const r = notePaper.getBoundingClientRect();
+  return [Math.round((e.clientX - r.left) / r.width * note.doc.w * 10) / 10, Math.round((e.clientY - r.top) / r.height * note.doc.h * 10) / 10];
+};
+function notePenUp() {
+  if (note.id === null) return;
+  note.id = null;
+  note.cur = null;
+  noteShow();
+  noteSave();
+}
+notePaper.addEventListener('pointerdown', (e) => {
+  if (note.id !== null || note.doc.readonly || (stylus.only && e.pointerType === 'touch')) return;      // 펜만 쓰기: 손 · 손바닥으로는 써지지 않는다 (판서와 같은 설정)
+  e.preventDefault();
+  note.id = e.pointerId;
+  try { notePaper.setPointerCapture(e.pointerId); } catch {}
+  note.cur = { c: note.color, w: note.size, e: note.tool === 'erase' ? 1 : 0, p: notePoint(e) };
+  note.doc.pages[note.doc.at].push(note.cur);
+  note.redo = [];
+  noteStroke(note.cur);
+});
+notePaper.addEventListener('pointermove', (e) => {
+  if (e.pointerId !== note.id || !note.cur) return;
+  const p = note.cur.p, [x, y] = notePoint(e);
+  if (Math.hypot(x - p[p.length - 2], y - p[p.length - 1]) < 1.2) return;
+  if (p.length < 8000) p.push(x, y);
+  noteStroke(note.cur, p.length / 2 - 2);
+});
+for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) notePaper.addEventListener(type, (e) => { if (e.pointerId === note.id) notePenUp(); });
+for (const b of document.querySelectorAll('#noteBar [data-ntool]')) {
+  b.append(iconImg(b.dataset.ntool === 'pen' ? 'ball' : 'rub'));
+  b.addEventListener('click', () => { note.tool = b.dataset.ntool; noteShow(); });
+}
+for (const b of document.querySelectorAll('#noteBar [data-ncolor]')) b.addEventListener('click', () => { note.color = b.dataset.ncolor; note.tool = 'pen'; noteShow(); });
+$('noteSize').addEventListener('input', () => { note.size = clamp(Number($('noteSize').value) | 0, 1, 10); });
+$('noteUndo').append(iconImg('undo'));
+$('noteRedo').append(iconImg('redo'));
+$('noteUndo').addEventListener('click', noteUndo);
+$('noteRedo').addEventListener('click', noteRedo);
+$('noteClear').addEventListener('click', () => {
+  const doc = note.doc;
+  if (doc.readonly || !doc.pages[doc.at].length) return;
+  askConfirm('이 쪽 지우기', '이 쪽에 쓴 것을 모두 지워요. 되돌릴 수 없어요. 지울까요?', () => { doc.pages[doc.at] = []; note.redo = []; noteDraw(); noteShow(); noteSave(); }, '지우기');
+});
+$('notePrev').addEventListener('click', () => noteGo(-1));
+$('noteNext').addEventListener('click', () => noteGo(1));
+$('noteClose').addEventListener('click', closeNote);
+addEventListener('resize', noteFit);
+
+/* ───────────── 시험 ─────────────
+   선생님이 시험지 PDF 를 올리고 시작 · 종료 시각을 정해 예약한다 (리모컨 더보기 → 시험).
+   · 시험지는 쪽마다 그림으로 바꿔 방 통로로 보낸다 (x 메시지의 pg). 시험이 있다는 것과 시각은 선생님의 상태 소식(ex)에 실려서 늦게 온 학생도 안다.
+     시계는 선생님 기기의 시각을 기준으로 맞춘다 (ex 의 마지막 값 = 선생님의 지금 시각 → 내 시계와의 차이 offset)
+   · 학생 쪽의 흐름(phase): wait → pre(시작 15분 전부터) → run(시험 중) → over(종료 뒤, 초과) → done(제출함)
+     - pre 부터 책상에서 연습장이 치워지고 정가운데에 시험지(표지)가 놓인다. 화면 위에 시계가 뜬다
+     - run · over: 자리에서 일어날 수 없고, 채팅 · 소곤거리기 · 반응 · 마이크 · 배경 음악이 꺼진다. 시작과 끝에 종이 울린다
+     - 답은 시험지 위에 바로 쓴다. 쓴 것은 기기에 저장되어 새로고침해도 이어진다 (시험지 그림은 다시 받는다)
+   · 제출: 답을 쓴 시험지를 PDF 한 개로 만들어 기기의 '공유하기'로 보낸다 (카카오톡 · 텔레그램 등, 받는 사람은 학생이 고른다).
+     서버에는 아무것도 저장하지 않는다. 선생님 화면에는 누가 언제 제출을 눌렀는지만 보인다 */
+const EXAM_KEY = 'classroom-exam-v1', EXAM_PRE = 15 * 60000, EXAM_MAX = 12, EXAM_PX = 1000, EXAM_CHUNK = 150000;      // (Supabase 메시지 한 개는 256KB 까지 → 시험지 한 쪽을 조각으로 나눠 보낸다)
+const exam = {
+  meta: null,                        // { id, title, n 쪽 수, w · h 첫 쪽의 크기(비율), start, end } — 시각은 선생님 기기 기준(ms)
+  mine: false, by: '',               // 내가 낸 시험인지 · 낸 선생님의 id
+  pages: [], imgs: [], got: 0,       // 쪽마다의 그림(data URL) · 그 그림 요소 · 받은 쪽 수
+  parts: [], sendUntil: 0,           // 받는 중인 쪽의 조각들 · (선생님) 시험지를 다 보내는 시각
+  offset: 0, phase: '', done: 0,     // 선생님 시계 - 내 시계 · 지금 단계 · 제출한 시각(선생님 시계)
+  doc: null, hideClock: false, wantAt: 0, file: null,
+  coverTex: new THREE.Texture(), draft: null, subs: new Map(),
+};
+exam.coverTex.colorSpace = THREE.SRGBColorSpace;
+const examNow = () => Date.now() + exam.offset;
+const examBusy = () => !isTeacher && (exam.phase === 'run' || exam.phase === 'over');       // 시험을 치르는 중 (방해 요소를 끄고 자리를 지킨다)
+const examMode = () => !isTeacher && !!exam.meta && exam.phase !== '' && exam.phase !== 'wait';      // 시험 모드 (시작 15분 전부터): 책상에서 연습장이 치워지고 시험지만 놓인다
+const mmss = (ms) => { const s = Math.max(0, Math.floor(ms / 1000)); return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; };
+const hhmm = (t) => { const d = new Date(t - exam.offset); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+function examPhase() {
+  if (!exam.meta) return '';
+  const t = examNow();
+  if (!isTeacher && exam.done) return 'done';
+  return t < exam.meta.start - EXAM_PRE ? 'wait' : t < exam.meta.start ? 'pre' : t < exam.meta.end ? 'run' : 'over';
+}
+function examSave() {                 // 쓴 답과 제출 여부를 기기에 적어 둔다 (새로고침 · 튕김에 대비)
+  if (!exam.meta || !exam.doc || isTeacher) return;
+  try { localStorage.setItem(EXAM_KEY, JSON.stringify({ id: exam.meta.id, pages: exam.doc.pages, at: exam.doc.at, done: exam.done })); } catch {}
+}
+function examDocFor(meta) {
+  const doc = { kind: 'exam', pages: Array.from({ length: meta.n }, () => []), at: 0, w: EXAM_PX, h: Math.round(EXAM_PX * meta.h / meta.w), max: meta.n, grow: false, readonly: false, bg: exam.pages };
+  exam.done = 0;
+  try {
+    const saved = JSON.parse(localStorage.getItem(EXAM_KEY));
+    if (saved && saved.id === meta.id && Array.isArray(saved.pages)) {
+      saved.pages.slice(0, meta.n).forEach((pg, i) => { if (Array.isArray(pg)) doc.pages[i] = pg.filter((st) => st && Array.isArray(st.p)); });
+      doc.at = clamp(saved.at | 0, 0, meta.n - 1);
+      exam.done = Number(saved.done) || 0;
+    }
+  } catch {}
+  doc.readonly = !!exam.done;
+  return doc;
+}
+function examClear() {                // 시험이 없어졌다 (취소 · 강의실에서 나감)
+  if (note.doc.kind === 'exam') closeNote();
+  exam.meta = null;
+  exam.mine = false;
+  exam.by = '';
+  exam.pages = [];
+  exam.imgs = [];
+  exam.got = 0;
+  exam.done = 0;
+  exam.doc = null;
+  exam.file = null;
+  exam.parts = [];
+  exam.sendUntil = 0;
+  exam.subs.clear();
+  examTick();
+}
+function examPage(i, d) {             // 시험지 한 쪽을 받았다 (선생님은 자기가 만든 것을 그대로 넣는다)
+  if (exam.pages[i]) return;
+  exam.pages[i] = d;
+  exam.got++;
+  const img = exam.imgs[i] = new Image();
+  if (i === 0) img.onload = () => { exam.coverTex.image = img; exam.coverTex.needsUpdate = true; dirty = true; };
+  img.src = d;
+  if (!$('note').hidden && note.doc.kind === 'exam') noteShow();
+}
+// 선생님의 상태 소식에 실려 온 시험 소식
+function onExamMeta(peer, ex) {
+  if (isTeacher && exam.mine) return;
+  if (!Array.isArray(ex)) { if (exam.meta && exam.by === peer.id) examClear(); return; }
+  const [id, n, w, h, start, end, title, now] = ex;
+  if (typeof id !== 'string' || id.length > 24 || !Number.isInteger(n) || n < 1 || n > EXAM_MAX || !(w > 0) || !(h > 0) || !(start > 0) || !(end > start) || !(now > 0)) return;
+  const fresh = !exam.meta || exam.meta.id !== id;
+  exam.offset = fresh ? now - Date.now() : Math.max(exam.offset, now - Date.now());      // 소식이 늦게 올수록 차이가 작게 재어진다 → 가장 큰 값이 가장 정확하다
+  if (fresh) {
+    examClear();
+    exam.meta = { id, title: String(title || '시험지').slice(0, 60), n, w, h, start, end };
+    exam.by = peer.id;
+    exam.doc = examDocFor(exam.meta);
+    examTick();
+  } else {
+    exam.by = peer.id;               // (선생님이 다시 들어와 id 가 바뀌었어도 같은 시험이다)
+    if (exam.meta.start !== start || exam.meta.end !== end) { exam.meta.start = start; exam.meta.end = end; examTick(); }
+  }
+}
+function onExamMsg(m) {
+  const peer = peers.get(m.id);
+  if (!peer) return;
+  if (typeof m.want === 'string') {                  // (선생님) 학생이 시험지를 보내 달라고 한다
+    if (exam.mine && exam.meta && m.want === exam.meta.id && Date.now() > exam.sendUntil) examSend();      // 보내는 중이면 그것을 함께 받는다
+  } else if (Number.isInteger(m.pg)) {               // 시험지 한 쪽의 조각 (i 번째 / of 개)
+    if (!peer.teacher || isTeacher || !exam.meta || m.ex !== exam.meta.id || m.pg < 0 || m.pg >= exam.meta.n || exam.pages[m.pg]) return;
+    if (!Number.isInteger(m.of) || m.of < 1 || m.of > 5 || !Number.isInteger(m.i) || m.i < 0 || m.i >= m.of || typeof m.d !== 'string' || m.d.length > EXAM_CHUNK) return;
+    const part = exam.parts[m.pg] && exam.parts[m.pg].length === m.of ? exam.parts[m.pg] : (exam.parts[m.pg] = new Array(m.of).fill(null));
+    part[m.i] = m.d;
+    if (part.includes(null)) return;
+    const d = part.join('');
+    exam.parts[m.pg] = null;
+    if (!d.startsWith('data:image/jpeg;base64,')) return;
+    examPage(m.pg, d);
+    if (exam.got >= exam.meta.n) { exam.phase = ''; examTick(); }
+  } else if (m.done > 0) {                           // (선생님) 학생이 제출을 눌렀다
+    if (!exam.mine || !exam.meta || m.ex !== exam.meta.id) return;
+    exam.subs.set(m.id, { name: peer.actor.name || '학생', at: Number(m.done) });
+    toast(`${peer.actor.name || '학생'} · 시험지 제출 ${hhmm(Number(m.done))}`, 4000);
+    examKeep();
+    showExamBox();
+  }
+}
+function examSend() {                 // (선생님) 시험지의 모든 쪽을 조각내어 보낸다. 한꺼번에 몰리지 않게 조금씩 띄운다
+  if (!link || !exam.mine || !exam.meta) return;
+  const id = exam.meta.id;
+  let k = 0;
+  exam.pages.forEach((d, pg) => {
+    const of = Math.ceil(d.length / EXAM_CHUNK);
+    for (let i = 0; i < of; i++) {
+      setTimeout(() => {
+        if (link && exam.mine && exam.meta && exam.meta.id === id) link.send({ t: 'x', id: myId, ex: id, pg, i, of, d: d.slice(i * EXAM_CHUNK, (i + 1) * EXAM_CHUNK) });
+      }, k++ * 250);
+    }
+  });
+  exam.sendUntil = Date.now() + k * 250 + 1500;
+}
+/* 선생님이 예약한 시험은 선생님 기기(IndexedDB)에 적어 둔다: 새로고침하거나 잠깐 나갔다 와도 같은 시험을 이어 간다 */
+function examDb(mode, work) {
+  return new Promise((done) => {
+    try {
+      const open = indexedDB.open('classroom-exam', 1);
+      open.onupgradeneeded = () => open.result.createObjectStore('kv');
+      open.onerror = () => done(null);
+      open.onsuccess = () => {
+        const db = open.result, tx = db.transaction('kv', mode), req = work(tx.objectStore('kv'));
+        tx.oncomplete = () => { db.close(); done(req ? req.result : null); };
+        tx.onerror = tx.onabort = () => { db.close(); done(null); };
+      };
+    } catch { done(null); }
+  });
+}
+function examKeep() {
+  if (exam.mine && exam.meta) examDb('readwrite', (st) => st.put({ room: roomCode, meta: exam.meta, pages: exam.pages, subs: [...exam.subs] }, 'mine'));
+}
+function examRestore() {
+  if (!isTeacher) return;
+  examDb('readonly', (st) => st.get('mine')).then((kept) => {
+    if (!kept || !entered || !isTeacher || exam.meta || kept.room !== roomCode || !kept.meta || !Array.isArray(kept.pages)) return;
+    if (kept.pages.length !== kept.meta.n || Date.now() > kept.meta.end + 6 * 3600000) return;      // 끝난 지 오래된 시험은 잇지 않는다
+    exam.offset = 0;
+    exam.mine = true;
+    exam.by = myId;
+    exam.meta = kept.meta;
+    kept.pages.forEach((d, i) => examPage(i, d));
+    for (const [id, sub] of kept.subs || []) exam.subs.set(id, sub);
+    lastSent = '';
+    examTick();
+    showExamBox();
+    toast(`예약해 둔 시험을 이어서 진행해요 · ${hhmm(kept.meta.start)} ~ ${hhmm(kept.meta.end)}`, 5000);
+  });
+}
+// 종소리 (시험 시작 · 끝)
+function bell(times) {
+  if (!soundOn || !audioReady()) return;
+  for (let k = 0; k < times; k++) {
+    const t = ac.currentTime + 0.05 + k * 0.55, out = ac.createGain();
+    out.gain.value = 0.5;
+    out.connect(ac.destination);
+    tone(out, 84, t, 1.6, 0.16, 'sine', 0.004);
+    tone(out, 91, t, 1.1, 0.06, 'sine', 0.004);
+    tone(out, 72, t, 1.8, 0.07, 'triangle', 0.004);
+    setTimeout(() => out.disconnect(), 4000 + k * 550);
+  }
+}
+// 0.25초마다: 지금 단계를 정하고, 바뀌었으면 그에 맞게 강의실을 바꾼다
+function examTick() {
+  if (!entered) return;
+  const phase = examPhase(), prev = exam.phase;
+  if (phase !== prev) {
+    exam.phase = phase;
+    dirty = true;
+    applyVolume();                   // 시험 중에는 배경 음악을 끈다
+    showMic();
+    if (examBusy()) {                // 방해 요소를 닫는다
+      if (voice.on) setMic(false);
+      if (!$('chatForm').hidden) closeChatInput();
+      closeReact();
+      whisperPeer = '';
+      $('whisper').hidden = true;
+    }
+    if (!isTeacher && exam.meta && exam.got >= exam.meta.n) {
+      if (phase === 'pre') toast(`${hhmm(exam.meta.start)}에 시험이 시작돼요 · 자리에 앉아 주세요`, 7000);
+      else if (phase === 'run' && prev === 'pre') {      // 시작: 종이 울리고, 앉아 있으면 시험지가 눈앞으로 펴진다
+        bell(2);
+        toast('시험을 시작해요', 3000);
+        if (player.mode === 'seated' && !player.seat.stand && !zoomed) { notePut(player.seat); openNote(); }
+      } else if (phase === 'run') toast('시험 중이에요 · 자리에 앉아 시험지를 펴세요', 6000);
+      else if (phase === 'over' && prev === 'run') { bell(3); toast('시험 시간이 끝났어요 · 제출해 주세요', 6000); }
+    } else if (isTeacher && exam.mine) {
+      if (phase === 'run' && prev === 'pre') bell(2);
+      else if (phase === 'over' && prev === 'run') bell(3);
+    }
+    if (isTeacher) showExamBox();
+  }
+  if (!isTeacher && exam.meta && exam.got < exam.meta.n && link && Date.now() - exam.wantAt > 6000) {       // 시험지를 아직 다 못 받았다: 보내 달라고 한다
+    exam.wantAt = Date.now();
+    link.send({ t: 'x', id: myId, want: exam.meta.id });
+  }
+  examShow();
+}
+setInterval(examTick, 250);
+// 화면 위의 시험 시계와 제출 단추 (필기 화면을 펴 두었으면 그 도구 줄에도 같은 것이 보인다)
+function examShow() {
+  const p = exam.phase, m = exam.meta, on = entered && !!m && p !== '' && (p !== 'wait' || (isTeacher && exam.mine));
+  const open = !$('note').hidden && note.doc.kind === 'exam';
+  $('examChip').hidden = !on || open;
+  $('noteExam').hidden = !(on && open);
+  if (!on) return;
+  const t = examNow(), left = m.end - t;
+  const text = p === 'wait' ? `시험 ${hhmm(m.start)} ~ ${hhmm(m.end)}`
+    : p === 'pre' ? `시작까지 ${mmss(m.start - t)}`
+    : p === 'run' ? (exam.hideClock ? '시계 숨김' : `남은 시간 ${mmss(left)}`)
+    : p === 'over' ? (isTeacher ? `종료 뒤 ${mmss(-left)}` : `초과 +${mmss(-left)}`)
+    : `제출 ${hhmm(exam.done)}`;
+  const tone = p === 'over' ? 'over' : p === 'done' ? 'done' : p === 'run' && left <= 60000 ? 'last' : p === 'run' && left <= 300000 ? 'soon' : p === 'run' && left <= 600000 ? 'near' : '';
+  const canSubmit = !isTeacher && (p === 'run' || p === 'over');
+  for (const [time, submit, share] of [[$('examTime'), $('examSubmit'), $('examShare')], [$('noteExamTime'), $('noteSubmit'), null]]) {
+    if (time.textContent !== text) time.textContent = text;
+    time.dataset.tone = tone;
+    submit.hidden = !canSubmit;
+    submit.classList.toggle('over', p === 'over');
+    if (share) share.hidden = !(p === 'done' && exam.file);
+  }
+}
+for (const el of [$('examTime'), $('noteExamTime')]) el.addEventListener('click', () => { if (exam.phase === 'run') { exam.hideClock = !exam.hideClock; examShow(); } });
+// 시험지를 편다 (책상 위의 시험지를 고르거나, 시작 시각에 저절로)
+function examOpen() {
+  const p = exam.phase;
+  if (!exam.doc || !exam.meta) return;
+  if (p === 'pre') { toast(`아직 시작 전이에요 · ${hhmm(exam.meta.start)}에 시작해요`); return; }
+  exam.doc.readonly = p === 'done';
+  padOpen(exam.doc);
+}
+/* ── 제출: 답을 쓴 시험지를 PDF 한 개로 만들어 공유한다 ── */
+function examSheet(i, stamp) {        // i 쪽의 시험지 그림 위에 쓴 답을 얹은 JPEG
+  const doc = exam.doc, c = document.createElement('canvas'), g = c.getContext('2d'), k = 1.2;
+  c.width = Math.round(doc.w * k);
+  c.height = Math.round(doc.h * k);
+  g.fillStyle = '#fff';
+  g.fillRect(0, 0, c.width, c.height);
+  const img = exam.imgs[i];
+  if (img && img.complete && img.naturalWidth) g.drawImage(img, 0, 0, c.width, c.height);
+  const layer = document.createElement('canvas');      // 지우개가 시험지 그림까지 지우지 않게, 답은 따로 그려서 얹는다
+  layer.width = c.width;
+  layer.height = c.height;
+  const lg = layer.getContext('2d');
+  for (const st of doc.pages[i]) strokeOn(lg, st, k);
+  g.drawImage(layer, 0, 0);
+  if (stamp) {                       // 첫 쪽 위쪽에 이름 · 제출 시각을 적는다
+    g.font = `700 ${Math.round(26 * k)}px ${UI_FONT}`;
+    const tw = g.measureText(stamp).width;
+    g.fillStyle = 'rgba(255, 255, 255, .92)';
+    g.fillRect(0, 0, tw + 28 * k, 42 * k);
+    g.fillStyle = '#c0291b';
+    g.textBaseline = 'middle';
+    g.fillText(stamp, 12 * k, 22 * k);
+  }
+  const bin = atob(c.toDataURL('image/jpeg', 0.82).split(',')[1]), bytes = new Uint8Array(bin.length);
+  for (let n = 0; n < bin.length; n++) bytes[n] = bin.charCodeAt(n);
+  return { jpeg: bytes, w: c.width, h: c.height };
+}
+function jpegPdf(sheets) {            // JPEG 한 장이 한 쪽인 PDF 를 손수 만든다 (바깥 도구 없이)
+  const enc = new TextEncoder(), parts = [], at = [];
+  let len = 0;
+  const put = (x) => { const b = typeof x === 'string' ? enc.encode(x) : x; parts.push(b); len += b.length; };
+  const obj = (n, body) => { at[n] = len; put(`${n} 0 obj\n`); body(); put('\nendobj\n'); };
+  put('%PDF-1.4\n');
+  obj(1, () => put('<< /Type /Catalog /Pages 2 0 R >>'));
+  obj(2, () => put(`<< /Type /Pages /Count ${sheets.length} /Kids [${sheets.map((_, i) => `${3 + 3 * i} 0 R`).join(' ')}] >>`));
+  sheets.forEach((s, i) => {
+    const W = 595, H = Math.round(595 * s.h / s.w), draw = `q ${W} 0 0 ${H} 0 0 cm /Im0 Do Q`;
+    obj(3 + 3 * i, () => put(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /XObject << /Im0 ${5 + 3 * i} 0 R >> >> /Contents ${4 + 3 * i} 0 R >>`));
+    obj(4 + 3 * i, () => put(`<< /Length ${draw.length} >>\nstream\n${draw}\nendstream`));
+    obj(5 + 3 * i, () => {
+      put(`<< /Type /XObject /Subtype /Image /Width ${s.w} /Height ${s.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${s.jpeg.length} >>\nstream\n`);
+      put(s.jpeg);
+      put('\nendstream');
+    });
+  });
+  const xref = len, count = 3 + 3 * sheets.length;
+  put(`xref\n0 ${count}\n0000000000 65535 f \n`);
+  for (let n = 1; n < count; n++) put(`${String(at[n]).padStart(10, '0')} 00000 n \n`);
+  put(`trailer\n<< /Size ${count} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`);
+  return new Blob(parts, { type: 'application/pdf' });
+}
+function examSubmit() {               // (제출 단추 → 확인 → 여기) 누른 그 자리에서 파일을 만들어 공유 창을 띄운다
+  if (!exam.meta || !exam.doc || exam.done || isTeacher) return;
+  notePenUp();
+  const m = exam.meta, at = examNow(), late = at - m.end, name = myName || '학생';
+  const stamp = `${name} · 제출 ${hhmm(at)}${late > 0 ? ` (초과 +${mmss(late)})` : ''}`;
+  let blob;
+  try { blob = jpegPdf(exam.doc.pages.map((_, i) => examSheet(i, i === 0 ? stamp : ''))); }
+  catch (err) { console.warn('시험지 파일 만들기 실패', err); toast('제출할 파일을 만들지 못했어요. 다시 눌러 주세요', 6000); return; }
+  exam.file = new File([blob], `시험_${name}_${hhmm(at).replace(':', '')}.pdf`, { type: 'application/pdf' });
+  exam.done = at;
+  exam.doc.readonly = true;
+  examSave();
+  if (link) link.send({ t: 'x', id: myId, ex: m.id, done: at });
+  closeNote();
+  examTick();
+  examShare();
+}
+function examShare() {                // 기기의 '공유하기'로 보낸다. 공유하기가 없는 브라우저에서는 파일로 내려받는다
+  const file = exam.file;
+  if (!file) return;
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    navigator.share({ files: [file], title: '시험지 제출', text: `${myName || '학생'} 시험지` })
+      .then(() => toast('공유 창에서 보냈으면 제출이 끝나요', 5000))
+      .catch((err) => { if (!err || err.name !== 'AbortError') console.warn('공유 실패', err); toast('보내지 않았으면 "다시 공유"를 눌러 선생님께 보내 주세요', 7000); });
+  } else {
+    const url = URL.createObjectURL(file), a = Object.assign(document.createElement('a'), { href: url, download: file.name });
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+    toast('이 브라우저에는 공유하기가 없어서 파일로 내려받았어요 · 그 파일을 선생님께 보내 주세요', 9000);
+  }
+}
+$('examSubmit').addEventListener('click', () => askConfirm('시험지 제출', '제출하면 더 고칠 수 없어요. 답을 쓴 시험지를 파일로 만들어 공유 창을 열어요. 제출할까요?', examSubmit, '제출'));
+$('noteSubmit').addEventListener('click', () => askConfirm('시험지 제출', '제출하면 더 고칠 수 없어요. 답을 쓴 시험지를 파일로 만들어 공유 창을 열어요. 제출할까요?', examSubmit, '제출'));
+$('examShare').addEventListener('click', examShare);
+/* ── 선생님의 시험 창 ── */
+function showExamBox() {
+  if ($('examBox').hidden) return;
+  const m = exam.mine ? exam.meta : null, d = exam.draft;
+  $('examName').textContent = m ? `${m.title} · ${m.n}쪽` : d ? `${d.title} · ${d.pages.length}쪽 · ${d.w >= d.h ? '가로' : '세로'}` : '시험지 PDF 를 골라 주세요 (12쪽까지)';
+  $('examStart').disabled = $('examEnd').disabled = $('examFile').disabled = !!m;
+  $('examGo').hidden = !!m;
+  $('examGo').disabled = !d;
+  $('examStop').hidden = !m;
+  $('examStop').textContent = m && exam.phase === 'over' ? '시험 마치기 (시험지 걷기)' : '시험 취소';
+  $('examNote').textContent = m ? `${hhmm(m.start)} ~ ${hhmm(m.end)} · 시작 15분 전부터 학생 책상에 시험지가 놓여요` : '학생은 답을 시험지 위에 쓰고, 제출하면 기기의 공유하기로 선생님께 보내요';
+  const rows = [...exam.subs.values()].sort((a, b) => a.at - b.at).map((s) => {
+    const row = document.createElement('div'), late = m ? s.at - m.end : 0;
+    row.textContent = `${s.name} · ${hhmm(s.at)}${late > 0 ? ` (+${mmss(late)})` : ''}`;
+    if (late > 0) row.className = 'late';
+    return row;
+  });
+  $('examSubs').replaceChildren(...(rows.length ? rows : [Object.assign(document.createElement('p'), { textContent: m ? '아직 제출한 학생이 없어요.' : '' })]));
+}
+const timeField = (t) => { const d = new Date(t); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+const fieldTime = (v) => { const [h, mi] = String(v).split(':').map(Number), d = new Date(); d.setHours(h || 0, mi || 0, 0, 0); return d.getTime(); };
+$('examBtn').addEventListener('click', () => {
+  $('examBox').hidden = !$('examBox').hidden;
+  if (!$('examBox').hidden && !exam.mine && !$('examStart').value) {       // 처음 열면: 20분 뒤(5분 단위) 시작, 50분 동안
+    const start = Math.ceil((Date.now() + 20 * 60000) / 300000) * 300000;
+    $('examStart').value = timeField(start);
+    $('examEnd').value = timeField(start + 50 * 60000);
+  }
+  showExamBox();
+  canvas.focus();
+});
+$('examClose').addEventListener('click', () => { $('examBox').hidden = true; canvas.focus(); });
+$('examFile').addEventListener('click', () => $('examInput').click());
+$('examInput').addEventListener('change', async () => {
+  const file = $('examInput').files[0];
+  $('examInput').value = '';
+  if (!file) return;
+  $('examName').textContent = '시험지를 여는 중…';
+  try {
+    const pdf = await loadPdf(file);
+    if (pdf.numPages > EXAM_MAX) { toast(`시험지는 ${EXAM_MAX}쪽까지 올릴 수 있어요 (이 파일은 ${pdf.numPages}쪽)`, 6000); showExamBox(); return; }
+    const pages = [];
+    let w = 1, h = 1;
+    for (let i = 0; i < pdf.numPages; i++) {
+      $('examName').textContent = `시험지를 여는 중… ${i + 1} / ${pdf.numPages}`;
+      const page = await pdf.getPage(i + 1), base = page.getViewport({ scale: 1 }), viewport = page.getViewport({ scale: EXAM_PX / base.width });
+      const c = document.createElement('canvas'), g = c.getContext('2d');
+      c.width = Math.round(viewport.width);
+      c.height = Math.round(viewport.height);
+      g.fillStyle = '#fff';
+      g.fillRect(0, 0, c.width, c.height);
+      await page.render({ canvasContext: g, viewport }).promise;
+      if (i === 0) { w = c.width; h = c.height; }
+      let q = 0.75, d = c.toDataURL('image/jpeg', q);
+      while (d.length > 450000 && q > 0.35) { q -= 0.1; d = c.toDataURL('image/jpeg', q); }      // 한 쪽이 너무 크면 조금 더 줄인다
+      pages.push(d);
+    }
+    exam.draft = { title: file.name.replace(/\.pdf$/i, '').slice(0, 60), pages, w, h };
+    const cover = $('examCover'), img = new Image();
+    img.onload = () => {             // 표지(1쪽)를 작게 보여 준다 — 비율은 PDF 그대로
+      const k = 110 / Math.max(w, h);
+      cover.width = Math.round(w * k);
+      cover.height = Math.round(h * k);
+      cover.getContext('2d').drawImage(img, 0, 0, cover.width, cover.height);
+      cover.hidden = false;
+    };
+    img.src = pages[0];
+  } catch (err) {
+    console.warn('시험지 열기 실패', err);
+    toast('이 PDF 를 열지 못했어요', 5000);
+  }
+  showExamBox();
+});
+$('examGo').addEventListener('click', () => {
+  const d = exam.draft;
+  if (!d || !isTeacher) return;
+  let start = fieldTime($('examStart').value), end = fieldTime($('examEnd').value);
+  if (end <= start) end += 24 * 3600000;               // 자정을 넘기는 시험
+  if (end <= Date.now()) { toast('종료 시각이 이미 지났어요. 시각을 다시 정해 주세요', 5000); return; }
+  if (end - start < 60000) { toast('시험 시간이 너무 짧아요', 4000); return; }
+  examClear();
+  exam.offset = 0;
+  exam.mine = true;
+  exam.by = myId;
+  exam.meta = { id: Math.random().toString(36).slice(2, 10), title: d.title, n: d.pages.length, w: d.w, h: d.h, start, end };
+  d.pages.forEach((p, i) => examPage(i, p));
+  examSend();
+  examKeep();
+  lastSent = '';                     // 시험이 생긴 것을 바로 알린다
+  toast(`시험을 예약했어요 · ${hhmm(start)} ~ ${hhmm(end)}`, 5000);
+  examTick();
+  showExamBox();
+});
+$('examStop').addEventListener('click', () => {
+  const over = exam.phase === 'over';
+  askConfirm(over ? '시험 마치기' : '시험 취소', `${over ? '시험을 마치면' : '시험을 취소하면'} 학생 책상의 시험지가 치워지고 연습장이 돌아와요. 제출 목록도 지워져요. 계속할까요?`, () => {
+    examClear();
+    examDb('readwrite', (st) => st.delete('mine'));
+    lastSent = '';
+    toast(over ? '시험을 마쳤어요' : '시험을 취소했어요');
+    showExamBox();
+  }, over ? '시험 마치기' : '시험 취소');
+});
+
 /* 채팅: 같은 수업의 모두가 함께 보는 대화 창 (c 메시지). 말한 사람의 머리 위에도 말풍선으로 잠깐 뜬다.
    창을 닫아 둔 동안 온 말은 채팅 단추에 빨간 숫자로 쌓인다 (화면에 따로 알림을 띄우지는 않는다). 내가 들어온 뒤의 말만 남는다 */
 const chat = { unread: 0, sentAt: 0 };
@@ -6984,6 +7838,7 @@ $('chat').addEventListener('pointerleave', chatWake);
 // 글 적는 칸을 연다 (Enter · 채팅 단추). 평소에는 대화만 보이고, 적는 칸과 보내기 단추는 이때만 나온다
 function openChat() {
   if (!entered) return;
+  if (examBusy()) { toast('시험 중에는 채팅을 쓸 수 없어요'); return; }
   chatWake();
   $('chat').hidden = false;
   chat.closed = false;
@@ -7047,11 +7902,12 @@ function closeReact() {
   return true;
 }
 function toggleReact() {
+  if (examBusy()) { closeReact(); toast('시험 중에는 반응을 보낼 수 없어요'); return; }
   if (!closeReact()) $('react').hidden = false;
 }
 function sendReact(kind) {
   closeReact();
-  if (player.mode !== 'seated') return;
+  if (player.mode !== 'seated' || examBusy()) return;
   if (Date.now() - lastOk < 2000) { toast('조금 있다가 다시 보내 주세요'); return; }
   lastOk = Date.now();
   if (link) link.send({ t: 'e', id: myId, k: kind });
@@ -7104,6 +7960,7 @@ function mateReply() {
 function openWhisper(id, focus = true) {
   const peer = partner(id);
   if (!peer) return;
+  if (examBusy()) { if (focus) toast('시험 중에는 소곤거릴 수 없어요'); return; }
   whisperPeer = id;
   $('whisperName').textContent = `${polite(peer.actor.name)}과 소곤소곤`;
   $('whisperLog').replaceChildren(...(whispers.get(id) || []).slice(-30).map((w) => {
@@ -7148,9 +8005,11 @@ function onClassMsg(m) {
   const peer = peers.get(m.id);
   if (!peer) return;
   const text = typeof m.x === 'string' ? m.x.slice(0, 60) : '';
+  if (examBusy() && !(peer.teacher && (m.t === 'c' || m.t === 'q'))) return;        // 시험 중: 선생님의 채팅(알림)만 보인다. 다른 채팅 · 반응 · 쪽지는 보이지 않는다
   if ((m.t === 'c' || m.t === 'q') && typeof m.x === 'string' && m.x.trim()) {       // 채팅 (q 는 예전의 '질문')
     const said = m.x.trim().slice(0, 120), name = peer.actor.name || '학생';
     chatAdd(name, said, peer.teacher ? 'teacher' : '');
+    if (examBusy()) toast(`${name}: ${said}`, 9000);      // 시험 중에 온 선생님의 알림은 시험지를 펴 둔 화면 위에도 보이게
     peer.actor.say(said, 7000);                      // 머리 위 말풍선 (창을 닫아 둔 동안 온 말은 채팅 단추의 빨간 숫자로만 알린다)
   } else if (m.t === 'e') {
     const kind = m.k === 1 || m.k === 2 ? m.k : 0;
@@ -7291,7 +8150,8 @@ function keyRows() {
       k('KeyZ', 'Z', canWrite() ? '되돌리기' : '', '판서 화면에서 방금 쓰거나 지운 것을 되돌려요. Shift 와 함께 누르면 되돌린 것을 다시 해요(앞으로 가기). Ctrl(⌘)+Z 도 돼요.'),
       k('KeyX', 'X', '고르기', T ? '바라보는 것을 골라요. 교탁을 보면 교탁에 서기, 칠판을 가까이에서 보면 판서(멀리서나 앉아서는 크게 보기만), 자리를 보면 앉기, 문을 보면 나가기.' : '바라보는 것을 골라요. 자리를 보면 앉기, 칠판을 보면 크게 보기, 옆 친구를 보면 소곤거리기, 문을 보면 나가기.'),
       k('KeyC', 'C'), k('KeyV', 'V', '마이크', T ? '마이크를 켜고 꺼요. 선생님 목소리는 교실 전체에 들려요(리모컨의 더보기 → 마이크에서 바꿀 수 있어요).' : '선생님이 허락하면 마이크를 켜고 끌 수 있어요. 목소리는 가까이 있는 사람에게 들리고, 멀수록 작게 들려요.'),
-      k('KeyB', 'B', T ? '판서' : '칠판 보기', T ? '칠판 가까이에 서서 누르면 판서 화면이 열려요(펜 · 지우개 · 색). 멀리서나 앉아서 누르면 크게 보기만 해요.' : '칠판을 크게 봐요. 한 번 더 누르면 돌아와요.')],
+      k('KeyB', 'B', T ? '판서' : '칠판 보기', T ? '칠판 가까이에 서서 누르면 판서 화면이 열려요(펜 · 지우개 · 색). 멀리서나 앉아서 누르면 크게 보기만 해요.' : '칠판을 크게 봐요. 한 번 더 누르면 돌아와요.'),
+      k('KeyN', 'N', T ? '' : '연습장', '자리에 앉아 있을 때, 책상 왼쪽에 놓인 연습장을 펴요. 나만 보는 필기장이고, 쓴 것은 이 기기에만 저장돼요. 연습장을 바라보고 X 를 눌러도 돼요.')],
     [gap(1.6), k('Space', 'Space', '점프', T ? '제자리에서 뛰어요. 판서 화면에서는 누르고 있는 동안 학생들을 돌아봐요.' : '제자리에서 뛰어요.', 3.6), gap(0.6),
       k('ArrowLeft', '←', T ? '왼쪽·이전' : '왼쪽', side('왼쪽', '이전')),
       k('ArrowUp', '↑', '앞으로', '앞으로 걸어요.'),
@@ -7327,7 +8187,7 @@ function miniParts(board) {
     ...corner,
     ['stick', 'stick round', '', '왼쪽 아래 · 왼손 엄지 자리', '동그라미를 밀어서 걸어요. 끝까지 밀면 달려요.'],
     ['drag', 'look dash', '끌어서 둘러보기', '둘러보기', '화면의 빈 곳을 끌면 둘러봐요.'],
-    ['tap', 'tap round dash', '톡', '톡 누르기', T ? '교탁 · 칠판 · 자리 · 문을 화면에서 직접 톡 누르면 교탁 서기 · 판서 · 앉기 · 나가기를 바로 해요.' : '자리 · 칠판 · 옆 친구 · 문을 화면에서 직접 톡 누르면 앉기 · 크게 보기 · 소곤거리기 · 나가기를 바로 해요.'],
+    ['tap', 'tap round dash', '톡', '톡 누르기', T ? '교탁 · 칠판 · 자리 · 문을 화면에서 직접 톡 누르면 교탁 서기 · 판서 · 앉기 · 나가기를 바로 해요.' : '자리 · 칠판 · 옆 친구 · 문을 화면에서 직접 톡 누르면 앉기 · 크게 보기 · 소곤거리기 · 나가기를 바로 해요. 앉은 뒤 책상 위의 연습장을 톡 누르면 나만 보는 필기장이 펴져요.'],
     ['jump', 'jump round', '점프', '점프', `제자리에서 뛰어요.${G ? ' 판서할 때는 "학생보기"로 바뀌어요.' : ''}`],
     ['act0', 'slot round coral', '할 일', '할 일 단추', `지금 할 수 있는 일이 여기에 생겨요: ${acts}.`, MINI_SLOT[0]],
     ['act1', 'slot round empty', '+', '할 일 단추 (둘째)', '할 일이 둘이면 여기에 하나 더 생겨요. 반시계 방향으로 늘어나요.', MINI_SLOT[1]],
@@ -7496,6 +8356,7 @@ addEventListener('keydown', (e) => {
     if (e.code === 'Escape') closeConfirm(false);
     return;
   }
+  if (!$('note').hidden) { noteKey(e); return; }           // 연습장을 펴 둔 동안에는 연습장의 키만 듣는다
   if (paused) {                        // 나갈지 묻는 창이 떠 있을 땐 Esc = 계속 있기
     if (e.code === 'Escape') stay();
     return;
@@ -7514,6 +8375,7 @@ addEventListener('keydown', (e) => {
   }
   if (e.code === 'KeyH' && !e.repeat && !e.ctrlKey && !e.metaKey) { setKeys($('keys').hidden); return; }     // 조작법 열기 · 닫기
   if (e.code === 'KeyV' && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey) { setMic(!voice.on); e.preventDefault(); return; }       // 마이크 켜기 · 끄기
+  if (e.code === 'KeyN' && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey && noteObj.on) { openNote(); e.preventDefault(); return; }       // 연습장 펴기 (자리에 앉은 학생)
   // 판서 화면: Z = 되돌리기, Shift+Z = 앞으로 가기 (Ctrl · ⌘ 와 함께 눌러도 되고, Ctrl+Y 도 앞으로 가기)
   if (canInk() && !e.altKey && (e.code === 'KeyZ' || (e.code === 'KeyY' && (e.ctrlKey || e.metaKey)))) {
     if (e.code === 'KeyY' || e.shiftKey) redo(); else undo();
@@ -7643,7 +8505,8 @@ function tapAt(clientX, clientY) {
       }
     }
   }
-  if (player.mode === 'seated') {      // 앉아서 옆 친구를 톡 누르면 소곤거리기
+  if (player.mode === 'seated') {      // 앉아서 연습장을 톡 누르면 펴고, 옆 친구를 톡 누르면 소곤거리기
+    if (noteObj.on && viewRay.intersectBox(noteObj.boxes[0], _hit)) { openNote(); return; }
     const friend = whisperLooked(true);
     if (friend) { openWhisper(friend.seat.taken.peerId || 'mate'); return; }
   }
@@ -7937,6 +8800,7 @@ function enter() {
   netJoin();
   entered = true;
   audioReady();                       // 선생님이 BGM 을 틀면 바로 들리도록 소리를 준비해 둔다
+  examRestore();                      // (선생님) 이 강의실에 예약해 둔 시험이 있으면 이어서 진행한다
   playBgm(cfg.bgm);                   // 로비 음악은 서서히 꺼지고, 강의실의 BGM(있으면)이 흐른다
   showSetup();
   showSound();
@@ -8184,6 +9048,7 @@ window.classroom = {
   get role() { return [role, creator, isTeacher]; }, strokes, inkAdd, FORMS, BOARD, spawn, nearestFree, playBgm, gotoArea, boardCam,
   get areas() { return [areas, areaAt, zoomX]; },
   get zoom() { return [zoomed, zoomAmt]; }, frame, zaps, zapAdd, liveTex, liveMesh, live, inkTex, showTex, startLive, endShow, inkClear, inkErase, get show() { return show; }, get lap() { return { ...lapShown, level: pixels.level, trial: !!pixels.trial, hold: Math.round(Math.max(0, pixels.hold - performance.now()) / 1000), mirrorMs, every: mirrorEvery() }; }, mirrorRT, get mirror() { return { n: mirrorN, sum: mirrorSum, ms: mirrorMs, rt: [mirrorRT.width, mirrorRT.height], on: mirrorGlass.visible, pos: mirrorGlass.position.toArray(), calls: mirrorCalls, all: info.calls, fade: mirrorMat.uniforms.fade.value }; }, get mySkin() { return mySkin; }, peerSkins, actors, get follow() { return { on: follow.on, can: canFollow(), x: zoomX, to: follow.to, area: areaAt }; }, setZoom, setHide, undo, redo, hist, stylus, joy, voice, setMic, VOICE, openChat, chatAdd, chat, get zoomWrite() { return zoomWrite; }, nearBoard, get glance() { return [glancing, +glanceLook.yaw.toFixed(3), +glanceLook.pitch.toFixed(3)]; }, get bgm() { return bgmNow; }, get audio() { return ac; },
+  exam, note, noteObj, examTick, examSheet, jpegPdf, openNote, closeNote,
   get room() { return { ROOM, HW, HD, floorAt, obstacles, blocked, cellH, NX, NZ }; },
   net: { peers, myId, tick: netTick, receive: netReceive, pace: netPace, openSupabase,
     get link() { return link; }, get state() { return linkState; }, get seatAt() { return mySeatAt; } },
